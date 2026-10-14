@@ -3,6 +3,9 @@ package com.wifipulse.analyzer.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -41,6 +44,7 @@ fun DiagnosticScreen(
     var selectedOutputTab by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
 
     // Auto-scroll console to bottom when new logs arrive
     LaunchedEffect(state.logs.size) {
@@ -88,9 +92,19 @@ fun DiagnosticScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            ConnectionStatusBanner(
-                details = connectionDetails,
-                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    ConnectionStatusBanner(details = connectionDetails, modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
+                }
+                MiniSonarControl(rssi = if (connectionDetails.isConnected) connectionDetails.rssi else -65)
+            }
+            SpeedTestLinks(
+                onOpen = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+                onRouter = {
+                    val gateway = connectionDetails.gateway.takeIf { it.isNotBlank() && it != "0.0.0.0" }
+                    if (gateway != null) context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$gateway")))
+                },
+                gateway = connectionDetails.gateway
             )
             // Target Input Field
             OutlinedTextField(
@@ -425,6 +439,36 @@ fun DiagnosticScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun SpeedTestLinks(
+    onOpen: (String) -> Unit,
+    onRouter: () -> Unit,
+    gateway: String
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text("Проверка скорости в браузере", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            AssistChip(onClick = { onOpen("https://2ip.ru/speed/") }, label = { Text("2IP", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.Speed, null, modifier = Modifier.size(14.dp)) })
+            AssistChip(onClick = { onOpen("https://yandex.ru/internet/") }, label = { Text("Интернетометр", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.NetworkCheck, null, modifier = Modifier.size(14.dp)) })
+            AssistChip(onClick = { onOpen("https://speedtest.su/") }, label = { Text("Speedtest.su", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.Bolt, null, modifier = Modifier.size(14.dp)) })
+        }
+        OutlinedButton(
+            onClick = onRouter,
+            enabled = gateway.isNotBlank() && gateway != "0.0.0.0",
+            modifier = Modifier.align(Alignment.Start),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Icon(Icons.Default.Router, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(if (gateway.isNotBlank() && gateway != "0.0.0.0") "Настройки роутера • $gateway" else "Шлюз недоступен", fontSize = 11.sp)
         }
     }
 }
