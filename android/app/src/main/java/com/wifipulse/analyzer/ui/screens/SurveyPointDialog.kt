@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
 import android.content.Context
+import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.compose.foundation.background
@@ -137,6 +138,33 @@ fun SurveyPointDialog(
                     Spacer(Modifier.width(6.dp))
                     Text("Зафиксировать точку")
                 }
+                OutlinedButton(
+                    onClick = {
+                        val report = buildString {
+                            appendLine("Дата: ${SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.getDefault()).format(Date())}")
+                            appendLine("Подключённая сеть: ${details.ssid}")
+                            appendLine("Текущая частота: ${details.frequency} МГц")
+                            appendLine("Замеров: ${points.size}")
+                            appendLine()
+                            points.forEachIndexed { i, point ->
+                                appendLine("${i + 1}. ${point.room} | ${point.ssid} | ${point.band} | ${point.rssi} dBm | ${point.frequency} MHz")
+                            }
+                            val comparable = points.filter { it.ssid == details.ssid && it.band == currentBand }
+                            if (comparable.size >= 2) {
+                                appendLine()
+                                appendLine("Лучшее место: ${comparable.maxByOrNull { it.rssi }?.room}")
+                                appendLine("Слабейшее место: ${comparable.minByOrNull { it.rssi }?.room}")
+                            }
+                        }
+                        val saved = exportReportPdf(context, "WiFiPulse-survey-${System.currentTimeMillis()}", "Обследование Wi-Fi", report)
+                        Toast.makeText(context, saved?.let { "PDF сохранён: ${if (it.startsWith("content:")) "Загрузки/WiFiPulse" else it}" } ?: "Не удалось сохранить PDF", Toast.LENGTH_LONG).show()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Экспорт отчёта PDF")
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Замеры: ${points.size}", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     TextButton(
@@ -179,6 +207,30 @@ fun SurveyPointDialog(
                         }
                     }
                 }
+                if (points.isNotEmpty()) {
+                    Text("Карта покрытия по зафиксированным точкам", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                    Text("Цвет показывает уровень RSSI; это схема замеров, а не план помещения.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    points.forEach { point ->
+                        val heatColor = when {
+                            point.rssi >= -55 -> Color(0xFF16A34A)
+                            point.rssi >= -67 -> Color(0xFF65A30D)
+                            point.rssi >= -75 -> Color(0xFFEAB308)
+                            else -> Color(0xFFDC2626)
+                        }
+                        Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(point.room, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                Text("${point.rssi} dBm", color = heatColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                            }
+                            LinearProgressIndicator(
+                                progress = ((point.rssi + 100).coerceIn(0, 70) / 70f),
+                                modifier = Modifier.fillMaxWidth().height(7.dp),
+                                color = heatColor,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        }
+                    }
+                }
                 val comparablePoints = points.filter { it.ssid == details.ssid && it.band == currentBand }
                 if (comparablePoints.size >= 2) {
                     val best = comparablePoints.maxByOrNull { it.rssi }!!
@@ -187,6 +239,19 @@ fun SurveyPointDialog(
                         "Для сети ${details.ssid} в диапазоне $currentBand: лучшее место — ${best.room} (${best.rssi} dBm), слабейшее — ${weakest.room} (${weakest.rssi} dBm).",
                         style = MaterialTheme.typography.bodySmall
                     )
+                    if (weakest.rssi <= -75) {
+                        Text(
+                            "Рекомендация: проверьте более центральное место установки роутера. Если слабая зона остаётся после перемещения, рассмотрите дополнительную точку доступа с проводным backhaul; Mesh/репитер не следует ставить в зоне уже слабого сигнала.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else if (best.rssi - weakest.rssi >= 15) {
+                        Text(
+                            "Разница между лучшей и слабейшей точками составляет ${best.rssi - weakest.rssi} dB. Перемещение роутера может заметно улучшить покрытие слабой комнаты.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 } else if (points.isNotEmpty()) {
                     Text(
                         "Для корректного сравнения зафиксируйте минимум две точки с одной и той же сетью и диапазоном ($currentBand).",
