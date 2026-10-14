@@ -175,7 +175,9 @@ data class WifiConnectionDetails(
     val frequency: Int = 0,
     val standard: String = "Wi-Fi 5 (802.11ac)",
     val macAddress: String = "02:00:00:00:00:00",
-    val isHidden: Boolean = false
+    val isHidden: Boolean = false,
+    val isVpnActive: Boolean = false,
+    val isMobileDataActive: Boolean = false
 )
 
 data class ChannelRating(
