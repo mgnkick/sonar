@@ -207,10 +207,10 @@ class SmartAuditEngine {
                     id = "rec_sec_wpa2",
                     category = AuditCategory.SECURITY_PROTOCOL,
                     severity = AuditSeverity.WARNING,
-                    title = "Рекомендуется переход на WPA3-SAE",
-                    summary = "Сеть защищена протоколом WPA2-PSK. Он надежен при длинном пароле, однако уязвим к атакам деаутентификации и оффлайн-перебору по перехваченному 4-way handshake.",
-                    actionGuide = "Если ваш роутер поддерживает Wi-Fi 6 или обновленные прошивки, включите смешанный режим «WPA2/WPA3-Personal» для надежной защиты от подбора паролей.",
-                    metricBadge = "WPA2-PSK (Базовый)"
+                    title = "WPA2-PSK: защита зависит от пароля",
+                    summary = "WPA2-Personal с AES остаётся распространённым и совместимым вариантом. Главные факторы защиты — уникальный длинный пароль и отключённый WPS.",
+                    actionGuide = "Если используется WPA2-Personal (AES) и уникальный пароль от 12–16 символов, менять шифрование только ради версии протокола не требуется. Не используйте WEP или открытый режим.",
+                    metricBadge = "WPA2-PSK"
                 )
             }
             SecurityType.WPA3_SAE, SecurityType.WPA2_WPA3_MIXED -> {
@@ -218,10 +218,10 @@ class SmartAuditEngine {
                     id = "rec_sec_wpa3",
                     category = AuditCategory.SECURITY_PROTOCOL,
                     severity = AuditSeverity.OPTIMAL,
-                    title = "Высочайший уровень безопасности WPA3-SAE",
-                    summary = "Активирован протокол одновременной аутентификации равных (Simultaneous Authentication of Equals). Защищен от перебора по словарю даже при простом пароле.",
-                    actionGuide = "Конфигурация безопасности безупречна.",
-                    metricBadge = "WPA3 Активен"
+                    title = if (sec == SecurityType.WPA3_SAE) "Обнаружен режим WPA3-SAE" else "Обнаружен смешанный режим WPA2/WPA3",
+                    summary = "Приложение показывает фактически обнаруженный режим безопасности и не рекомендует переходить на WPA3 автоматически. Совместимость и политика шифрования зависят от роутера и подключаемых устройств.",
+                    actionGuide = "Никаких изменений только на основании этой оценки не требуется. Проверяйте защиту по настройкам роутера и совместимости клиентских устройств.",
+                    metricBadge = sec.displayName
                 )
             }
             SecurityType.ENTERPRISE -> {
