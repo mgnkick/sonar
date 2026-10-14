@@ -51,6 +51,13 @@ fun SurveyPointDialog(
     var roomName by remember { mutableStateOf("") }
     var points by remember { mutableStateOf(loadSurveyPoints(prefs.getString("points", "[]") ?: "[]")) }
 
+    val currentBand = when {
+        details.frequency in 2400..2500 -> "2,4 ГГц"
+        details.frequency in 4900..5900 -> "5 ГГц"
+        details.frequency in 5925..7125 -> "6 ГГц"
+        else -> "диапазон неизвестен"
+    }
+
     fun persist(updated: List<SurveyPoint>) {
         points = updated
         prefs.edit().putString("points", JSONArray().apply {
@@ -172,11 +179,17 @@ fun SurveyPointDialog(
                         }
                     }
                 }
-                if (points.size >= 2) {
-                    val best = points.maxByOrNull { it.rssi }!!
-                    val weakest = points.minByOrNull { it.rssi }!!
+                val comparablePoints = points.filter { it.ssid == details.ssid && it.band == currentBand }
+                if (comparablePoints.size >= 2) {
+                    val best = comparablePoints.maxByOrNull { it.rssi }!!
+                    val weakest = comparablePoints.minByOrNull { it.rssi }!!
                     Text(
-                        "Лучший замер: ${best.room} (${best.rssi} dBm). Самый слабый: ${weakest.room} (${weakest.rssi} dBm). Сравнивайте точки при одинаковом подключении и диапазоне.",
+                        "Для сети ${details.ssid} в диапазоне $currentBand: лучшее место — ${best.room} (${best.rssi} dBm), слабейшее — ${weakest.room} (${weakest.rssi} dBm).",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                } else if (points.isNotEmpty()) {
+                    Text(
+                        "Для корректного сравнения зафиксируйте минимум две точки с одной и той же сетью и диапазоном ($currentBand).",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
