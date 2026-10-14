@@ -199,7 +199,7 @@ fun MainAppContent(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (currentScreen) {
                 is Screen.Dashboard -> DashboardScreen(
                     state = uiState,
