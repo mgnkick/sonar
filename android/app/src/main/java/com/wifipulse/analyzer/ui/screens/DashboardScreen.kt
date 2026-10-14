@@ -265,6 +265,7 @@ fun DashboardScreen(
                     items(state.filteredGroups, key = { it.ssid }) { group ->
                         ExpandableWifiGroupCard(
                             group = group,
+                            connectedSsid = state.connectionDetails.ssid.takeIf { state.connectionDetails.isConnected },
                             selectedBssid = state.selectedNetworkBssid,
                             onToggle = { onToggleGroup(group.ssid) },
                             onSelectNode = { bssid ->
@@ -282,6 +283,7 @@ fun DashboardScreen(
 @Composable
 fun ExpandableWifiGroupCard(
     group: WifiNetworkGroup,
+    connectedSsid: String?,
     selectedBssid: String?,
     onToggle: () -> Unit,
     onSelectNode: (String) -> Unit
@@ -320,8 +322,13 @@ fun ExpandableWifiGroupCard(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
+                            if (connectedSsid != null && group.ssid == connectedSsid) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                BadgeChip(label = "ПОДКЛЮЧЕНО", color = Color(0xFF22C55E))
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(2.dp))
