@@ -47,6 +47,7 @@ fun DashboardScreen(
     onNavigateToAnalysis: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
+    var showSurveyDialog by remember { mutableStateOf(false) }
     val totalNodesCount = state.networkGroups.sumOf { it.totalNodesCount }
 
     Scaffold(
@@ -67,6 +68,9 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showSurveyDialog = true }) {
+                        Icon(Icons.Default.Place, contentDescription = "Обследование квартиры")
+                    }
                     IconButton(onClick = { showSortMenu = true }) {
                         Icon(Icons.Default.Sort, contentDescription = "Сортировка")
                     }
@@ -242,6 +246,12 @@ fun DashboardScreen(
                     }
                 }
             }
+        }
+        if (showSurveyDialog) {
+            SurveyPointDialog(
+                details = state.connectionDetails,
+                onDismiss = { showSurveyDialog = false }
+            )
         }
     }
 }
