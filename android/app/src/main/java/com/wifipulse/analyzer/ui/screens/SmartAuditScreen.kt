@@ -34,6 +34,7 @@ fun SmartAuditScreen(
     visibleNetworkCount: Int,
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
+    lastScanTimestamp: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -94,7 +95,8 @@ fun SmartAuditScreen(
                     details = connectionDetails,
                     visibleNetworkCount = visibleNetworkCount,
                     isRefreshing = isRefreshingNetworks,
-                    onRefreshNetworks = onRefreshNetworks
+                    onRefreshNetworks = onRefreshNetworks,
+                    lastScanTimestamp = lastScanTimestamp
                 )
             }
             if (report == null) {
