@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -439,6 +440,40 @@ fun DiagnosticScreen(
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Скопировать консоль", fontSize = 11.sp)
+                    }
+                    TextButton(
+                        onClick = {
+                            val report = buildString {
+                                appendLine("WiFi Pulse Analyzer — отчёт")
+                                appendLine("Дата: ${java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
+                                appendLine("SSID: ${connectionDetails.ssid.ifBlank { "не подключён" }}")
+                                appendLine("BSSID: ${connectionDetails.bssid}")
+                                appendLine("RSSI: ${connectionDetails.rssi} dBm • Частота: ${connectionDetails.frequency} MHz • Линк: ${connectionDetails.linkSpeedMbps} Mbps")
+                                appendLine("IP: ${connectionDetails.ipAddress} • Шлюз: ${connectionDetails.gateway}")
+                                appendLine("DNS: ${connectionDetails.dns1}, ${connectionDetails.dns2}")
+                                appendLine("VPN: ${connectionDetails.isVpnActive} • Мобильная сеть: ${connectionDetails.isMobileDataActive}")
+                                appendLine("Цель: ${state.target} • Статус: ${state.status}")
+                                state.logs.forEach { entry ->
+                                    appendLine(when (entry) {
+                                        is DiagnosticLogEntry.Output -> entry.text
+                                        is DiagnosticLogEntry.PingEntry -> "Ping ${entry.packet.ip}: ${entry.packet.rttMs} ms"
+                                        is DiagnosticLogEntry.HopEntry -> "Hop ${entry.hop.hopNumber}: ${entry.hop.ip ?: "*"} ${entry.hop.rttMs ?: "*"} ms"
+                                        is DiagnosticLogEntry.Summary -> "Потери ${entry.summary.packetLossPercent}%, средний RTT ${entry.summary.avgRttMs} ms"
+                                        is DiagnosticLogEntry.Error -> "ОШИБКА: ${entry.message}"
+                                    })
+                                }
+                            }
+                            context.getSharedPreferences("wifi_pulse_diagnostics", android.content.Context.MODE_PRIVATE)
+                                .edit()
+                                .putString("last_report", report)
+                                .putLong("last_report_saved_at", System.currentTimeMillis())
+                                .apply()
+                            Toast.makeText(context, "Отчёт сохранён на устройстве", Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Сохранить", fontSize = 11.sp)
                     }
                 }
             }
