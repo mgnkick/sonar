@@ -31,6 +31,9 @@ fun SmartAuditScreen(
     isScanning: Boolean,
     onRefreshAudit: () -> Unit,
     connectionDetails: WifiConnectionDetails,
+    visibleNetworkCount: Int,
+    isRefreshingNetworks: Boolean,
+    onRefreshNetworks: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -87,10 +90,12 @@ fun SmartAuditScreen(
             contentPadding = PaddingValues(vertical = 12.dp)
         ) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(modifier = Modifier.weight(1f)) { ConnectionStatusBanner(details = connectionDetails) }
-                    MiniSonarControl(rssi = if (connectionDetails.isConnected) connectionDetails.rssi else -65)
-                }
+                ConnectionStatusPanel(
+                    details = connectionDetails,
+                    visibleNetworkCount = visibleNetworkCount,
+                    isRefreshing = isRefreshingNetworks,
+                    onRefreshNetworks = onRefreshNetworks
+                )
             }
             if (report == null) {
                 item {
