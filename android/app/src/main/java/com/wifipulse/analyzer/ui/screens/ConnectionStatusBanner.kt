@@ -30,7 +30,7 @@ fun ConnectionStatusBanner(
     val is24Ghz = details.isConnected && details.frequency in 2400..2500
     val hasWarning = !details.isConnected || details.isVpnActive ||
         details.isMobileDataActive || is24Ghz
-    val container = if (hasWarning) Color(0xFF3B252B) else Color(0xFF15352E)
+    val container = if (hasWarning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
     val title = when {
         !details.isConnected && details.isMobileDataActive -> "Wi-Fi не подключён • используется мобильный интернет"
         !details.isConnected -> "Wi-Fi не подключён"
@@ -57,7 +57,7 @@ fun ConnectionStatusBanner(
                         text = title,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
+                        color = if (hasWarning) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -65,7 +65,7 @@ fun ConnectionStatusBanner(
                         Text(
                             text = "${details.frequency} МГц • ${details.rssi} дБм • ${details.linkSpeedMbps} Мбит/с",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFD7E3E0)
+                            color = if (hasWarning) MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                         )
                     }
                 }
@@ -98,7 +98,7 @@ private fun WarningLine(text: String) {
             text = text,
             modifier = Modifier.padding(start = 6.dp),
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFFFFE0B2)
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
