@@ -1,5 +1,10 @@
 package com.wifipulse.analyzer.ui.screens
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
+import android.graphics.Paint as AndroidPaint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,6 +16,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -243,6 +252,9 @@ fun SignalCanvas(history: List<com.wifipulse.analyzer.data.model.SignalHistoryPo
 @Composable
 fun ChannelSpectrumTab(networks: List<WifiNetwork>) {
     var selectedBand by remember { mutableStateOf(WifiBand.BAND_2_4_GHZ) }
+    var showFullscreen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
 
     Column(
         modifier = Modifier
@@ -261,6 +273,38 @@ fun ChannelSpectrumTab(networks: List<WifiNetwork>) {
                 onClick = { selectedBand = WifiBand.BAND_5_GHZ },
                 label = { Text("Диапазон 5 ГГц") }
             )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            OutlinedButton(onClick = { showFullscreen = true }) {
+                Icon(Icons.Default.Fullscreen, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("На весь экран")
+            }
+        }
+
+        if (showFullscreen && activity != null) {
+            val previousOrientation = remember { activity.requestedOrientation }
+            DisposableEffect(activity) {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                onDispose { activity.requestedOrientation = previousOrientation }
+            }
+            Dialog(onDismissRequest = { showFullscreen = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    Column(Modifier.fillMaxSize().padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Спектр Wi-Fi", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Свернуть спектр") }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(selected = selectedBand == WifiBand.BAND_2_4_GHZ, onClick = { selectedBand = WifiBand.BAND_2_4_GHZ }, label = { Text("2,4 ГГц") })
+                            FilterChip(selected = selectedBand == WifiBand.BAND_5_GHZ, onClick = { selectedBand = WifiBand.BAND_5_GHZ }, label = { Text("5 ГГц") })
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        SpectrumCanvas(networks = networks.filter { it.band == selectedBand }, band = selectedBand, modifier = Modifier.fillMaxSize())
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -287,7 +331,7 @@ fun ChannelSpectrumTab(networks: List<WifiNetwork>) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-                SpectrumCanvas(networks = networks.filter { it.band == selectedBand }, band = selectedBand)
+                SpectrumCanvas(networks = networks.filter { it.band == selectedBand }, band = selectedBand, modifier = Modifier.fillMaxSize())
             }
         }
 
@@ -345,12 +389,23 @@ fun ChannelSpectrumTab(networks: List<WifiNetwork>) {
 }
 
 @Composable
-fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand) {
-    val primaryColor = MaterialTheme.colorScheme.primary
+fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand, modifier: Modifier = Modifier.fillMaxSize()) {
+    val labelColor = MaterialTheme.colorScheme.onSurface
 
-    Canvas(modifier = Modifier.fillMaxSize()) {
+    Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
+        val nativeCanvas = drawContext.canvas.nativeCanvas
+        val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.rgb((labelColor.red * 255).toInt(), (labelColor.green * 255).toInt(), (labelColor.blue * 255).toInt())
+            textSize = 11.dp.toPx()
+            textAlign = AndroidPaint.Align.CENTER
+        }
+        val channelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.GRAY
+            textSize = 10.dp.toPx()
+            textAlign = AndroidPaint.Align.CENTER
+        }
 
         // Axis
         drawLine(
@@ -368,7 +423,18 @@ fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand) {
         val tickStep = if (band == WifiBand.BAND_2_4_GHZ) 3 else 20
         (minChannel..maxChannel step tickStep).forEach { ch ->
             val x = ((ch - minChannel).toFloat() / channelSpan) * width
-            drawLine(color = Color.Gray.copy(alpha = 0.45f), start = Offset(x, height - 24.dp.toPx()), end = Offset(x, height - 16.dp.toPx()), strokeWidth = 1.dp.toPx())
+            drawLine(color = Color.Gray.copy(alpha = 0.45f), start = Offset(x, height - 30.dp.toPx()), end = Offset(x, height - 20.dp.toPx()), strokeWidth = 1.dp.toPx())
+            nativeCanvas.drawText(ch.toString(), x.coerceIn(12.dp.toPx(), width - 12.dp.toPx()), height - 5.dp.toPx(), channelPaint)
+        }
+
+        networks.sortedByDescending { it.rssi }.take(16).forEach { net ->
+            val center = net.channel.coerceIn(minChannel, maxChannel)
+            val x = ((center - minChannel).toFloat() / channelSpan) * width
+            val peakY = height - 38.dp.toPx() - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 65.dp.toPx()))
+            val ssid = net.ssid.ifBlank { "Скрытая" }
+            val limit = if (width > 700.dp.toPx()) 18 else 9
+            val shortName = if (ssid.length > limit) ssid.take(limit - 1) + "…" else ssid
+            nativeCanvas.drawText("$shortName · CH${net.channel}", x.coerceIn(48.dp.toPx(), width - 48.dp.toPx()), (peakY - 7.dp.toPx()).coerceAtLeast(14.dp.toPx()), labelPaint)
         }
 
         // Draw parabolic curves for each network
@@ -523,4 +589,11 @@ fun MetricTile(title: String, value: String, modifier: Modifier = Modifier) {
             Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         }
     }
+}
+
+
+private fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
