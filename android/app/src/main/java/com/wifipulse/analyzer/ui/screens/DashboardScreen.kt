@@ -1,7 +1,5 @@
 package com.wifipulse.analyzer.ui.screens
 
-import android.media.AudioManager
-import android.media.ToneGenerator
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -12,6 +10,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,31 +47,6 @@ fun DashboardScreen(
     onNavigateToAnalysis: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
-    var sonarEnabled by remember { mutableStateOf(false) }
-    val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 65) }
-    val sonarRssi = if (state.connectionDetails.isConnected) {
-        state.connectionDetails.rssi
-    } else {
-        state.filteredGroups.maxOfOrNull { it.bestRssi } ?: -100
-    }
-
-    DisposableEffect(toneGenerator) {
-        onDispose {
-            toneGenerator.stopTone()
-            toneGenerator.release()
-        }
-    }
-
-    LaunchedEffect(sonarEnabled, sonarRssi) {
-        if (sonarEnabled) {
-            while (true) {
-                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
-                val intervalMs = (950 - ((sonarRssi + 100).coerceIn(0, 70) * 10)).coerceIn(250, 950)
-                delay(intervalMs.toLong())
-            }
-        }
-    }
-
     val totalNodesCount = state.networkGroups.sumOf { it.totalNodesCount }
 
     Scaffold(
@@ -153,10 +127,15 @@ fun DashboardScreen(
                 .padding(padding)
                 .padding(horizontal = 12.dp)
         ) {
-            ConnectionStatusBanner(
-                details = state.connectionDetails,
-                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    ConnectionStatusBanner(
+                        details = state.connectionDetails,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                    )
+                }
+                MiniSonarControl(rssi = if (state.connectionDetails.isConnected) state.connectionDetails.rssi else state.filteredGroups.maxOfOrNull { it.bestRssi } ?: -100)
+            }
 
             // Search Bar
             OutlinedTextField(
@@ -213,19 +192,6 @@ fun DashboardScreen(
                         label = { Text("6 ГГц (Wi-Fi 6E)") }
                     )
                 }
-                item {
-                    FilterChip(
-                        selected = sonarEnabled,
-                        onClick = { sonarEnabled = !sonarEnabled },
-                        label = { Text(if (sonarEnabled) "Сонар: ВКЛ" else "Звуковой сонар") },
-                        leadingIcon = {
-                            Icon(
-                                if (sonarEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                                contentDescription = null
-                            )
-                        }
-                    )
-                }
             }
 
             // Networks List (Hierarchical Expandable Groups)
@@ -259,7 +225,7 @@ fun DashboardScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                     contentPadding = PaddingValues(bottom = 88.dp)
                 ) {
                     items(state.filteredGroups, key = { it.ssid }) { group ->
@@ -308,7 +274,7 @@ fun ExpandableWifiGroupCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onToggle)
-                    .padding(if (group.isExpanded) 12.dp else 8.dp)
+                    .padding(if (group.isExpanded) 12.dp else 6.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -340,6 +306,8 @@ fun ExpandableWifiGroupCard(
                         ) {
                             Text(
                                 text = group.primaryVendor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold
@@ -350,7 +318,9 @@ fun ExpandableWifiGroupCard(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                             )
                             Text(
-                                text = "${group.totalNodesCount} BSSID (${group.nodes.map { it.band.displayName }.distinct().joinToString(", ")})",
+                                text = "${group.totalNodesCount} BSSID • ${group.nodes.map { it.band.displayName }.distinct().joinToString(", ")}",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
@@ -556,12 +526,20 @@ fun BssIdNodeCard(
             ) {
                 Text(
                     text = node.bssid,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = node.vendor,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
@@ -571,7 +549,7 @@ fun BssIdNodeCard(
 
             // Channel & Frequency & Width
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
