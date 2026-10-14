@@ -23,9 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.*
-import com.wifipulse.analyzer.ui.theme.MaterialTheme.colorScheme.background
-import com.wifipulse.analyzer.ui.theme.MaterialTheme.colorScheme.surface
-import com.wifipulse.analyzer.ui.theme.MaterialTheme.colorScheme.surfaceVariant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,10 +72,10 @@ fun SmartAuditScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
-        containerColor = DarkBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier
     ) { padding ->
         LazyColumn(
@@ -116,7 +113,7 @@ fun SmartAuditScreen(
                             text = "Экспертные рекомендации (${report.recommendations.size})",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Сетей в анализе: ${report.scannedNetworksCount}",
@@ -150,7 +147,7 @@ fun AuditScoreCard(report: AuditReport) {
 
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, Color(0xFF334155), RoundedCornerShape(20.dp))
@@ -178,7 +175,7 @@ fun AuditScoreCard(report: AuditReport) {
                         text = report.statusTitle,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -208,7 +205,7 @@ fun AuditScoreCard(report: AuditReport) {
                             text = "${report.overallScore}",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "/100",
@@ -272,7 +269,7 @@ fun AuditMetricChip(
         Text(
             text = "$label: $count",
             style = MaterialTheme.typography.labelSmall,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp
         )
@@ -294,7 +291,7 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
 
     Card(
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, Color(0xFF334155), RoundedCornerShape(18.dp))
@@ -356,14 +353,14 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
                     text = recommendation.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
                 if (recommendation.metricBadge.isNotEmpty()) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = DarkSurfaceVariant
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = recommendation.metricBadge,
@@ -383,7 +380,7 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
             Text(
                 text = recommendation.summary,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFCBD5E1),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 18.sp,
                 fontSize = 12.sp
             )
@@ -436,7 +433,7 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
 fun EmptyAuditPlaceholder(onScanClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 32.dp)
@@ -458,7 +455,7 @@ fun EmptyAuditPlaceholder(onScanClick: () -> Unit) {
                 text = "Аудит еще не проведен",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
