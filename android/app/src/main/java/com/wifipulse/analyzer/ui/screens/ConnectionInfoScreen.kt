@@ -96,8 +96,15 @@ fun ConnectionInfoScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
+                                val currentChannel = when (details.frequency) {
+                                    in 2412..2472 -> (details.frequency - 2407) / 5
+                                    2484 -> 14
+                                    in 5000..5895 -> (details.frequency - 5000) / 5
+                                    in 5955..7115 -> (details.frequency - 5950) / 5
+                                    else -> 0
+                                }
                                 Text(
-                                    text = details.ssid,
+                                    text = if (currentChannel > 0) "${details.ssid} • CH ${currentChannel}" else details.ssid,
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold
                                 )
