@@ -455,10 +455,10 @@ private fun SpeedTestLinks(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text("Проверка скорости в браузере", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            AssistChip(onClick = { onOpen("https://2ip.ru/speed/") }, label = { Text("2IP", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.Speed, null, modifier = Modifier.size(14.dp)) })
-            AssistChip(onClick = { onOpen("https://yandex.ru/internet/") }, label = { Text("Интернетометр", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.NetworkCheck, null, modifier = Modifier.size(14.dp)) })
-            AssistChip(onClick = { onOpen("https://speedtest.su/") }, label = { Text("Speedtest.su", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.Bolt, null, modifier = Modifier.size(14.dp)) })
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            item { AssistChip(onClick = { onOpen("https://2ip.ru/speed/") }, label = { Text("2IP", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.Speed, null, modifier = Modifier.size(14.dp)) }) }
+            item { AssistChip(onClick = { onOpen("https://yandex.ru/internet/") }, label = { Text("Интернетометр", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.NetworkCheck, null, modifier = Modifier.size(14.dp)) }) }
+            item { AssistChip(onClick = { onOpen("https://speedtest.su/") }, label = { Text("Speedtest.su", fontSize = 11.sp) }, leadingIcon = { Icon(Icons.Default.Bolt, null, modifier = Modifier.size(14.dp)) }) }
         }
         OutlinedButton(
             onClick = onRouter,
