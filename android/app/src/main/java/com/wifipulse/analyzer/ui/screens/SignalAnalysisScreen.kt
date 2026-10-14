@@ -73,6 +73,7 @@ fun SignalAnalysisScreen(
                 visibleNetworkCount = visibleNetworkCount,
                 isRefreshing = isRefreshingNetworks,
                 onRefreshNetworks = onRefreshNetworks,
+                lastScanTimestamp = state.lastScanTimestamp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )
             // Selected Network Quick Selector Bar
