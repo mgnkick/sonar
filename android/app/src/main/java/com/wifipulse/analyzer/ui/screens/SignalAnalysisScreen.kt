@@ -54,10 +54,14 @@ fun SignalAnalysisScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            ConnectionStatusBanner(
-                details = state.connectionDetails,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) { ConnectionStatusBanner(details = state.connectionDetails) }
+                MiniSonarControl(rssi = if (state.connectionDetails.isConnected) state.connectionDetails.rssi else -65)
+            }
             // Selected Network Quick Selector Bar
             if (selectedNetwork != null) {
                 Surface(
@@ -284,6 +288,31 @@ fun ChannelSpectrumTab(networks: List<WifiNetwork>) {
             }
         }
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        val visibleNetworks = networks.filter { it.band == selectedBand }.sortedByDescending { it.rssi }
+        Text("Сети и каналы (${visibleNetworks.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(6.dp))
+        if (visibleNetworks.isEmpty()) {
+            Text("Для выбранного диапазона сети не обнаружены. Нажмите «Сканировать» на вкладке сканера.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            visibleNetworks.forEach { network ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(network.ssid.ifBlank { "[Скрытая сеть]" }, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Text("${network.bssid} • ${network.frequency} МГц", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Surface(shape = RoundedCornerShape(8.dp), color = Color(network.signalQuality.hexColor).copy(alpha = 0.12f)) {
+                        Text("CH ${network.channel} • ${network.rssi} дБм", modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp), color = Color(network.signalQuality.hexColor), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Explanation card
@@ -331,6 +360,13 @@ fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand) {
         val minChannel = if (band == WifiBand.BAND_2_4_GHZ) 1 else 36
         val maxChannel = if (band == WifiBand.BAND_2_4_GHZ) 14 else 165
         val channelSpan = (maxChannel - minChannel).coerceAtLeast(1)
+
+        // Channel ticks along the horizontal axis
+        val tickStep = if (band == WifiBand.BAND_2_4_GHZ) 3 else 20
+        (minChannel..maxChannel step tickStep).forEach { ch ->
+            val x = ((ch - minChannel).toFloat() / channelSpan) * width
+            drawLine(color = Color.Gray.copy(alpha = 0.45f), start = Offset(x, height - 24.dp.toPx()), end = Offset(x, height - 16.dp.toPx()), strokeWidth = 1.dp.toPx())
+        }
 
         // Draw parabolic curves for each network
         networks.take(12).forEach { net ->
