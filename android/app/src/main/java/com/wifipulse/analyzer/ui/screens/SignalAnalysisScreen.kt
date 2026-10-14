@@ -54,6 +54,10 @@ fun SignalAnalysisScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            ConnectionStatusBanner(
+                details = state.connectionDetails,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
             // Selected Network Quick Selector Bar
             if (selectedNetwork != null) {
                 Surface(
