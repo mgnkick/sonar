@@ -45,7 +45,10 @@ fun DiagnosticScreen(
     onStartTraceroute: () -> Unit,
     onStop: () -> Unit,
     onClear: () -> Unit,
-    connectionDetails: WifiConnectionDetails
+    connectionDetails: WifiConnectionDetails,
+    visibleNetworkCount: Int,
+    isRefreshingNetworks: Boolean,
+    onRefreshNetworks: () -> Unit
 ) {
     var selectedOutputTab by remember { mutableIntStateOf(0) }
     var showTroubleshooting by remember { mutableStateOf(false) }
@@ -104,12 +107,13 @@ fun DiagnosticScreen(
                 .padding(horizontal = 10.dp)
                 .padding(bottom = 18.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(modifier = Modifier.weight(1f)) {
-                    ConnectionStatusBanner(details = connectionDetails, modifier = Modifier.padding(top = 4.dp, bottom = 4.dp))
-                }
-                MiniSonarControl(rssi = if (connectionDetails.isConnected) connectionDetails.rssi else -65)
-            }
+            ConnectionStatusPanel(
+                details = connectionDetails,
+                visibleNetworkCount = visibleNetworkCount,
+                isRefreshing = isRefreshingNetworks,
+                onRefreshNetworks = onRefreshNetworks,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            )
             SpeedTestLinks(
                 onOpen = { url -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } },
                 onRouter = {
