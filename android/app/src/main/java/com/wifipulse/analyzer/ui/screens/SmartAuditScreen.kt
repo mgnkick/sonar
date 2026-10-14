@@ -90,7 +90,10 @@ fun SmartAuditScreen(
             contentPadding = PaddingValues(vertical = 12.dp)
         ) {
             item {
-                ConnectionStatusBanner(details = connectionDetails)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(modifier = Modifier.weight(1f)) { ConnectionStatusBanner(details = connectionDetails) }
+                    MiniSonarControl(rssi = if (connectionDetails.isConnected) connectionDetails.rssi else -65)
+                }
             }
             if (report == null) {
                 item {
