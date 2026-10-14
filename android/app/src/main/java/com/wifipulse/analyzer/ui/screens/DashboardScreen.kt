@@ -280,9 +280,24 @@ fun ExpandableWifiGroupCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = androidx.compose.foundation.BorderStroke(
+            if (group.isExpanded) 1.5.dp else 1.dp,
+            qualityColor.copy(alpha = if (group.isExpanded) 0.72f else 0.30f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            // Thin signal-colored neon rail ties each network card to its measured RSSI.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(if (group.isExpanded) 3.dp else 2.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            listOf(qualityColor.copy(alpha = 0.95f), MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f), Color.Transparent)
+                        )
+                    )
+            )
             // Parent Header (SSID Level)
             Column(
                 modifier = Modifier
@@ -496,8 +511,9 @@ fun BssIdNodeCard(
         border = if (isSelected) {
             androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
         } else {
-            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-        }
+            androidx.compose.foundation.BorderStroke(1.dp, qualityColor.copy(alpha = 0.28f))
+        },
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 0.dp)
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             // Node Role badge & BSSID MAC
