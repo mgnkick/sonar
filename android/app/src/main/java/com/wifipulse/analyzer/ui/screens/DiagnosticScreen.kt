@@ -31,6 +31,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.wifipulse.analyzer.data.model.*
 import com.wifipulse.analyzer.ui.viewmodel.DiagnosticUiState
 
@@ -40,6 +42,7 @@ fun DiagnosticScreen(
     state: DiagnosticUiState,
     onTargetChange: (String) -> Unit,
     onCountChange: (Int) -> Unit,
+    onPacketSizeChange: (Int) -> Unit,
     onTimeoutChange: (Int) -> Unit,
     onStartPing: () -> Unit,
     onStartTraceroute: () -> Unit,
@@ -67,6 +70,8 @@ fun DiagnosticScreen(
         }
     }
 
+    var customPacketSize by remember { mutableStateOf("") }
+    val packetSizePresets = listOf(32, 64, 128, 512, 1300)
     val isRunning = state.status == DiagnosticStatus.RUNNING
 
     Scaffold(
@@ -233,7 +238,61 @@ fun DiagnosticScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DataUsage, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Размер ICMP payload", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("32 байта по умолчанию • диапазон 8–1400 байт", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Surface(shape = RoundedCornerShape(9.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                            Text("${state.packetSizeBytes} B", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                        items(packetSizePresets) { bytes ->
+                            FilterChip(
+                                selected = state.packetSizeBytes == bytes,
+                                onClick = { if (!isRunning) { onPacketSizeChange(bytes); customPacketSize = "" } },
+                                enabled = !isRunning,
+                                label = { Text("$bytes B") }
+                            )
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = customPacketSize,
+                            onValueChange = { value ->
+                                customPacketSize = value.filter(Char::isDigit).take(4)
+                                customPacketSize.toIntOrNull()?.takeIf { it in 8..1400 }?.let(onPacketSizeChange)
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = !isRunning,
+                            singleLine = true,
+                            label = { Text("Свой размер, байт") },
+                            placeholder = { Text("8–1400") },
+                            leadingIcon = { Icon(Icons.Default.Tune, contentDescription = null) },
+                            supportingText = { Text("Максимум 1400, чтобы снизить риск IP-фрагментации") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        TextButton(
+                            onClick = { customPacketSize.toIntOrNull()?.takeIf { it in 8..1400 }?.let(onPacketSizeChange) },
+                            enabled = !isRunning && (customPacketSize.toIntOrNull() in 8..1400)
+                        ) { Text("Применить") }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Action Buttons
             Row(
