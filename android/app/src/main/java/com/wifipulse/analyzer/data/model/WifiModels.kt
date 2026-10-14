@@ -187,7 +187,9 @@ data class ChannelRating(
     val networkCount: Int,
     val score: Int,
     val isRecommended: Boolean,
-    val overlappingNetworks: List<String> = emptyList()
+    val overlappingNetworks: List<String> = emptyList(),
+    val recommendedWidthMhz: Int = 20,
+    val explanation: String = ""
 )
 
 data class SignalHistoryPoint(
