@@ -54,8 +54,9 @@ class WifiViewModel(
 
     /**
      * Refresh is event-driven: WifiRepository listens for Android's scan-results broadcast
-     * and updates the list as soon as the OS publishes a new scan. We intentionally do not
-     * run a competing timer or poll faster than Android's own scan cadence.
+     * and updates the list as soon as the OS publishes fresh scan data. There is deliberately
+     * no periodic polling timer: the app follows the platform's cadence instead of inventing
+     * its own interval. Manual scanning remains available through triggerScan().
      */
     fun startAutoRefresh() {
         // The scan-results receiver remains active for the ViewModel lifetime.
