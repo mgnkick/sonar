@@ -183,6 +183,40 @@ class DiagnosticViewModel(
         }
     }
 
+    fun startGuidedDiagnostics(gateway: String, dns1: String, dns2: String) {
+        stopDiagnostic()
+        _uiState.update {
+            it.copy(
+                mode = DiagnosticMode.PING,
+                status = DiagnosticStatus.RUNNING,
+                logs = listOf(DiagnosticLogEntry.Output("Запуск пошаговой диагностики…", isHighlight = true)),
+                pingPackets = emptyList(),
+                pingSummary = null,
+                hops = emptyList(),
+                errorMessage = null
+            )
+        }
+        activeJob = viewModelScope.launch {
+            try {
+                val lines = repository.runGuidedDiagnostics(gateway, dns1, dns2)
+                _uiState.update { current ->
+                    current.copy(
+                        logs = (current.logs + lines.map { DiagnosticLogEntry.Output(it, it.startsWith("===") || it.startsWith("[4/4]")) }).takeLast(300),
+                        status = DiagnosticStatus.COMPLETED
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { current ->
+                    current.copy(
+                        logs = current.logs + DiagnosticLogEntry.Error("Диагностика завершилась с ошибкой: ${e.message ?: "неизвестная ошибка"}"),
+                        errorMessage = e.message,
+                        status = DiagnosticStatus.ERROR
+                    )
+                }
+            }
+        }
+    }
+
     fun stopDiagnostic() {
         activeJob?.cancel()
         activeJob = null
