@@ -452,7 +452,8 @@ fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand, modifier: Modifi
         val tickStep = if (band == WifiBand.BAND_2_4_GHZ) 3 else 20
         (minChannel..maxChannel step tickStep).forEach { ch ->
             val x = ((ch - minChannel).toFloat() / channelSpan) * width
-            drawLine(color = Color.Gray.copy(alpha = 0.45f), start = Offset(x, height - 30.dp.toPx()), end = Offset(x, height - 20.dp.toPx()), strokeWidth = 1.dp.toPx())
+            drawLine(color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.10f), start = Offset(x, 8.dp.toPx()), end = Offset(x, height - 20.dp.toPx()), strokeWidth = 1.dp.toPx())
+            drawLine(color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.60f), start = Offset(x, height - 30.dp.toPx()), end = Offset(x, height - 20.dp.toPx()), strokeWidth = 1.dp.toPx())
             nativeCanvas.drawText(ch.toString(), x.coerceIn(12.dp.toPx(), width - 12.dp.toPx()), height - 5.dp.toPx(), channelPaint)
         }
 
@@ -484,7 +485,9 @@ fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand, modifier: Modifi
             )
 
             val curveColor = Color(net.signalQuality.hexColor)
-            drawPath(path = path, color = curveColor.copy(alpha = 0.35f))
+            drawPath(path = path, color = curveColor.copy(alpha = 0.08f), style = Stroke(width = 12.dp.toPx()))
+            drawPath(path = path, color = curveColor.copy(alpha = 0.24f), style = Stroke(width = 6.dp.toPx()))
+            drawPath(path = path, color = curveColor.copy(alpha = 0.16f))
             drawPath(path = path, color = curveColor, style = Stroke(width = 2.dp.toPx()))
         }
     }
