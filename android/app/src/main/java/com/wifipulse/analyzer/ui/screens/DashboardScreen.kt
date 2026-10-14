@@ -45,7 +45,8 @@ fun DashboardScreen(
     onSortChange: (SortOption) -> Unit,
     onToggleGroup: (String) -> Unit,
     onNetworkSelected: (String) -> Unit,
-    onNavigateToAnalysis: () -> Unit
+    onNavigateToAnalysis: () -> Unit,
+    onRefreshNetworks: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
     var showSurveyDialog by remember { mutableStateOf(false) }
@@ -133,15 +134,13 @@ fun DashboardScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(modifier = Modifier.weight(1f)) {
-                    ConnectionStatusBanner(
-                        details = state.connectionDetails,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
-                    )
-                }
-                MiniSonarControl(rssi = if (state.connectionDetails.isConnected) state.connectionDetails.rssi else state.filteredGroups.maxOfOrNull { it.bestRssi } ?: -100)
-            }
+            ConnectionStatusPanel(
+                details = state.connectionDetails,
+                visibleNetworkCount = state.networks.size,
+                isRefreshing = state.isScanning,
+                onRefreshNetworks = onRefreshNetworks,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            )
 
             // Search Bar
             OutlinedTextField(
