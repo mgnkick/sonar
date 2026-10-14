@@ -170,7 +170,8 @@ fun MainAppContent(
                 is Screen.SmartAudit -> SmartAuditScreen(
                     report = uiState.auditReport,
                     isScanning = uiState.isScanning,
-                    onRefreshAudit = { viewModel.triggerScan() }
+                    onRefreshAudit = { viewModel.triggerScan() },
+                    connectionDetails = uiState.connectionDetails
                 )
                 is Screen.Diagnostics -> com.wifipulse.analyzer.ui.screens.DiagnosticScreen(
                     state = diagnosticState,
@@ -180,7 +181,8 @@ fun MainAppContent(
                     onStartPing = { diagnosticViewModel.startPing() },
                     onStartTraceroute = { diagnosticViewModel.startTraceroute() },
                     onStop = { diagnosticViewModel.stopDiagnostic() },
-                    onClear = { diagnosticViewModel.clearLogs() }
+                    onClear = { diagnosticViewModel.clearLogs() },
+                    connectionDetails = uiState.connectionDetails
                 )
                 is Screen.SignalAnalysis -> SignalAnalysisScreen(
                     state = uiState,
