@@ -31,7 +31,10 @@ import com.wifipulse.analyzer.ui.viewmodel.WifiUiState
 @Composable
 fun SignalAnalysisScreen(
     state: WifiUiState,
-    onSelectNetwork: (String) -> Unit
+    onSelectNetwork: (String) -> Unit,
+    visibleNetworkCount: Int,
+    isRefreshingNetworks: Boolean,
+    onRefreshNetworks: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("График сигнала", "Спектр каналов", "Рейтинг каналов")
@@ -56,14 +59,13 @@ fun SignalAnalysisScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(modifier = Modifier.weight(1f)) { ConnectionStatusBanner(details = state.connectionDetails) }
-                MiniSonarControl(rssi = if (state.connectionDetails.isConnected) state.connectionDetails.rssi else -65)
-            }
+            ConnectionStatusPanel(
+                details = state.connectionDetails,
+                visibleNetworkCount = visibleNetworkCount,
+                isRefreshing = isRefreshingNetworks,
+                onRefreshNetworks = onRefreshNetworks,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
             // Selected Network Quick Selector Bar
             if (selectedNetwork != null) {
                 Surface(
