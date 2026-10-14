@@ -1,9 +1,10 @@
 package com.wifipulse.analyzer.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import android.content.Intent
 import android.net.Uri
@@ -459,7 +460,7 @@ fun DiagnosticScreen(
             // Copy Log Button Bar
             if (state.logs.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(
@@ -479,6 +480,35 @@ fun DiagnosticScreen(
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Скопировать консоль", fontSize = 11.sp)
+                    }
+                    TextButton(
+                        onClick = {
+                            val pdfBody = buildString {
+                                appendLine("Дата: ${java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
+                                appendLine("SSID: ${connectionDetails.ssid.ifBlank { "не подключён" }}")
+                                appendLine("BSSID: ${connectionDetails.bssid}")
+                                appendLine("RSSI: ${connectionDetails.rssi} dBm • Частота: ${connectionDetails.frequency} MHz • Линк: ${connectionDetails.linkSpeedMbps} Mbps")
+                                appendLine("IP: ${connectionDetails.ipAddress} • Шлюз: ${connectionDetails.gateway}")
+                                appendLine("DNS: ${connectionDetails.dns1}, ${connectionDetails.dns2}")
+                                appendLine("VPN: ${connectionDetails.isVpnActive} • Мобильная сеть: ${connectionDetails.isMobileDataActive}")
+                                appendLine("Цель: ${state.target} • Статус: ${state.status}")
+                                state.logs.forEach { entry ->
+                                    appendLine(when (entry) {
+                                        is DiagnosticLogEntry.Output -> entry.text
+                                        is DiagnosticLogEntry.PingEntry -> "Ping ${entry.packet.ip}: ${entry.packet.rttMs} ms"
+                                        is DiagnosticLogEntry.HopEntry -> "Hop ${entry.hop.hopNumber}: ${entry.hop.ip ?: "*"} ${entry.hop.rttMs ?: "*"} ms"
+                                        is DiagnosticLogEntry.Summary -> "Потери ${entry.summary.packetLossPercent}%, средний RTT ${entry.summary.avgRttMs} ms"
+                                        is DiagnosticLogEntry.Error -> "ОШИБКА: ${entry.message}"
+                                    })
+                                }
+                            }
+                            val savedPdf = exportReportPdf(context, "WiFiPulse-diagnostics-${System.currentTimeMillis()}", "Диагностика сети", pdfBody)
+                            Toast.makeText(context, savedPdf?.let { "PDF сохранён в Загрузки/WiFiPulse" } ?: "Не удалось сохранить PDF", Toast.LENGTH_LONG).show()
+                        }
+                    ) {
+                        Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("PDF", fontSize = 11.sp)
                     }
                     TextButton(
                         onClick = {
