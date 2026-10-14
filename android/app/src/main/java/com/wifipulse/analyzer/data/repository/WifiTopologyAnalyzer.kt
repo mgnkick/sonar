@@ -160,7 +160,6 @@ object WifiTopologyAnalyzer {
         "40:4E:36" to "Huawei",
         "40:4D:8E" to "Huawei",
         "A8:CA:7B" to "Huawei",
-        "B4:E5:4C" to "Производитель не подтверждён (OUI B4:E5:4C)",
         "24:6F:28" to "Espressif / ESP32",
         "AC:67:B2" to "Espressif / IoT",
         "7C:9E:BD" to "Espressif / IoT",
