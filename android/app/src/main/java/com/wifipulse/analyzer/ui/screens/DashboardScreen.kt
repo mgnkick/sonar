@@ -296,7 +296,7 @@ fun ExpandableWifiGroupCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = group.ssid,
+                                text = "${group.ssid}  •  CH ${group.nodes.map { it.channel }.distinct().sorted().joinToString("/")}",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
