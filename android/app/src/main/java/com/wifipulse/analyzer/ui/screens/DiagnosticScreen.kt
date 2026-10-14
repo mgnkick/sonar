@@ -3,6 +3,8 @@ package com.wifipulse.analyzer.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -44,6 +46,7 @@ fun DiagnosticScreen(
     connectionDetails: WifiConnectionDetails
 ) {
     var selectedOutputTab by remember { mutableIntStateOf(0) }
+    var showTroubleshooting by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
@@ -92,7 +95,9 @@ fun DiagnosticScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 10.dp)
+                .padding(bottom = 18.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(modifier = Modifier.weight(1f)) {
@@ -101,13 +106,47 @@ fun DiagnosticScreen(
                 MiniSonarControl(rssi = if (connectionDetails.isConnected) connectionDetails.rssi else -65)
             }
             SpeedTestLinks(
-                onOpen = { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) },
+                onOpen = { url -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } },
                 onRouter = {
                     val gateway = connectionDetails.gateway.takeIf { it.isNotBlank() && it != "0.0.0.0" }
                     if (gateway != null) context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$gateway")))
                 },
                 gateway = connectionDetails.gateway
             )
+            // Expandable field troubleshooting guide
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)) {
+                    TextButton(
+                        onClick = { showTroubleshooting = !showTroubleshooting },
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (showTroubleshooting) "Скрыть памятку монтажника" else "Памятка монтажника: типовые неисправности")
+                        Spacer(Modifier.weight(1f))
+                        Icon(if (showTroubleshooting) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+                    }
+                    if (showTroubleshooting) {
+                        val scenarios = listOf(
+                            "Wi-Fi подключён, интернета нет" to "Проверьте шлюз, затем 1.1.1.1 и DNS-имя yandex.ru. Если шлюз отвечает, а внешние узлы нет — вероятна проблема WAN/провайдера.",
+                            "Скорость низкая только в дальней комнате" to "Сравните RSSI и задержку рядом с роутером и в проблемной комнате. Ниже −70 dBm проверьте размещение, препятствия и диапазон 2,4/5 ГГц.",
+                            "Высокий ping или потери" to "Сначала проверьте шлюз. Потери уже до шлюза указывают на локальный сегмент; только за шлюзом — на внешний маршрут или провайдера.",
+                            "IPTV зависает / видеонаблюдение отваливается" to "Проверьте стабильность RSSI, потери и задержку в течение минуты; для стационарных устройств предпочтительно проводное подключение, если оно возможно."
+                        )
+                        scenarios.forEach { (title, advice) ->
+                            Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                                Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                                Text(advice, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Target Input Field
             OutlinedTextField(
                 value = state.target,
@@ -241,7 +280,7 @@ fun DiagnosticScreen(
             // Main Terminal / Results Display
             Box(
                 modifier = Modifier
-                    .weight(1f, fill = true)
+                    .height(260.dp)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFF0F172A))
