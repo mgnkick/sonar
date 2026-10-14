@@ -18,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wifipulse.analyzer.data.repository.WifiRepository
 import com.wifipulse.analyzer.ui.screens.SmartAuditScreen
@@ -136,6 +139,27 @@ fun MainAppContent(
     onToggleTheme: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+
+    // Keep automatic scans active only while the app is visible. The periodic scan runs
+    // independently of Compose rendering and never changes focus or the manual scan state.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> viewModel.startAutoRefresh()
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> viewModel.stopAutoRefresh()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            viewModel.startAutoRefresh()
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.stopAutoRefresh()
+        }
+    }
 
     LaunchedEffect(currentScreen) {
         viewModel.refreshConnectionDetails()
