@@ -35,7 +35,8 @@ fun DiagnosticScreen(
     onStartPing: () -> Unit,
     onStartTraceroute: () -> Unit,
     onStop: () -> Unit,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    connectionDetails: WifiConnectionDetails
 ) {
     var selectedOutputTab by remember { mutableIntStateOf(0) }
     val listState = rememberLazyListState()
@@ -87,6 +88,10 @@ fun DiagnosticScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
+            ConnectionStatusBanner(
+                details = connectionDetails,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            )
             // Target Input Field
             OutlinedTextField(
                 value = state.target,
