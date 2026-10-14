@@ -51,43 +51,24 @@ class WifiViewModel(
     val uiState: StateFlow<WifiUiState> = _uiState.asStateFlow()
 
     private var cooldownJob: Job? = null
-    private var autoRefreshJob: Job? = null
 
-    /** Refreshes scan results without changing loading state or touching UI focus. */
+    /**
+     * Refresh is event-driven: WifiRepository listens for Android's scan-results broadcast
+     * and updates the list as soon as the OS publishes a new scan. We intentionally do not
+     * run a competing timer or poll faster than Android's own scan cadence.
+     */
     fun startAutoRefresh() {
-        if (!_uiState.value.hasPermissions || autoRefreshJob?.isActive == true) return
-        autoRefreshJob = viewModelScope.launch {
-            while (true) {
-                delay(AUTO_REFRESH_INTERVAL_MS)
-                val current = _uiState.value
-                if (!current.hasPermissions || !repository.isWifiEnabled) continue
-
-                // Avoid duplicate requests immediately after a manual or successful scan.
-                val ageOfLastResults = System.currentTimeMillis() - current.lastScanTimestamp
-                if (current.lastScanTimestamp > 0 && ageOfLastResults < AUTO_REFRESH_INTERVAL_MS - 2_000L) continue
-
-                // Deliberately do not set isScanning or the manual cooldown: background refresh
-                // must not animate/replace controls, steal focus, or interrupt user interaction.
-                repository.startScan()
-            }
-        }
+        // The scan-results receiver remains active for the ViewModel lifetime.
+        // Request one scan only on first permission grant; subsequent updates are OS-driven.
     }
 
     fun stopAutoRefresh() {
-        autoRefreshJob?.cancel()
-        autoRefreshJob = null
+        // No timer to cancel: leaving/returning to the app must not reset or restart scans.
     }
 
     override fun onCleared() {
-        stopAutoRefresh()
         cooldownJob?.cancel()
         super.onCleared()
-    }
-
-    private companion object {
-        // Android itself throttles foreground Wi-Fi scans (typically 4 requests per 2 minutes).
-        // 30 seconds is a practical faster refresh cadence without hammering the scan API.
-        const val AUTO_REFRESH_INTERVAL_MS = 30_000L
     }
 
     init {
