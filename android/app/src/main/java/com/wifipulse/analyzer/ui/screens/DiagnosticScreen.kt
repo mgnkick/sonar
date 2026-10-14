@@ -360,14 +360,37 @@ fun DiagnosticScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Terminal status strip: visually separates live diagnostic output from form controls.
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = Color(0xFF0B1422),
+                shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1B7182))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF54F4FF), modifier = Modifier.size(16.dp))
+                        Text("FIELD TERMINAL", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF54F4FF))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(if (isRunning) Color(0xFFFFC857) else Color(0xFF64F7B0)))
+                        Text(if (isRunning) "RUNNING" else "READY", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = if (isRunning) Color(0xFFFFC857) else Color(0xFF64F7B0))
+                    }
+                }
+            }
+
             // Main Terminal / Results Display
             Box(
                 modifier = Modifier
                     .height(consoleHeight)
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF0F172A))
-                    .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
+                    .background(Color(0xFF070B14))
+                    .border(1.dp, Color(0xFF1B7182), RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
                     .padding(10.dp)
             ) {
                 SelectionContainer {
@@ -395,7 +418,7 @@ fun DiagnosticScreen(
                                             text = entry.text,
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 11.sp,
-                                            color = if (entry.isHighlight) Color(0xFF00E5FF) else Color(0xFFCBD5E1)
+                                            color = if (entry.isHighlight) Color(0xFF54F4FF) else Color(0xFFD8E8F4)
                                         )
                                     }
                                     is DiagnosticLogEntry.PingEntry -> {
@@ -417,19 +440,19 @@ fun DiagnosticScreen(
                                             text = text,
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 11.sp,
-                                            color = if (hop.isTargetReached) Color(0xFF00E5FF) else if (hop.isTimeout) Color(0xFFEF4444) else Color(0xFFE2E8F0)
+                                            color = if (hop.isTargetReached) Color(0xFF54F4FF) else if (hop.isTimeout) Color(0xFFEF4444) else Color(0xFFE2E8F0)
                                         )
                                     }
                                     is DiagnosticLogEntry.Summary -> {
                                         val s = entry.summary
                                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                            HorizontalDivider(color = Color(0xFF334155))
+                                            HorizontalDivider(color = Color(0xFF29445E))
                                             Text(
                                                 text = "--- Статистика: отправлено ${s.packetsTransmitted}, получено ${s.packetsReceived}, потеря ${s.packetLossPercent}% ---",
                                                 fontFamily = FontFamily.Monospace,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF00E5FF)
+                                                color = Color(0xFF54F4FF)
                                             )
                                             Text(
                                                 text = "rtt min/avg/max = ${s.minRttMs} / ${s.avgRttMs} / ${s.maxRttMs} ms",
@@ -471,7 +494,7 @@ fun DiagnosticScreen(
                             items(state.hops) { hop ->
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (hop.isTargetReached) Color(0xFF1E3A5F) else Color(0xFF1E293B),
+                                    color = if (hop.isTargetReached) Color(0xFF1E3A5F) else Color(0xFF111D2D),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -482,7 +505,7 @@ fun DiagnosticScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Surface(
                                                 shape = RoundedCornerShape(6.dp),
-                                                color = if (hop.isTargetReached) Color(0xFF00E5FF) else Color(0xFF334155),
+                                                color = if (hop.isTargetReached) Color(0xFF54F4FF) else Color(0xFF29445E),
                                                 modifier = Modifier.size(24.dp)
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
