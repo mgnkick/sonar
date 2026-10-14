@@ -53,6 +53,8 @@ fun SignalAnalysisScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
@@ -130,9 +132,8 @@ fun SignalAnalysisScreen(
 fun SignalGraphTab(state: WifiUiState, selectedNetwork: WifiNetwork?) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(16.dp)
-            .verticalScroll(rememberScrollState())
     ) {
         Text(
             text = "Динамика уровня сигнала во времени (дБм)",
@@ -399,7 +400,7 @@ fun ChannelRatingTab(ratings24: List<ChannelRating>, ratings5: List<ChannelRatin
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(16.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -440,11 +441,11 @@ fun ChannelRatingTab(ratings24: List<ChannelRating>, ratings5: List<ChannelRatin
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(ratings) { rating ->
+            ratings.forEach { rating ->
                 ChannelRatingCard(rating = rating)
             }
         }
