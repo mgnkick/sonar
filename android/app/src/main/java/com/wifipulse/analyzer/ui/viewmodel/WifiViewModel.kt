@@ -322,10 +322,10 @@ class WifiViewModel(
                 }
             }
 
-            val interferenceScore = overlapping.sumOf {
-                when {
-                    it.rssi > -60 -> 4
-                    it.rssi > -75 -> 2
+            val interferenceScore = overlapping.fold(0) { total, network ->
+                total + when {
+                    network.rssi > -60 -> 4
+                    network.rssi > -75 -> 2
                     else -> 1
                 }
             }
