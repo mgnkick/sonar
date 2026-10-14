@@ -38,7 +38,6 @@ fun SmartAuditScreen(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
