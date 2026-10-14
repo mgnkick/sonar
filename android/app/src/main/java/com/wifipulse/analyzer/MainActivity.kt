@@ -58,7 +58,8 @@ class MainActivity : ComponentActivity() {
         checkPermissions()
 
         setContent {
-            WiFiPulseTheme {
+            var darkTheme by remember { mutableStateOf(getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).getBoolean("dark_theme", true)) }
+            WiFiPulseTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -87,7 +88,12 @@ class MainActivity : ComponentActivity() {
                     } else {
                         MainAppContent(
                             viewModel = viewModel,
-                            uiState = uiState
+                            uiState = uiState,
+                            darkTheme = darkTheme,
+                            onToggleTheme = {
+                                darkTheme = !darkTheme
+                                getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).edit().putBoolean("dark_theme", darkTheme).apply()
+                            }
                         )
                     }
                 }
@@ -125,7 +131,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppContent(
     viewModel: WifiViewModel,
-    uiState: com.wifipulse.analyzer.ui.viewmodel.WifiUiState
+    uiState: com.wifipulse.analyzer.ui.viewmodel.WifiUiState,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
 
@@ -155,6 +163,13 @@ fun MainAppContent(
                         label = { Text(screen.title, fontSize = 11.sp) },
                         selected = currentScreen == screen,
                         onClick = { currentScreen = screen }
+                    )
+                }
+                IconButton(onClick = onToggleTheme) {
+                    Icon(
+                        imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                        contentDescription = if (darkTheme) "Включить светлую тему" else "Включить тёмную тему",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
