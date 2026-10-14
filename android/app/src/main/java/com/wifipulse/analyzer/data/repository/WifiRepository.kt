@@ -56,7 +56,7 @@ class WifiRepository(private val context: Context) {
                 try {
                     @Suppress("DEPRECATION")
                     val results = wifiManager.scanResults ?: emptyList()
-                    val mappedList = results.mapNotNull { it.toWifiNetwork() }
+                    val mappedList = mapScanResults(results)
                         .sortedByDescending { it.rssi }
                     trySend(mappedList)
                 } catch (e: SecurityException) {
@@ -72,7 +72,7 @@ class WifiRepository(private val context: Context) {
         try {
             @Suppress("DEPRECATION")
             val initialResults = wifiManager.scanResults ?: emptyList()
-            trySend(initialResults.mapNotNull { it.toWifiNetwork() }.sortedByDescending { it.rssi })
+            trySend(mapScanResults(initialResults).sortedByDescending { it.rssi })
         } catch (e: SecurityException) {
             trySend(emptyList())
         }
@@ -177,9 +177,20 @@ class WifiRepository(private val context: Context) {
         }
     }
 
-    private fun ScanResult.toWifiNetwork(): WifiNetwork? {
+    private fun mapScanResults(results: List<ScanResult>): List<WifiNetwork> {
+        val connected = getCurrentConnectionDetails()
+        return results.mapNotNull { it.toWifiNetwork(connected) }.sortedByDescending { it.rssi }
+    }
+
+    private fun ScanResult.toWifiNetwork(connected: WifiConnectionDetails? = null): WifiNetwork? {
         val rawSsid = this.SSID?.trim() ?: ""
-        val ssid = if (rawSsid.isEmpty()) "[Скрытая сеть]" else rawSsid
+        val matchesCurrentConnection = connected?.isConnected == true &&
+            connected.bssid.equals(this.BSSID, ignoreCase = true)
+        val ssid = when {
+            rawSsid.isNotEmpty() -> rawSsid
+            matchesCurrentConnection && !connected?.ssid.isNullOrBlank() -> connected!!.ssid
+            else -> "[Скрытая сеть]"
+        }
         val bssid = this.BSSID ?: "00:00:00:00:00:00"
         val frequency = this.frequency
         val channel = frequencyToChannel(frequency)
