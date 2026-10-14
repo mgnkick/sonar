@@ -169,8 +169,12 @@ class WifiViewModel(
                     )
 
                     // Auto-select first or maintain selection
-                    val selectedBssid = current.selectedNetworkBssid ?: scanResults.firstOrNull()?.bssid
-                    val selectedNet = scanResults.firstOrNull { it.bssid == selectedBssid }
+                    val connectedBssid = current.connectionDetails.bssid
+                        .takeIf { current.connectionDetails.isConnected && it.isNotBlank() }
+                    val selectedBssid = current.selectedNetworkBssid
+                        ?: connectedBssid?.takeIf { bssid -> scanResults.any { it.bssid.equals(bssid, ignoreCase = true) } }
+                        ?: scanResults.firstOrNull()?.bssid
+                    val selectedNet = scanResults.firstOrNull { it.bssid.equals(selectedBssid, ignoreCase = true) }
 
                     val updatedHistory = if (selectedNet != null) {
                         val newPoint = SignalHistoryPoint(System.currentTimeMillis(), selectedNet.rssi)
