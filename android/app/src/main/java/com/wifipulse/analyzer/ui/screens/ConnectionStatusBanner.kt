@@ -42,9 +42,17 @@ fun ConnectionStatusBanner(
     val hasWarning = !details.isConnected || details.isVpnActive ||
         details.isMobileDataActive || is24Ghz
     val container = if (hasWarning) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
+    val currentChannel = when (details.frequency) {
+        in 2412..2472 -> ((details.frequency - 2407) / 5)
+        2484 -> 14
+        in 5000..5895 -> ((details.frequency - 5000) / 5)
+        in 5955..7115 -> ((details.frequency - 5950) / 5)
+        else -> 0
+    }
     val title = when {
         !details.isConnected && details.isMobileDataActive -> "Wi-Fi не подключён • используется мобильный интернет"
         !details.isConnected -> "Wi-Fi не подключён"
+        currentChannel > 0 -> "Подключено: ${details.ssid} • CH ${currentChannel}"
         else -> "Подключено: ${details.ssid}"
     }
 
