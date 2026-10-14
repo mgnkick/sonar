@@ -24,7 +24,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun MiniSonarControl(rssi: Int, modifier: Modifier = Modifier) {
     var enabled by remember { mutableStateOf(false) }
-    val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 55) }
+    val tone = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 32) }
 
     DisposableEffect(tone) {
         onDispose {
@@ -36,8 +36,8 @@ fun MiniSonarControl(rssi: Int, modifier: Modifier = Modifier) {
     LaunchedEffect(enabled, rssi) {
         if (enabled) {
             while (true) {
-                tone.startTone(ToneGenerator.TONE_PROP_BEEP, 70)
-                val interval = (1000 - ((rssi + 100).coerceIn(0, 70) * 10)).coerceIn(300, 1000)
+                tone.startTone(ToneGenerator.TONE_PROP_ACK, 85)
+                val interval = (1000 - ((rssi + 100).coerceIn(0, 70) * 10)).coerceIn(450, 1200)
                 delay(interval.toLong())
             }
         } else {
