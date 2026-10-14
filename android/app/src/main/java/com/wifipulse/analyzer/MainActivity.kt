@@ -244,7 +244,8 @@ fun MainAppContent(
                     onSelectNetwork = { viewModel.selectNetworkForAnalysis(it) },
                     visibleNetworkCount = uiState.networks.size,
                     isRefreshingNetworks = uiState.isScanning,
-                    onRefreshNetworks = { viewModel.triggerScan() }
+                    onRefreshNetworks = { viewModel.triggerScan() },
+                    lastScanTimestamp = uiState.lastScanTimestamp
                 )
             }
         }
