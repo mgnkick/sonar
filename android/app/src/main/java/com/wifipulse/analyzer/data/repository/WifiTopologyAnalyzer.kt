@@ -54,7 +54,55 @@ object WifiTopologyAnalyzer {
         "00:09:5B" to "Netgear Extender",
         "F4:F5:E8" to "Google Nest Wifi",
         "D8:6C:63" to "Google Wifi",
-        "BC:83:85" to "Apple AirPort"
+        "BC:83:85" to "Apple AirPort",
+        "00:17:F2" to "Apple",
+        "3C:22:FB" to "Apple",
+        "F0:18:98" to "Apple",
+        "A4:5E:60" to "Apple",
+        "00:1A:11" to "Google",
+        "F4:F5:D8" to "Google Nest",
+        "44:07:0B" to "Google Nest",
+        "18:FE:34" to "Espressif / IoT",
+        "24:0A:C4" to "Espressif / IoT",
+        "30:AE:A4" to "Espressif / IoT",
+        "AC:15:A2" to "Espressif / IoT",
+        "B4:E6:2D" to "Espressif / IoT",
+        "00:23:CD" to "Samsung",
+        "8C:77:12" to "Samsung",
+        "E8:50:8B" to "Samsung",
+        "00:26:5A" to "Huawei",
+        "70:4D:7B" to "Huawei",
+        "CC:96:A0" to "Huawei",
+        "00:1D:0F" to "ASUS",
+        "2C:56:DC" to "ASUS",
+        "A8:5E:45" to "TP-Link",
+        "14:EB:B6" to "TP-Link",
+        "EC:08:6B" to "TP-Link",
+        "F4:EC:38" to "TP-Link",
+        "60:32:B1" to "Xiaomi",
+        "64:CC:2E" to "Xiaomi",
+        "8C:BE:BE" to "Xiaomi",
+        "00:18:E7" to "Tenda",
+        "C0:4A:00" to "Netgear",
+        "2C:30:33" to "Netgear",
+        "00:24:01" to "D-Link",
+        "1C:7E:E5" to "D-Link",
+        "00:15:6D" to "Ubiquiti",
+        "24:A4:3C" to "Ubiquiti",
+        "00:18:0A" to "Cisco",
+        "00:40:96" to "Cisco",
+        "00:1B:2F" to "Cisco",
+        "00:14:BF" to "Linksys",
+        "20:AA:4B" to "Linksys",
+        "C8:D7:19" to "Linksys",
+        "00:0F:66" to "Belkin",
+        "94:10:3E" to "Belkin",
+        "00:1F:33" to "Belkin",
+        "00:1C:DF" to "ZTE",
+        "34:4B:50" to "ZTE",
+        "D8:32:14" to "ZTE",
+        "00:25:9C" to "Huawei / Honor",
+        "F8:3D:FF" to "Honor / Huawei"
     )
 
     fun resolveVendor(bssid: String): String {
@@ -62,6 +110,10 @@ object WifiTopologyAnalyzer {
         if (clean.length >= 8) {
             val prefix = clean.substring(0, 8)
             OUI_DATABASE[prefix]?.let { return it }
+            val firstOctet = clean.take(2).toIntOrNull(16)
+            if (firstOctet != null && (firstOctet and 0x02) != 0) {
+                return "Локальный / рандомизированный MAC"
+            }
         }
         return "Неизвестный вендор (${clean.take(8)})"
     }
