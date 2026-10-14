@@ -288,7 +288,7 @@ fun DiagnosticScreen(
                         )
                         TextButton(
                             onClick = { customPacketSize.toIntOrNull()?.takeIf { it in 8..1400 }?.let(onPacketSizeChange) },
-                            enabled = !isRunning && (customPacketSize.toIntOrNull() in 8..1400)
+                            enabled = !isRunning && (customPacketSize.toIntOrNull()?.let { it in 8..1400 } == true)
                         ) { Text("Применить") }
                     }
                 }
