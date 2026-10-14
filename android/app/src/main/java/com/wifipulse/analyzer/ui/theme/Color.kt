@@ -2,28 +2,37 @@ package com.wifipulse.analyzer.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val CyanPrimary = Color(0xFF00E5FF)
-val CyanSecondary = Color(0xFF00B0FF)
-val BlueAccent = Color(0xFF2979FF)
+// Neon accents: high contrast and restrained enough for long field sessions.
+val CyanPrimary = Color(0xFF54F4FF)
+val CyanSecondary = Color(0xFF00BCD4)
+val BlueAccent = Color(0xFF9B8CFF)
+val MagentaAccent = Color(0xFFFF63D8)
+val NeonGreen = Color(0xFF64F7B0)
 
-val DarkBackground = Color(0xFF0B0F17)
-val DarkSurface = Color(0xFF131B29)
-val DarkSurfaceVariant = Color(0xFF1E293B)
-val DarkBorder = Color(0xFF334155)
+val DarkBackground = Color(0xFF070B14)
+val DarkSurface = Color(0xFF0E1624)
+val DarkSurfaceVariant = Color(0xFF17243A)
+val DarkBorder = Color(0xFF29445E)
+val DarkElevatedSurface = Color(0xFF111D2D)
 
-val TextPrimaryDark = Color(0xFFF8FAFC)
-val TextSecondaryDark = Color(0xFF94A3B8)
+val TextPrimaryDark = Color(0xFFF2FAFF)
+val TextSecondaryDark = Color(0xFFABC0D2)
 
-val LightBackground = Color(0xFFF8FAFC)
+val LightBackground = Color(0xFFF2F7FB)
 val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceVariant = Color(0xFFF1F5F9)
-val LightBorder = Color(0xFFE2E8F0)
+val LightSurfaceVariant = Color(0xFFE7F0F7)
+val LightBorder = Color(0xFFBED0DF)
+val LightElevatedSurface = Color(0xFFF8FCFF)
 
-val TextPrimaryLight = Color(0xFF0F172A)
-val TextSecondaryLight = Color(0xFF64748B)
+val TextPrimaryLight = Color(0xFF102235)
+val TextSecondaryLight = Color(0xFF526B80)
+val LightCyanPrimary = Color(0xFF006F83)
+val LightCyanSecondary = Color(0xFF007F95)
+val LightBlueAccent = Color(0xFF5A45A8)
+val LightMagentaAccent = Color(0xFF9E286F)
 
 // Signal Status Colors
-val SignalExcellent = Color(0xFF10B981) // Green
-val SignalGood = Color(0xFF3B82F6) // Blue
-val SignalFair = Color(0xFFF59E0B) // Amber
-val SignalPoor = Color(0xFFEF4444) // Red
+val SignalExcellent = Color(0xFF10B981)
+val SignalGood = Color(0xFF3B82F6)
+val SignalFair = Color(0xFFF59E0B)
+val SignalPoor = Color(0xFFEF4444)
