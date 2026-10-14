@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -62,11 +63,11 @@ fun DiagnosticScreen(
                     Column {
                         Text(
                             text = "Диагностика сети",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Реальный Ping и Traceroute через ProcessBuilder",
+                            text = "Ping • Traceroute • диагностика",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -90,7 +91,7 @@ fun DiagnosticScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 10.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Box(modifier = Modifier.weight(1f)) {
@@ -132,14 +133,14 @@ fun DiagnosticScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 3.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                val presets = listOf("8.8.8.8", "1.1.1.1", "google.com", "yandex.ru", "192.168.1.1")
+                val presets = (listOfNotNull(connectionDetails.gateway.takeIf { it.isNotBlank() && it != "0.0.0.0" }?.let { "Шлюз: $it" }) + listOf("8.8.8.8", "1.1.1.1", "yandex.ru"))
                 items(presets) { preset ->
                     SuggestionChip(
-                        onClick = { if (!isRunning) onTargetChange(preset) },
-                        label = { Text(preset, fontSize = 11.sp, fontFamily = FontFamily.Monospace) }
+                        onClick = { if (!isRunning) onTargetChange(preset.substringAfter(": ", preset)) },
+                        label = { Text(preset, fontSize = 10.sp, fontFamily = FontFamily.Monospace) }
                     )
                 }
             }
@@ -171,7 +172,7 @@ fun DiagnosticScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Action Buttons
             Row(
@@ -239,13 +240,15 @@ fun DiagnosticScreen(
             // Main Terminal / Results Display
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .weight(1f, fill = true)
                     .fillMaxWidth()
+                    .heightIn(min = 160.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFF0F172A))
                     .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp))
                     .padding(10.dp)
             ) {
+                SelectionContainer {
                 if (selectedOutputTab == 0) {
                     // Terminal Output
                     if (state.logs.isEmpty()) {
@@ -409,14 +412,15 @@ fun DiagnosticScreen(
                         }
                     }
                 }
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             // Copy Log Button Bar
             if (state.logs.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(
