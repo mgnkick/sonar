@@ -23,9 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.*
-import com.wifipulse.analyzer.ui.theme.DarkBackground
-import com.wifipulse.analyzer.ui.theme.DarkSurface
-import com.wifipulse.analyzer.ui.theme.DarkSurfaceVariant
+import com.wifipulse.analyzer.ui.theme.MaterialTheme.colorScheme.background
+import com.wifipulse.analyzer.ui.theme.MaterialTheme.colorScheme.surface
+import com.wifipulse.analyzer.ui.theme.MaterialTheme.colorScheme.surfaceVariant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +45,7 @@ fun SmartAuditScreen(
                             text = "Интеллектуальный аудит",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Экспертный анализ радиоэфира и безопасности",
@@ -184,7 +184,7 @@ fun AuditScoreCard(report: AuditReport) {
                     Text(
                         text = report.statusDescription,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFCBD5E1),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 }
@@ -201,7 +201,7 @@ fun AuditScoreCard(report: AuditReport) {
                         modifier = Modifier.fillMaxSize(),
                         strokeWidth = 6.dp,
                         color = scoreColor,
-                        trackColor = Color(0xFF1E293B)
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -395,8 +395,8 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF0F172A))
-                    .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                     .padding(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.Top) {
