@@ -73,7 +73,8 @@ class NetworkDiagnosticRepository {
     fun executePing(
         rawTarget: String,
         count: Int = 4, // 0 means continuous until stopped
-        timeoutSeconds: Int = 2
+        timeoutSeconds: Int = 2,
+        packetSizeBytes: Int = 32
     ): Flow<DiagnosticLogEntry> = callbackFlow {
         val target = cleanHost(rawTarget)
         if (target.isEmpty()) {
@@ -81,6 +82,8 @@ class NetworkDiagnosticRepository {
             close()
             return@callbackFlow
         }
+
+        val safePacketSize = packetSizeBytes.coerceIn(8, 1400)
 
         // Check DNS / IP resolution first
         val resolvedIp = withContext(Dispatchers.IO) {
@@ -91,7 +94,7 @@ class NetworkDiagnosticRepository {
             }
         }
 
-        trySend(DiagnosticLogEntry.Output("PING $target ($resolvedIp): таймаут ${timeoutSeconds}с, пакетов: ${if (count > 0) count else "непрерывно"}", isHighlight = true))
+        trySend(DiagnosticLogEntry.Output("PING $target ($resolvedIp): payload ${safePacketSize} байт, таймаут ${timeoutSeconds}с, пакетов: ${if (count > 0) count else "непрерывно"}", isHighlight = true))
 
         var process: Process? = null
 
@@ -103,6 +106,8 @@ class NetworkDiagnosticRepository {
             }
             cmd.add("-W")
             cmd.add(timeoutSeconds.toString())
+            cmd.add("-s")
+            cmd.add(safePacketSize.toString())
             cmd.add(resolvedIp)
 
             val pb = ProcessBuilder(cmd)
@@ -184,7 +189,7 @@ class NetworkDiagnosticRepository {
         } catch (e: Exception) {
             // ProcessBuilder fallback to Java TCP Socket ping if OS restricts process
             if (process == null) {
-                fallbackSocketPing(target, resolvedIp, count, timeoutSeconds)
+                fallbackSocketPing(target, resolvedIp, count, timeoutSeconds, safePacketSize)
             } else {
                 trySend(DiagnosticLogEntry.Error("Процесс завершен: ${e.message ?: "Остановлено пользователем"}"))
             }
@@ -205,13 +210,14 @@ class NetworkDiagnosticRepository {
         host: String,
         ip: String,
         count: Int,
-        timeoutSeconds: Int
+        timeoutSeconds: Int,
+        packetSizeBytes: Int
     ) {
         val total = if (count > 0) count else 4
         var rec = 0
         var totalTime = 0f
 
-        trySend(DiagnosticLogEntry.Output("Использование сокетного эхо-тестирования для $host ($ip)..."))
+        trySend(DiagnosticLogEntry.Output("ICMP ping недоступен. TCP-проверка для $host ($ip); размер ICMP payload ${packetSizeBytes} байт здесь не применяется."))
 
         for (seq in 1..total) {
             val start = System.currentTimeMillis()
