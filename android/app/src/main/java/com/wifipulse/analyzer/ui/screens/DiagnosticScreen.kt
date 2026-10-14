@@ -43,6 +43,7 @@ fun DiagnosticScreen(
     onTimeoutChange: (Int) -> Unit,
     onStartPing: () -> Unit,
     onStartTraceroute: () -> Unit,
+    onStartGuidedDiagnostics: () -> Unit,
     onStop: () -> Unit,
     onClear: () -> Unit,
     connectionDetails: WifiConnectionDetails,
@@ -122,6 +123,17 @@ fun DiagnosticScreen(
                 },
                 gateway = connectionDetails.gateway
             )
+
+            Button(
+                onClick = onStartGuidedDiagnostics,
+                enabled = !isRunning,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Проверить шлюз, DNS и интернет")
+            }
             // Expandable field troubleshooting guide
             Card(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
