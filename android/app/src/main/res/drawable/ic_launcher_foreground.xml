@@ -4,14 +4,11 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:scaleX="1.8"
-        android:scaleY="1.8"
-        android:translateX="32.4"
-        android:translateY="32.4">
-        <!-- Wi-Fi Pulse Antenna & Waves -->
-        <path
-            android:fillColor="#00E5FF"
-            android:pathData="M12,3C7.79,3 3.7,4.41 0.38,7C0.14,7.19 0,7.47 0,7.78C0,8.08 0.14,8.37 0.38,8.56L11.45,20.89C11.59,21.05 11.79,21.14 12,21.14C12.21,21.14 12.41,21.05 12.55,20.89L23.62,8.56C23.86,8.37 24,8.08 24,7.78C24,7.47 23.86,7.19 23.62,7C20.3,4.41 16.21,3 12,3Z" />
-    </group>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#00DDF4" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M16,31 C37,12 71,12 92,31" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#00B8FF" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M25,45 C42,30 66,30 83,45" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#00DDF4" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M36,58 C44,51 54,49 62,53" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:strokeLineCap="round" android:pathData="M76,77 L91,92" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:pathData="M64,55 A17,17 0,1 0,64.1 55" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:pathData="M64,55 m-17,0 a17,17 0,1 0,34,0 a17,17 0,1 0,-34,0" />
+    <path android:fillColor="#00C9F2" android:pathData="M64,47 a8,8 0,1 0,0.1 0" />
 </vector>
