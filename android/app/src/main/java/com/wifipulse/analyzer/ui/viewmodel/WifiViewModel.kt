@@ -52,6 +52,7 @@ class WifiViewModel(
 
     private var cooldownJob: Job? = null
     private var autoRefreshJob: Job? = null
+    private var scanTimeoutJob: Job? = null
 
     /**
      * Refresh live connection/VPN/mobile state every 2 seconds while visible.
@@ -78,6 +79,7 @@ class WifiViewModel(
     override fun onCleared() {
         cooldownJob?.cancel()
         autoRefreshJob?.cancel()
+        scanTimeoutJob?.cancel()
         super.onCleared()
     }
 
@@ -147,6 +149,7 @@ class WifiViewModel(
     private fun observeScans() {
         viewModelScope.launch {
             repository.observeScanResults().collect { scanResults ->
+                scanTimeoutJob?.cancel()
                 _uiState.update { current ->
                     // Aggregate into groups
                     val groups = WifiTopologyAnalyzer.aggregateIntoGroups(
@@ -225,7 +228,15 @@ class WifiViewModel(
 
         startCooldownTimer(15)
 
-        if (!initiated) {
+        scanTimeoutJob?.cancel()
+        if (initiated) {
+            // Android may report a throttled/unchanged scan without a fresh-results event.
+            // Never leave the refresh button spinning forever in that case.
+            scanTimeoutJob = viewModelScope.launch {
+                delay(8_000)
+                _uiState.update { it.copy(isScanning = false) }
+            }
+        } else {
             _uiState.update { it.copy(isScanning = false) }
         }
     }
