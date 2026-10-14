@@ -23,6 +23,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -170,8 +176,24 @@ fun ConnectionStatusPanel(
     visibleNetworkCount: Int,
     isRefreshing: Boolean,
     onRefreshNetworks: () -> Unit,
+    lastScanTimestamp: Long = 0L,
     modifier: Modifier = Modifier
 ) {
+    var clockNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(lastScanTimestamp) {
+        while (true) {
+            clockNow = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+    val elapsedSeconds = if (lastScanTimestamp > 0L) ((clockNow - lastScanTimestamp).coerceAtLeast(0L) / 1000L) else null
+    val elapsedLabel = elapsedSeconds?.let { elapsed ->
+        when {
+            elapsed < 60 -> "${elapsed}с назад"
+            elapsed < 3600 -> "${elapsed / 60}м ${elapsed % 60}с назад"
+            else -> "${elapsed / 3600}ч ${(elapsed % 3600) / 60}м назад"
+        }
+    } ?: "ожидается первое обновление"
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -189,7 +211,7 @@ fun ConnectionStatusPanel(
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "Видимых сетей: $visibleNetworkCount",
+                text = "Сетей: $visibleNetworkCount • обновлено $elapsedLabel",
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
