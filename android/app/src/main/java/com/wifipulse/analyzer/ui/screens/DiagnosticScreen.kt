@@ -52,7 +52,8 @@ fun DiagnosticScreen(
     connectionDetails: WifiConnectionDetails,
     visibleNetworkCount: Int,
     isRefreshingNetworks: Boolean,
-    onRefreshNetworks: () -> Unit
+    onRefreshNetworks: () -> Unit,
+    lastScanTimestamp: Long = 0L
 ) {
     var selectedOutputTab by remember { mutableIntStateOf(0) }
     var showTroubleshooting by remember { mutableStateOf(false) }
@@ -118,6 +119,7 @@ fun DiagnosticScreen(
                 visibleNetworkCount = visibleNetworkCount,
                 isRefreshing = isRefreshingNetworks,
                 onRefreshNetworks = onRefreshNetworks,
+                lastScanTimestamp = lastScanTimestamp,
                 modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
             )
             SpeedTestLinks(
