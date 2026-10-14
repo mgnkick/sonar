@@ -53,6 +53,7 @@ fun SignalAnalysisScreen(
         ?: state.networks.firstOrNull()
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Анализ сигнала и спектра", fontWeight = FontWeight.Bold) },
