@@ -168,7 +168,9 @@ fun SignalGraphTab(state: WifiUiState, selectedNetwork: WifiNetwork?) {
                 .fillMaxWidth()
                 .height(240.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.42f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
                 SignalCanvas(history = state.signalHistory)
@@ -210,21 +212,35 @@ fun SignalGraphTab(state: WifiUiState, selectedNetwork: WifiNetwork?) {
 @Composable
 fun SignalCanvas(history: List<com.wifipulse.analyzer.data.model.SignalHistoryPoint>) {
     val lineColor = MaterialTheme.colorScheme.primary
+    val axisColor = MaterialTheme.colorScheme.tertiary
+    val labelColor = MaterialTheme.colorScheme.onSurface
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val width = size.width
         val height = size.height
+        if (width < 24.dp.toPx() || height < 24.dp.toPx()) return@Canvas
+        val nativeCanvas = drawContext.canvas.nativeCanvas
+        val axisPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.rgb(
+                (labelColor.red * 255).toInt(),
+                (labelColor.green * 255).toInt(),
+                (labelColor.blue * 255).toInt()
+            )
+            textSize = 10.dp.toPx()
+            textAlign = AndroidPaint.Align.LEFT
+        }
 
-        // Draw horizontal grid lines: -30 dBm, -50 dBm, -70 dBm, -90 dBm
+        // Cyber telemetry grid with readable RSSI labels.
         val dbmLevels = listOf(-30, -50, -70, -90)
         dbmLevels.forEach { dbm ->
-            val y = ((-dbm - 30) / 70f) * height
+            val y = ((-dbm - 30) / 70f) * (height - 8.dp.toPx()) + 4.dp.toPx()
             drawLine(
-                color = Color.Gray.copy(alpha = 0.2f),
-                start = Offset(0f, y),
+                color = axisColor.copy(alpha = 0.20f),
+                start = Offset(34.dp.toPx(), y),
                 end = Offset(width, y),
                 strokeWidth = 1.dp.toPx()
             )
+            nativeCanvas.drawText("$dbm", 1.dp.toPx(), (y + 3.dp.toPx()).coerceIn(10.dp.toPx(), height - 2.dp.toPx()), axisPaint)
         }
 
         if (history.size < 2) {
@@ -232,23 +248,28 @@ fun SignalCanvas(history: List<com.wifipulse.analyzer.data.model.SignalHistoryPo
             return@Canvas
         }
 
-        val stepX = width / (history.size - 1).coerceAtLeast(1)
+        val plotLeft = 34.dp.toPx()
+        val plotWidth = (width - plotLeft).coerceAtLeast(1f)
+        val plotHeight = (height - 8.dp.toPx()).coerceAtLeast(1f)
+        val stepX = plotWidth / (history.size - 1).coerceAtLeast(1)
         val path = Path()
 
         history.forEachIndexed { i, pt ->
-            // Map -100 dBm to height, -30 dBm to 0
             val normalized = ((-pt.rssi - 30) / 70f).coerceIn(0f, 1f)
-            val x = i * stepX
-            val y = normalized * height
-
+            val x = plotLeft + i * stepX
+            val y = 4.dp.toPx() + normalized * plotHeight
             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
 
-        drawPath(
-            path = path,
-            color = lineColor,
-            style = Stroke(width = 3.dp.toPx())
-        )
+        // A soft outer stroke creates a restrained neon glow without obscuring data.
+        drawPath(path = path, color = lineColor.copy(alpha = 0.18f), style = Stroke(width = 9.dp.toPx()))
+        drawPath(path = path, color = lineColor.copy(alpha = 0.55f), style = Stroke(width = 5.dp.toPx()))
+        drawPath(path = path, color = lineColor, style = Stroke(width = 2.5.dp.toPx()))
+
+        val last = history.last()
+        val lastY = 4.dp.toPx() + ((-last.rssi - 30) / 70f).coerceIn(0f, 1f) * plotHeight
+        drawCircle(color = lineColor.copy(alpha = 0.22f), radius = 8.dp.toPx(), center = Offset(width - 2.dp.toPx(), lastY))
+        drawCircle(color = lineColor, radius = 3.dp.toPx(), center = Offset(width - 2.dp.toPx(), lastY))
     }
 }
 
@@ -532,7 +553,12 @@ fun ChannelRatingTab(ratings24: List<ChannelRating>, ratings5: List<ChannelRatin
 fun ChannelRatingCard(rating: ChannelRating) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            (if (rating.isRecommended) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary).copy(alpha = 0.42f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
