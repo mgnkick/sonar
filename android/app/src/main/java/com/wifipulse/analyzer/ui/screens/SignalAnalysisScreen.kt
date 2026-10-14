@@ -256,11 +256,13 @@ fun ChannelSpectrumTab(networks: List<WifiNetwork>) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
 
+    // The parent SignalAnalysisScreen already owns vertical scrolling.
+    // A second verticalScroll with fillMaxSize creates unbounded nested constraints
+    // on some Compose versions and can crash when this tab is first opened.
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .padding(16.dp)
-            .verticalScroll(rememberScrollState())
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -395,6 +397,9 @@ fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand, modifier: Modifi
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
+        // Canvas can receive a transient zero/tiny size during first layout or rotation.
+        // Avoid coerceIn(min > max) and invalid draw coordinates in that frame.
+        if (width < 100.dp.toPx() || height < 40.dp.toPx()) return@Canvas
         val nativeCanvas = drawContext.canvas.nativeCanvas
         val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.rgb((labelColor.red * 255).toInt(), (labelColor.green * 255).toInt(), (labelColor.blue * 255).toInt())
