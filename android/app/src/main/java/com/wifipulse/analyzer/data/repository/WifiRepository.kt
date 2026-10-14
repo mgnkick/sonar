@@ -53,15 +53,21 @@ class WifiRepository(private val context: Context) {
     fun observeScanResults(): Flow<List<WifiNetwork>> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                val success = intent?.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false) ?: false
+                // Android can broadcast that a scan attempt finished without fresh results
+                // (for example, when the platform throttles a request). Do not mark cached
+                // results as new in that case; only publish when the OS confirms an update.
+                val resultsUpdated = intent?.getBooleanExtra(
+                    WifiManager.EXTRA_RESULTS_UPDATED,
+                    false
+                ) ?: false
+                if (!resultsUpdated) return
+
                 try {
                     @Suppress("DEPRECATION")
                     val results = wifiManager.scanResults ?: emptyList()
-                    val mappedList = mapScanResults(results)
-                        .sortedByDescending { it.rssi }
-                    trySend(mappedList)
+                    trySend(mapScanResults(results).sortedByDescending { it.rssi })
                 } catch (e: SecurityException) {
-                    trySend(emptyList())
+                    // Keep the last known list instead of replacing it with an empty one.
                 }
             }
         }
