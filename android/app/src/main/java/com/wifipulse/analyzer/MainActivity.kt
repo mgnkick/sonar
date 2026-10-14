@@ -10,6 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -179,17 +181,40 @@ fun MainAppContent(
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface
+                modifier = Modifier.border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                ),
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 8.dp
             ) {
                 navItems.forEach { screen ->
                     NavigationBarItem(
                         icon = { Icon(screen.icon, contentDescription = screen.title) },
                         label = { Text(screen.title, fontSize = 11.sp) },
                         selected = currentScreen == screen,
-                        onClick = { currentScreen = screen }
+                        onClick = { currentScreen = screen },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = if (darkTheme) 0.16f else 0.10f),
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     )
                 }
-                IconButton(onClick = onToggleTheme) {
+                IconButton(
+                    onClick = onToggleTheme,
+                    modifier = Modifier
+                        .padding(end = 4.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                ) {
                     Icon(
                         imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
                         contentDescription = if (darkTheme) "Включить светлую тему" else "Включить тёмную тему",
