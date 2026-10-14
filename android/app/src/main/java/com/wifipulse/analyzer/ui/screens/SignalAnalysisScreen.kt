@@ -43,7 +43,8 @@ fun SignalAnalysisScreen(
     onSelectNetwork: (String) -> Unit,
     visibleNetworkCount: Int,
     isRefreshingNetworks: Boolean,
-    onRefreshNetworks: () -> Unit
+    onRefreshNetworks: () -> Unit,
+    lastScanTimestamp: Long = 0L
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("График сигнала", "Спектр каналов", "Рейтинг каналов")
@@ -73,7 +74,7 @@ fun SignalAnalysisScreen(
                 visibleNetworkCount = visibleNetworkCount,
                 isRefreshing = isRefreshingNetworks,
                 onRefreshNetworks = onRefreshNetworks,
-                lastScanTimestamp = state.lastScanTimestamp,
+                lastScanTimestamp = lastScanTimestamp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )
             // Selected Network Quick Selector Bar
