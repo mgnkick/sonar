@@ -90,31 +90,48 @@ class WifiRepository(private val context: Context) {
      * Retrieves current active Wi-Fi connection details.
      */
     fun getCurrentConnectionDetails(): WifiConnectionDetails {
-        val activeNetwork = connectivityManager.activeNetwork ?: return WifiConnectionDetails()
-        val caps = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return WifiConnectionDetails()
+        val activeNetwork = connectivityManager.activeNetwork
+        val activeCaps = activeNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+        val allNetworks = connectivityManager.allNetworks
+        val capabilities = allNetworks.mapNotNull { network ->
+            connectivityManager.getNetworkCapabilities(network)
+        }
+        val vpnActive = capabilities.any { it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) } ||
+            activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        val wifiNetwork = allNetworks.firstOrNull { network ->
+            connectivityManager.getNetworkCapabilities(network)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
+        val wifiCaps = wifiNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
+        val mobileActive = wifiNetwork == null && (
+            activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true ||
+                (vpnActive && capabilities.any { it.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) })
+            )
 
-        if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-            return WifiConnectionDetails(isConnected = false)
+        if (wifiNetwork == null || wifiCaps == null) {
+            return WifiConnectionDetails(
+                isConnected = false,
+                isVpnActive = vpnActive,
+                isMobileDataActive = mobileActive
+            )
         }
 
         @Suppress("DEPRECATION")
         val wifiInfo: WifiInfo? = wifiManager.connectionInfo
+        @Suppress("DEPRECATION")
         val dhcpInfo: DhcpInfo? = wifiManager.dhcpInfo
 
-        val rawSsid = wifiInfo?.ssid?.trim('\"') ?: ""
-        val ssid = if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) "Подключено к Wi-Fi" else rawSsid
-        val bssid = wifiInfo?.bssid ?: "00:00:00:00:00:00"
-        val rssi = wifiInfo?.rssi ?: 0
+        val rawSsid = wifiInfo?.ssid?.trim('"') ?: ""
+        val ssid = if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
+            "Подключено к Wi-Fi (SSID скрыт системой)"
+        } else rawSsid
+        val bssid = wifiInfo?.bssid?.takeIf { it.isNotBlank() } ?: "BSSID недоступен"
+        val rssi = wifiInfo?.rssi ?: -127
         val linkSpeed = wifiInfo?.linkSpeed ?: 0
         val frequency = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) wifiInfo?.frequency ?: 0 else 0
 
-        var txSpeed = linkSpeed
-        var rxSpeed = linkSpeed
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            txSpeed = wifiInfo?.txLinkSpeedMbps ?: linkSpeed
-            rxSpeed = wifiInfo?.rxLinkSpeedMbps ?: linkSpeed
-        }
-
+        val txSpeed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) wifiInfo?.txLinkSpeedMbps ?: linkSpeed else linkSpeed
+        val rxSpeed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) wifiInfo?.rxLinkSpeedMbps ?: linkSpeed else linkSpeed
         val standard = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             when (wifiInfo?.wifiStandard) {
                 ScanResult.WIFI_STANDARD_11AX -> "Wi-Fi 6 (802.11ax)"
@@ -143,7 +160,9 @@ class WifiRepository(private val context: Context) {
             frequency = frequency,
             standard = standard,
             macAddress = wifiInfo?.macAddress ?: "02:00:00:00:00:00",
-            isHidden = wifiInfo?.hiddenSSID ?: false
+            isHidden = wifiInfo?.hiddenSSID ?: false,
+            isVpnActive = vpnActive,
+            isMobileDataActive = mobileActive
         )
     }
 
