@@ -19,6 +19,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import java.net.InetAddress
+import java.net.Inet4Address
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -129,6 +130,11 @@ class WifiRepository(private val context: Context) {
         val rssi = wifiInfo?.rssi ?: -127
         val linkSpeed = wifiInfo?.linkSpeed ?: 0
         val frequency = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) wifiInfo?.frequency ?: 0 else 0
+        val routeGateway = wifiNetwork?.let { network ->
+            connectivityManager.getLinkProperties(network)?.routes
+                ?.firstOrNull { it.isDefaultRoute && it.gateway is Inet4Address }
+                ?.gateway?.hostAddress
+        }
 
         val txSpeed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) wifiInfo?.txLinkSpeedMbps ?: linkSpeed else linkSpeed
         val rxSpeed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) wifiInfo?.rxLinkSpeedMbps ?: linkSpeed else linkSpeed
@@ -150,7 +156,7 @@ class WifiRepository(private val context: Context) {
             bssid = bssid,
             rssi = rssi,
             ipAddress = formatIpAddress(dhcpInfo?.ipAddress ?: 0),
-            gateway = formatIpAddress(dhcpInfo?.gateway ?: 0),
+            gateway = routeGateway?.takeIf { it.isNotBlank() } ?: formatIpAddress(dhcpInfo?.gateway ?: 0),
             subnetMask = formatIpAddress(dhcpInfo?.netmask ?: 0),
             dns1 = formatIpAddress(dhcpInfo?.dns1 ?: 0),
             dns2 = formatIpAddress(dhcpInfo?.dns2 ?: 0),
