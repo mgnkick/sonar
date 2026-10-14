@@ -209,13 +209,17 @@ fun MainAppContent(
                     onSortChange = { viewModel.setSortOption(it) },
                     onToggleGroup = { viewModel.toggleGroupExpansion(it) },
                     onNetworkSelected = { viewModel.selectNetworkForAnalysis(it) },
-                    onNavigateToAnalysis = { currentScreen = Screen.SignalAnalysis }
+                    onNavigateToAnalysis = { currentScreen = Screen.SignalAnalysis },
+                    onRefreshNetworks = { viewModel.triggerScan() }
                 )
                 is Screen.SmartAudit -> SmartAuditScreen(
                     report = uiState.auditReport,
                     isScanning = uiState.isScanning,
                     onRefreshAudit = { viewModel.triggerScan() },
-                    connectionDetails = uiState.connectionDetails
+                    connectionDetails = uiState.connectionDetails,
+                    visibleNetworkCount = uiState.networks.size,
+                    isRefreshingNetworks = uiState.isScanning,
+                    onRefreshNetworks = { viewModel.triggerScan() }
                 )
                 is Screen.Diagnostics -> com.wifipulse.analyzer.ui.screens.DiagnosticScreen(
                     state = diagnosticState,
@@ -226,11 +230,17 @@ fun MainAppContent(
                     onStartTraceroute = { diagnosticViewModel.startTraceroute() },
                     onStop = { diagnosticViewModel.stopDiagnostic() },
                     onClear = { diagnosticViewModel.clearLogs() },
-                    connectionDetails = uiState.connectionDetails
+                    connectionDetails = uiState.connectionDetails,
+                    visibleNetworkCount = uiState.networks.size,
+                    isRefreshingNetworks = uiState.isScanning,
+                    onRefreshNetworks = { viewModel.triggerScan() }
                 )
                 is Screen.SignalAnalysis -> SignalAnalysisScreen(
                     state = uiState,
-                    onSelectNetwork = { viewModel.selectNetworkForAnalysis(it) }
+                    onSelectNetwork = { viewModel.selectNetworkForAnalysis(it) },
+                    visibleNetworkCount = uiState.networks.size,
+                    isRefreshingNetworks = uiState.isScanning,
+                    onRefreshNetworks = { viewModel.triggerScan() }
                 )
             }
         }
