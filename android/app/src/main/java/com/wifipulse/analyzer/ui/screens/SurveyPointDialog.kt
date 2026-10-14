@@ -273,6 +273,17 @@ fun SurveyPointDialog(
                         }
                     }
                 }
+                val selectedCellPoints = points.filter { it.ssid == details.ssid && it.cell == selectedCell }
+                val point24 = selectedCellPoints.filter { it.band == "2,4 ГГц" }.maxByOrNull { it.timestamp }
+                val point5 = selectedCellPoints.filter { it.band == "5 ГГц" }.maxByOrNull { it.timestamp }
+                if (point24 != null && point5 != null) {
+                    val stronger = if (point24.rssi >= point5.rssi) "2,4 ГГц" else "5 ГГц"
+                    Text(
+                        "Сравнение диапазонов в зоне ${selectedCell + 1}: 2,4 ГГц — ${point24.rssi} dBm; 5 ГГц — ${point5.rssi} dBm. Лучше по уровню сигнала: $stronger. Проверьте скорость и задержку в обоих диапазонах перед выбором.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 val comparablePoints = points.filter { it.ssid == details.ssid && it.band == currentBand }
                 if (comparablePoints.size >= 2) {
                     val best = comparablePoints.maxByOrNull { it.rssi }!!
