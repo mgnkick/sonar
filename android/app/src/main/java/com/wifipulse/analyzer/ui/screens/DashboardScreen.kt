@@ -139,6 +139,7 @@ fun DashboardScreen(
                 visibleNetworkCount = state.networks.size,
                 isRefreshing = state.isScanning,
                 onRefreshNetworks = onRefreshNetworks,
+                lastScanTimestamp = state.lastScanTimestamp,
                 modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
             )
 
