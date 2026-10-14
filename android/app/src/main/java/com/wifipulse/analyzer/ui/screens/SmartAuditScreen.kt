@@ -33,6 +33,7 @@ fun SmartAuditScreen(
     report: AuditReport?,
     isScanning: Boolean,
     onRefreshAudit: () -> Unit,
+    connectionDetails: WifiConnectionDetails,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -88,6 +89,9 @@ fun SmartAuditScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(vertical = 12.dp)
         ) {
+            item {
+                ConnectionStatusBanner(details = connectionDetails)
+            }
             if (report == null) {
                 item {
                     EmptyAuditPlaceholder(onScanClick = onRefreshAudit)
