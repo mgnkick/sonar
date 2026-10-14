@@ -76,6 +76,7 @@ fun DiagnosticScreen(
     val isRunning = state.status == DiagnosticStatus.RUNNING
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
