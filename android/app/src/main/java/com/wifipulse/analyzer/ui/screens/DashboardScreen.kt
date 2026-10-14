@@ -1,5 +1,8 @@
 package com.wifipulse.analyzer.ui.screens
 
+import android.media.AudioManager
+import android.media.ToneGenerator
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -17,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +48,30 @@ fun DashboardScreen(
     onNavigateToAnalysis: () -> Unit
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
+    var sonarEnabled by remember { mutableStateOf(false) }
+    val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 65) }
+    val sonarRssi = if (state.connectionDetails.isConnected) {
+        state.connectionDetails.rssi
+    } else {
+        state.filteredGroups.maxOfOrNull { it.bestRssi } ?: -100
+    }
+
+    DisposableEffect(toneGenerator) {
+        onDispose {
+            toneGenerator.stopTone()
+            toneGenerator.release()
+        }
+    }
+
+    LaunchedEffect(sonarEnabled, sonarRssi) {
+        if (sonarEnabled) {
+            while (true) {
+                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
+                val intervalMs = (950 - ((sonarRssi + 100).coerceIn(0, 70) * 10)).coerceIn(250, 950)
+                delay(intervalMs.toLong())
+            }
+        }
+    }
 
     val totalNodesCount = state.networkGroups.sumOf { it.totalNodesCount }
 
@@ -123,8 +151,13 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 12.dp)
         ) {
+            ConnectionStatusBanner(
+                details = state.connectionDetails,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+            )
+
             // Search Bar
             OutlinedTextField(
                 value = state.searchQuery,
@@ -178,6 +211,19 @@ fun DashboardScreen(
                         selected = state.selectedBand == WifiBand.BAND_6_GHZ,
                         onClick = { onBandSelected(WifiBand.BAND_6_GHZ) },
                         label = { Text("6 ГГц (Wi-Fi 6E)") }
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = sonarEnabled,
+                        onClick = { sonarEnabled = !sonarEnabled },
+                        label = { Text(if (sonarEnabled) "Сонар: ВКЛ" else "Звуковой сонар") },
+                        leadingIcon = {
+                            Icon(
+                                if (sonarEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                contentDescription = null
+                            )
+                        }
                     )
                 }
             }
@@ -260,7 +306,7 @@ fun ExpandableWifiGroupCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onToggle)
-                    .padding(14.dp)
+                    .padding(if (group.isExpanded) 12.dp else 8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -335,7 +381,7 @@ fun ExpandableWifiGroupCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(if (group.isExpanded) 8.dp else 3.dp))
 
                 // Topology Badge & Roaming Tags
                 Row(
