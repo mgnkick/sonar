@@ -578,6 +578,12 @@ fun ChannelRatingCard(rating: ChannelRating) {
                 }
             }
         }
+        Text(
+            text = "Ширина канала: ${rating.recommendedWidthMhz} МГц. ${rating.explanation}",
+            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 12.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
