@@ -339,7 +339,11 @@ fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand) {
 
             val path = Path()
             path.moveTo(centerX - curveWidth / 2, height - 20.dp.toPx())
-            path.quadraticTo(centerX, peakY, centerX + curveWidth / 2, height - 20.dp.toPx())
+            path.cubicTo(
+                centerX - curveWidth / 4, peakY,
+                centerX + curveWidth / 4, peakY,
+                centerX + curveWidth / 2, height - 20.dp.toPx()
+            )
 
             val curveColor = Color(net.signalQuality.hexColor)
             drawPath(path = path, color = curveColor.copy(alpha = 0.35f))
