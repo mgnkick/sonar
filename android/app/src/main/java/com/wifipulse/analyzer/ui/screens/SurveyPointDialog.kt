@@ -5,6 +5,7 @@ import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,7 +33,8 @@ private data class SurveyPoint(
     val ssid: String,
     val rssi: Int,
     val frequency: Int,
-    val timestamp: Long
+    val timestamp: Long,
+    val cell: Int = 4
 ) {
     val band: String get() = when {
         frequency in 2400..2500 -> "2,4 ГГц"
@@ -50,6 +52,7 @@ fun SurveyPointDialog(
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("wifi_pulse_survey", Context.MODE_PRIVATE) }
     var roomName by remember { mutableStateOf("") }
+    var selectedCell by remember { mutableIntStateOf(4) }
     var points by remember { mutableStateOf(loadSurveyPoints(prefs.getString("points", "[]") ?: "[]")) }
 
     val currentBand = when {
@@ -69,6 +72,7 @@ fun SurveyPointDialog(
                     put("rssi", point.rssi)
                     put("frequency", point.frequency)
                     put("timestamp", point.timestamp)
+                    put("cell", point.cell)
                 })
             }
         }.toString()).apply()
@@ -117,15 +121,53 @@ fun SurveyPointDialog(
                         )
                     }
                 }
+                Text("Схема покрытия — выберите примерное расположение точки", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    repeat(3) { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            repeat(3) { col ->
+                                val cell = row * 3 + col
+                                val cellPoint = points.filter { it.cell == cell }.maxByOrNull { it.timestamp }
+                                val heat = when {
+                                    cellPoint == null -> MaterialTheme.colorScheme.surfaceVariant
+                                    cellPoint.rssi >= -55 -> Color(0xFF166534)
+                                    cellPoint.rssi >= -67 -> Color(0xFF65A30D)
+                                    cellPoint.rssi >= -75 -> Color(0xFFCA8A04)
+                                    else -> Color(0xFFB91C1C)
+                                }
+                                Surface(
+                                    modifier = Modifier.weight(1f).height(58.dp).clickable { selectedCell = cell },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (selectedCell == cell) MaterialTheme.colorScheme.primaryContainer else heat,
+                                    border = if (selectedCell == cell) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize().padding(4.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            cellPoint?.room ?: "Зона ${cell + 1}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1
+                                        )
+                                        if (cellPoint != null) Text("${cellPoint.rssi} dBm", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 Button(
                     onClick = {
                         if (details.isConnected) {
                             val next = SurveyPoint(
-                                room = roomName.trim().ifBlank { "Точка ${points.size + 1}" },
+                                room = roomName.trim().ifBlank { "Зона ${selectedCell + 1}" },
                                 ssid = details.ssid,
                                 rssi = details.rssi,
                                 frequency = details.frequency,
-                                timestamp = System.currentTimeMillis()
+                                timestamp = System.currentTimeMillis(),
+                                cell = selectedCell
                             )
                             persist(points + next)
                             roomName = ""
@@ -273,7 +315,8 @@ private fun loadSurveyPoints(raw: String): List<SurveyPoint> = runCatching {
             ssid = item.optString("ssid", ""),
             rssi = item.optInt("rssi", -100),
             frequency = item.optInt("frequency", 0),
-            timestamp = item.optLong("timestamp", 0L)
+            timestamp = item.optLong("timestamp", 0L),
+            cell = item.optInt("cell", index % 9).coerceIn(0, 8)
         )
     }
 }.getOrDefault(emptyList())
