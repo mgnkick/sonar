@@ -219,13 +219,15 @@ fun MainAppContent(
                     connectionDetails = uiState.connectionDetails,
                     visibleNetworkCount = uiState.networks.size,
                     isRefreshingNetworks = uiState.isScanning,
-                    onRefreshNetworks = { viewModel.triggerScan() }
+                    onRefreshNetworks = { viewModel.triggerScan() },
+                    lastScanTimestamp = uiState.lastScanTimestamp
                 )
                 is Screen.Diagnostics -> com.wifipulse.analyzer.ui.screens.DiagnosticScreen(
                     state = diagnosticState,
                     onTargetChange = { diagnosticViewModel.setTarget(it) },
                     onCountChange = { diagnosticViewModel.setPacketCount(it) },
                     onTimeoutChange = { diagnosticViewModel.setTimeoutSeconds(it) },
+                    onPacketSizeChange = { diagnosticViewModel.setPacketSizeBytes(it) },
                     onStartPing = { diagnosticViewModel.startPing() },
                     onStartTraceroute = { diagnosticViewModel.startTraceroute() },
                     onStartGuidedDiagnostics = { diagnosticViewModel.startGuidedDiagnostics(uiState.connectionDetails.gateway, uiState.connectionDetails.dns1, uiState.connectionDetails.dns2) },
@@ -234,7 +236,8 @@ fun MainAppContent(
                     connectionDetails = uiState.connectionDetails,
                     visibleNetworkCount = uiState.networks.size,
                     isRefreshingNetworks = uiState.isScanning,
-                    onRefreshNetworks = { viewModel.triggerScan() }
+                    onRefreshNetworks = { viewModel.triggerScan() },
+                    lastScanTimestamp = uiState.lastScanTimestamp
                 )
                 is Screen.SignalAnalysis -> SignalAnalysisScreen(
                     state = uiState,
