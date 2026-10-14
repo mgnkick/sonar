@@ -547,7 +547,7 @@ class NetworkDiagnosticRepository {
             }
             out.writeByte(0); out.writeShort(1); out.writeShort(1)
         }
-        DatagramSocket().use { socket ->
+        return DatagramSocket().use { socket ->
             socket.soTimeout = timeoutMs
             val bytes = packet.toByteArray()
             socket.send(DatagramPacket(bytes, bytes.size, address, 53))
