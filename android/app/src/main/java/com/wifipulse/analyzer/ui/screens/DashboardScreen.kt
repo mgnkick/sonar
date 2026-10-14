@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -129,6 +130,7 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -202,7 +204,8 @@ fun DashboardScreen(
             if (state.filteredGroups.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .heightIn(min = 220.dp)
                         .padding(bottom = 80.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -227,12 +230,11 @@ fun DashboardScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(bottom = 88.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(state.filteredGroups, key = { it.ssid }) { group ->
+                    state.filteredGroups.forEach { group ->
                         ExpandableWifiGroupCard(
                             group = group,
                             connectedSsid = state.connectionDetails.ssid.takeIf { state.connectionDetails.isConnected },
@@ -244,6 +246,7 @@ fun DashboardScreen(
                             }
                         )
                     }
+                    Spacer(modifier = Modifier.height(88.dp))
                 }
             }
         }
