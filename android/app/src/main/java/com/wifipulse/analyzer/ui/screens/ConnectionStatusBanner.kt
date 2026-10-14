@@ -3,6 +3,7 @@ package com.wifipulse.analyzer.ui.screens
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -77,9 +78,16 @@ fun ConnectionStatusBanner(
     }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = if (hasWarning) MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                else MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(14.dp)
+            ),
         color = container,
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(14.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -89,7 +97,7 @@ fun ConnectionStatusBanner(
                 androidx.compose.material3.Icon(
                     imageVector = if (hasWarning) Icons.Default.Error else Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = if (hasWarning) Color(0xFFFFB4AB) else Color(0xFF8BE0BD)
+                    tint = if (hasWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
                 Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                     Text(
@@ -152,7 +160,7 @@ private fun WarningLine(
             androidx.compose.material3.Icon(
                 imageVector = Icons.Default.Info,
                 contentDescription = null,
-                tint = Color(0xFFFFD18B)
+                tint = MaterialTheme.colorScheme.tertiary
             )
             Text(
                 text = text,
