@@ -8,7 +8,6 @@
     <path android:fillColor="@android:color/transparent" android:strokeColor="#00B8FF" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M25,45 C42,30 66,30 83,45" />
     <path android:fillColor="@android:color/transparent" android:strokeColor="#00DDF4" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M36,58 C44,51 54,49 62,53" />
     <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:strokeLineCap="round" android:pathData="M76,77 L91,92" />
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:pathData="M64,55 A17,17 0,1 0,64.1 55" />
     <path android:fillColor="@android:color/transparent" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:pathData="M64,55 m-17,0 a17,17 0,1 0,34,0 a17,17 0,1 0,-34,0" />
     <path android:fillColor="#00C9F2" android:pathData="M64,47 a8,8 0,1 0,0.1 0" />
 </vector>
