@@ -129,6 +129,11 @@ fun MainAppContent(
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
 
+    LaunchedEffect(currentScreen) {
+        viewModel.refreshConnectionDetails()
+        viewModel.refreshAudit()
+    }
+
     val diagnosticViewModel: com.wifipulse.analyzer.ui.viewmodel.DiagnosticViewModel = viewModel()
     val diagnosticState by diagnosticViewModel.uiState.collectAsState()
 
