@@ -51,24 +51,33 @@ class WifiViewModel(
     val uiState: StateFlow<WifiUiState> = _uiState.asStateFlow()
 
     private var cooldownJob: Job? = null
+    private var autoRefreshJob: Job? = null
 
     /**
-     * Refresh is event-driven: WifiRepository listens for Android's scan-results broadcast
-     * and updates the list as soon as the OS publishes fresh scan data. There is deliberately
-     * no periodic polling timer: the app follows the platform's cadence instead of inventing
-     * its own interval. Manual scanning remains available through triggerScan().
+     * Refresh live connection/VPN/mobile state every 2 seconds while visible.
+     * The network list itself remains event-driven by Android scan-result broadcasts;
+     * this loop never starts extra radio scans.
      */
     fun startAutoRefresh() {
-        // The scan-results receiver remains active for the ViewModel lifetime.
-        // Request one scan only on first permission grant; subsequent updates are OS-driven.
+        refreshConnectionDetails()
+        refreshAudit()
+        if (autoRefreshJob?.isActive == true) return
+        autoRefreshJob = viewModelScope.launch {
+            while (true) {
+                delay(2_000)
+                refreshConnectionDetails()
+            }
+        }
     }
 
     fun stopAutoRefresh() {
-        // No timer to cancel: leaving/returning to the app must not reset or restart scans.
+        autoRefreshJob?.cancel()
+        autoRefreshJob = null
     }
 
     override fun onCleared() {
         cooldownJob?.cancel()
+        autoRefreshJob?.cancel()
         super.onCleared()
     }
 
@@ -91,7 +100,22 @@ class WifiViewModel(
 
     fun refreshConnectionDetails() {
         val details = repository.getCurrentConnectionDetails()
-        _uiState.update { it.copy(connectionDetails = details) }
+        _uiState.update { current ->
+            val isSelectedConnection = details.isConnected &&
+                current.selectedNetworkBssid.equals(details.bssid, ignoreCase = true)
+            val now = System.currentTimeMillis()
+            val lastPoint = current.signalHistory.lastOrNull()
+            val history = if (isSelectedConnection && details.rssi in -100..0 &&
+                (lastPoint == null || now - lastPoint.timestamp >= 1_000)
+            ) {
+                (current.signalHistory + SignalHistoryPoint(now, details.rssi)).takeLast(120)
+            } else current.signalHistory
+            current.copy(
+                connectionDetails = details,
+                signalHistory = history,
+                auditReport = auditEngine.generateReport(current.networkGroups, details)
+            )
+        }
     }
 
     fun toggleGroupExpansion(ssid: String) {
@@ -185,6 +209,9 @@ class WifiViewModel(
     }
 
     fun triggerScan() {
+        // Refresh connection warnings even if Android throttles the actual radio scan.
+        refreshConnectionDetails()
+        refreshAudit()
         if (_uiState.value.scanThrottleCooldownSeconds > 0) return
 
         _uiState.update { it.copy(isScanning = true) }
