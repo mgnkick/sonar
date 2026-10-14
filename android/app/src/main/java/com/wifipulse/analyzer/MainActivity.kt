@@ -228,6 +228,7 @@ fun MainAppContent(
                     onTimeoutChange = { diagnosticViewModel.setTimeoutSeconds(it) },
                     onStartPing = { diagnosticViewModel.startPing() },
                     onStartTraceroute = { diagnosticViewModel.startTraceroute() },
+                    onStartGuidedDiagnostics = { diagnosticViewModel.startGuidedDiagnostics(uiState.connectionDetails.gateway, uiState.connectionDetails.dns1, uiState.connectionDetails.dns2) },
                     onStop = { diagnosticViewModel.stopDiagnostic() },
                     onClear = { diagnosticViewModel.clearLogs() },
                     connectionDetails = uiState.connectionDetails,
