@@ -1,5 +1,8 @@
 package com.wifipulse.analyzer.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -18,10 +21,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +37,7 @@ fun ConnectionStatusBanner(
     details: WifiConnectionDetails,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val is24Ghz = details.isConnected && details.frequency in 2400..2500
     val hasWarning = !details.isConnected || details.isVpnActive ||
         details.isMobileDataActive || is24Ghz
@@ -40,6 +46,20 @@ fun ConnectionStatusBanner(
         !details.isConnected && details.isMobileDataActive -> "Wi-Fi не подключён • используется мобильный интернет"
         !details.isConnected -> "Wi-Fi не подключён"
         else -> "Подключено: ${details.ssid}"
+    }
+
+    fun openSettings(primaryAction: String, fallbackAction: String) {
+        val actions = listOf(primaryAction, fallbackAction)
+        for (action in actions) {
+            try {
+                context.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            } catch (_: ActivityNotFoundException) {
+                // Try the generic Android settings screen on devices without this category.
+            } catch (_: SecurityException) {
+                // Try the fallback action if the OEM blocks the specific settings intent.
+            }
+        }
     }
 
     Surface(
@@ -63,7 +83,7 @@ fun ConnectionStatusBanner(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = if (hasWarning) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     if (details.isConnected) {
@@ -76,38 +96,65 @@ fun ConnectionStatusBanner(
                 }
             }
             if (!details.isConnected) {
-                WarningLine("Подключитесь к Wi-Fi для анализа локальной беспроводной сети.")
+                WarningLine(
+                    text = "Подключитесь к Wi-Fi для анализа локальной беспроводной сети.",
+                    buttonText = "Открыть настройки Wi-Fi",
+                    onClick = { openSettings(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS) }
+                )
             }
             if (details.isVpnActive) {
-                WarningLine("Обнаружен активный VPN. Он может менять маршруты, DNS и результаты проверки.")
+                WarningLine(
+                    text = "Обнаружен активный VPN. Он может менять маршруты, DNS и результаты проверки.",
+                    buttonText = "Настройки VPN",
+                    onClick = { openSettings(Settings.ACTION_VPN_SETTINGS, Settings.ACTION_SETTINGS) }
+                )
             }
             if (details.isMobileDataActive) {
-                WarningLine("Передача данных идёт через мобильную сеть, а не через Wi-Fi.")
+                WarningLine(
+                    text = "Передача данных идёт через мобильную сеть, а не через Wi-Fi.",
+                    buttonText = "Настройки сети",
+                    onClick = { openSettings(Settings.ACTION_WIRELESS_SETTINGS, Settings.ACTION_DATA_USAGE_SETTINGS) }
+                )
             }
             if (is24Ghz) {
-                WarningLine("Подключение 2,4 ГГц: скорость обычно ниже, чем у 5 ГГц. Проверьте доступность 5 ГГц.")
+                WarningLine(
+                    text = "Подключение 2,4 ГГц: скорость обычно ниже, чем у 5 ГГц. Проверьте доступность 5 ГГц.",
+                    buttonText = "Выбрать сеть Wi-Fi",
+                    onClick = { openSettings(Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun WarningLine(text: String) {
-    Row(verticalAlignment = Alignment.Top) {
-        androidx.compose.material3.Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = null,
-            tint = Color(0xFFFFD18B)
-        )
-        Text(
-            text = text,
-            modifier = Modifier.padding(start = 6.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+private fun WarningLine(
+    text: String,
+    buttonText: String,
+    onClick: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Top) {
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = Color(0xFFFFD18B)
+            )
+            Text(
+                text = text,
+                modifier = Modifier.padding(start = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        TextButton(
+            onClick = onClick,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text(buttonText, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
-
 
 @Composable
 fun ConnectionStatusPanel(
