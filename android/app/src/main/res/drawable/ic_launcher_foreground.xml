@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.8"
+        android:scaleY="1.8"
+        android:translateX="32.4"
+        android:translateY="32.4">
+        <!-- Wi-Fi Pulse Antenna & Waves -->
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M12,3C7.79,3 3.7,4.41 0.38,7C0.14,7.19 0,7.47 0,7.78C0,8.08 0.14,8.37 0.38,8.56L11.45,20.89C11.59,21.05 11.79,21.14 12,21.14C12.21,21.14 12.41,21.05 12.55,20.89L23.62,8.56C23.86,8.37 24,8.08 24,7.78C24,7.47 23.86,7.19 23.62,7C20.3,4.41 16.21,3 12,3Z" />
+    </group>
+</vector>

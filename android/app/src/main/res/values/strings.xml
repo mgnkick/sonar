@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">WiFi Pulse</string>
+    <string name="scan_title">Сканирование сетей</string>
+    <string name="audit_title">Смарт-Аудит</string>
+    <string name="diag_title">Диагностика</string>
+    <string name="analysis_title">Анализ сигнала</string>
+    <string name="info_title">Подключение</string>
+    <string name="permissions_title">Требуются разрешения</string>
+</resources>

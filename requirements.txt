@@ -1,0 +1,7 @@
+# WiFi Pulse & Network Suite (Python 3.10+)
+# Core network suite runs with standard library (zero mandatory dependencies)
+# Optional enhanced terminal UI:
+rich>=13.7.0
+# Optional web dashboard:
+fastapi>=0.110.0
+uvicorn>=0.28.0
