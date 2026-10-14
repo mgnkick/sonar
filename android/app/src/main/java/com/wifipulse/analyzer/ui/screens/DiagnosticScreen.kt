@@ -10,6 +10,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -51,6 +52,9 @@ fun DiagnosticScreen(
     val listState = rememberLazyListState()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val fontScale = LocalConfiguration.current.fontScale.coerceAtLeast(1f)
+    // Reserve more visible terminal space for users with enlarged accessibility fonts.
+    val consoleHeight = (360f * fontScale).coerceIn(360f, 560f).dp
 
     // Auto-scroll console to bottom when new logs arrive
     LaunchedEffect(state.logs.size) {
@@ -281,7 +285,7 @@ fun DiagnosticScreen(
             // Main Terminal / Results Display
             Box(
                 modifier = Modifier
-                    .height(260.dp)
+                    .height(consoleHeight)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFF0F172A))
