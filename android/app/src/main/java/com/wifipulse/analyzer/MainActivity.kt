@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -225,7 +228,20 @@ fun MainAppContent(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = if (darkTheme) listOf(
+                            Color(0xFF070B14), Color(0xFF0A1421), Color(0xFF10101F)
+                        ) else listOf(
+                            Color(0xFFF2F7FB), Color(0xFFEAF7FA), Color(0xFFF4F0FC)
+                        )
+                    )
+                )
+                .padding(padding)
+        ) {
             when (currentScreen) {
                 is Screen.Dashboard -> DashboardScreen(
                     state = uiState,
