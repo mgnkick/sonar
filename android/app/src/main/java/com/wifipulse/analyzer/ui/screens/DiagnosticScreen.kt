@@ -242,7 +242,6 @@ fun DiagnosticScreen(
                 modifier = Modifier
                     .weight(1f, fill = true)
                     .fillMaxWidth()
-                    .heightIn(min = 160.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(Color(0xFF0F172A))
                     .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(14.dp))
