@@ -16,6 +16,7 @@ data class DiagnosticUiState(
     val mode: DiagnosticMode = DiagnosticMode.PING,
     val status: DiagnosticStatus = DiagnosticStatus.IDLE,
     val packetCount: Int = 4, // 0 = continuous
+    val packetSizeBytes: Int = 32,
     val timeoutSeconds: Int = 2,
     val logs: List<DiagnosticLogEntry> = emptyList(),
     val pingPackets: List<PingPacket> = emptyList(),
@@ -39,6 +40,10 @@ class DiagnosticViewModel(
 
     fun setPacketCount(count: Int) {
         _uiState.update { it.copy(packetCount = count) }
+    }
+
+    fun setPacketSizeBytes(size: Int) {
+        _uiState.update { it.copy(packetSizeBytes = size.coerceIn(8, 1400)) }
     }
 
     fun setTimeoutSeconds(timeout: Int) {
@@ -74,7 +79,8 @@ class DiagnosticViewModel(
                 repository.executePing(
                     rawTarget = target,
                     count = _uiState.value.packetCount,
-                    timeoutSeconds = _uiState.value.timeoutSeconds
+                    timeoutSeconds = _uiState.value.timeoutSeconds,
+                    packetSizeBytes = _uiState.value.packetSizeBytes
                 ).collect { entry ->
                     _uiState.update { current ->
                         val updatedLogs = (current.logs + entry).takeLast(200)
