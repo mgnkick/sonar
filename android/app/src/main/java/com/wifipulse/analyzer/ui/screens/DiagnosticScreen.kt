@@ -463,12 +463,13 @@ fun DiagnosticScreen(
                                     })
                                 }
                             }
+                            clipboardManager.setText(AnnotatedString(report))
                             context.getSharedPreferences("wifi_pulse_diagnostics", android.content.Context.MODE_PRIVATE)
                                 .edit()
                                 .putString("last_report", report)
                                 .putLong("last_report_saved_at", System.currentTimeMillis())
                                 .apply()
-                            Toast.makeText(context, "Отчёт сохранён на устройстве", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Отчёт сохранён и скопирован", Toast.LENGTH_SHORT).show()
                         }
                     ) {
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(14.dp))
