@@ -15,6 +15,10 @@ import java.io.InputStreamReader
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.Inet4Address
+import java.util.Random
 import java.util.regex.Pattern
 
 class NetworkDiagnosticRepository {
@@ -402,4 +406,159 @@ class NetworkDiagnosticRepository {
             } catch (ignored: Exception) {}
         }
     }
+
+    /**
+     * Runs a guided, real connectivity check. A TCP fallback is used when the
+     * device/OEM blocks the native ping binary; that result is explicitly labeled.
+     */
+    suspend fun runGuidedDiagnostics(
+        gateway: String,
+        dns1: String,
+        dns2: String
+    ): List<String> = withContext(Dispatchers.IO) {
+        val lines = mutableListOf<String>()
+        lines += "=== ПОШАГОВАЯ ДИАГНОСТИКА ==="
+        lines += "Время: ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}"
+        lines += ""
+
+        val cleanGateway = cleanHost(gateway)
+        var gatewayReachable = false
+        var gatewayLoss: Float? = null
+        var gatewayAvg: Float? = null
+
+        if (cleanGateway.isBlank() || cleanGateway == "0.0.0.0") {
+            lines += "[НЕТ ДАННЫХ] Основной шлюз не определён. Убедитесь, что телефон подключён к Wi-Fi."
+        } else {
+            lines += "[1/4] Проверка шлюза $cleanGateway (4 ICMP-пакета)"
+            val pingResult = runCatching {
+                val process = ProcessBuilder("/system/bin/ping", "-c", "4", "-W", "1", cleanGateway)
+                    .redirectErrorStream(true).start()
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val finished = process.waitFor()
+                output to finished
+            }.getOrNull()
+
+            if (pingResult != null) {
+                val output = pingResult.first
+                val stats = Regex("(\\d+)\\s+packets transmitted,\\s*(\\d+)\\s*(?:packets )?received,\\s*([\\d.]+)%\\s*packet loss", RegexOption.IGNORE_CASE).find(output)
+                val rtt = Regex("(?:rtt|round-trip)\\s+min/avg/max/(?:mdev|stddev)\\s*=\\s*([\\d.]+)/([\\d.]+)/([\\d.]+)", RegexOption.IGNORE_CASE).find(output)
+                if (stats != null) {
+                    val sent = stats.groupValues[1].toIntOrNull() ?: 4
+                    val received = stats.groupValues[2].toIntOrNull() ?: 0
+                    gatewayLoss = stats.groupValues[3].toFloatOrNull()
+                    gatewayReachable = received > 0
+                    gatewayAvg = rtt?.groupValues?.getOrNull(2)?.toFloatOrNull()
+                    lines += if (gatewayReachable) {
+                        "✓ Шлюз отвечает: получено $received/$sent, потери ${gatewayLoss ?: 0f}%${gatewayAvg?.let { ", средняя задержка %.1f мс".format(java.util.Locale.US, it) } ?: ""}"
+                    } else "✗ Шлюз не ответил на ICMP. Это может быть фильтрация ping, а не отказ роутера."
+                } else {
+                    lines += "⚠ Не удалось разобрать ответ ping (код ${pingResult.second})."
+                    lines += output.lineSequence().filter { it.isNotBlank() }.take(3).toList()
+                }
+            } else {
+                val tcp = tcpProbe(cleanGateway, 80, 1500) || tcpProbe(cleanGateway, 443, 1500)
+                gatewayReachable = tcp
+                lines += if (tcp) "✓ Шлюз доступен по TCP; ICMP недоступен, поэтому потери ICMP не измерены."
+                else "⚠ Нет ответа от шлюза по ICMP/TCP. Проверьте Wi-Fi, адрес шлюза и локальную сеть."
+            }
+        }
+
+        lines += ""
+        lines += "[2/4] Проверка DNS"
+        val dnsServers = listOf(dns1, dns2).map { cleanHost(it) }.filter { it.isNotBlank() && it != "0.0.0.0" }.distinct()
+        if (dnsServers.isEmpty()) {
+            lines += "⚠ DNS-серверы из конфигурации подключения не получены; проверим системный DNS."
+        }
+        var explicitDnsPassed = false
+        dnsServers.forEach { server ->
+            val result = runCatching { queryDnsA(server, "example.com", 1800) }.getOrDefault(false)
+            if (result) explicitDnsPassed = true
+            lines += if (result) "✓ DNS $server отвечает на запрос example.com"
+                     else "✗ DNS $server не ответил на UDP/53. Возможны фильтрация или недоступность сервера."
+        }
+        val systemDns = runCatching {
+            InetAddress.getAllByName("yandex.ru").isNotEmpty()
+        }.getOrDefault(false)
+        lines += if (systemDns) "✓ Системное разрешение имени yandex.ru работает"
+                 else "✗ Системный DNS не смог разрешить yandex.ru"
+        val dnsPassed = explicitDnsPassed || systemDns
+
+        lines += ""
+        lines += "[3/4] Проверка внешней доступности"
+        val externalIpPing = runCatching {
+            val process = ProcessBuilder("/system/bin/ping", "-c", "2", "-W", "1", "1.1.1.1").redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor()
+            Regex("(\\d+)\\s+packets transmitted,\\s*(\\d+)\\s*(?:packets )?received", RegexOption.IGNORE_CASE)
+                .find(output)?.groupValues?.getOrNull(2)?.toIntOrNull()?.let { it > 0 } == true
+        }.getOrDefault(false)
+        val externalTcp = tcpProbe("1.1.1.1", 443, 2500) || tcpProbe("yandex.ru", 443, 2500)
+        val externalReachable = externalIpPing || externalTcp
+        lines += when {
+            externalIpPing -> "✓ Внешний IP 1.1.1.1 отвечает на ICMP."
+            externalTcp -> "✓ Внешний HTTPS/TCP доступен; ICMP может фильтроваться."
+            else -> "✗ Не удалось достичь контрольного внешнего узла ни по ICMP, ни по TCP/443."
+        }
+
+        lines += ""
+        lines += "[4/4] ВЫВОД И СЛЕДУЮЩИЕ ДЕЙСТВИЯ"
+        when {
+            cleanGateway.isBlank() || cleanGateway == "0.0.0.0" ->
+                lines += "1) Подключите телефон к Wi-Fi и повторите проверку. Без шлюза нельзя отделить локальную проблему от внешней."
+            !gatewayReachable && !externalReachable ->
+                lines += "1) Начните с локального сегмента: проверьте Wi-Fi, IP-адрес, шлюз, кабель WAN и питание роутера. Ping может быть запрещён политикой сети."
+            !gatewayReachable && externalReachable ->
+                lines += "1) Интернет доступен, но шлюз не отвечает на проверяемые пробы. Вероятна фильтрация ICMP; проверьте веб-интерфейс роутера, а не объявляйте неисправность."
+            gatewayReachable && !externalReachable ->
+                lines += "1) Локальная связь с роутером есть, внешний узел недоступен. Проверьте WAN/PPPoE, статус линии провайдера и трассировку."
+            gatewayReachable && !dnsPassed ->
+                lines += "1) Шлюз доступен и внешний узел может отвечать, но DNS-проверка не прошла. Проверьте адреса DNS и попробуйте альтернативный разрешитель."
+            gatewayLoss != null && gatewayLoss!! > 0f ->
+                lines += "1) Есть потери до шлюза (${gatewayLoss}%). Проверьте уровень Wi-Fi, помехи, питание роутера и Ethernet-соединение."
+            gatewayAvg != null && gatewayAvg!! > 20f ->
+                lines += "1) Средняя задержка до шлюза повышена (${"%.1f".format(java.util.Locale.US, gatewayAvg)} мс). Сравните замер рядом с роутером и в проблемной комнате."
+            else ->
+                lines += "✓ Шлюз, DNS и внешняя доступность проверены. Если жалоба остаётся, сравните скорость и задержку рядом с роутером и в проблемной зоне."
+        }
+        lines += ""
+        lines += "Важно: отсутствие ответа на ICMP само по себе не доказывает неисправность — ping может быть заблокирован."
+        lines
+    }
+
+    private fun tcpProbe(host: String, port: Int, timeoutMs: Int): Boolean = runCatching {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(host, port), timeoutMs)
+            true
+        }
+    }.getOrDefault(false)
+
+    /** Minimal UDP DNS A query to test a specific configured resolver without external libraries. */
+    private fun queryDnsA(server: String, hostname: String, timeoutMs: Int): Boolean {
+        val address = InetAddress.getByName(server)
+        if (address !is Inet4Address && address.address.size != 16) return false
+        val id = Random().nextInt(65536)
+        val packet = java.io.ByteArrayOutputStream()
+        java.io.DataOutputStream(packet).use { out ->
+            out.writeShort(id); out.writeShort(0x0100); out.writeShort(1)
+            out.writeShort(0); out.writeShort(0); out.writeShort(0)
+            hostname.split(".").forEach { label ->
+                val bytes = label.toByteArray(Charsets.US_ASCII)
+                out.writeByte(bytes.size); out.write(bytes)
+            }
+            out.writeByte(0); out.writeShort(1); out.writeShort(1)
+        }
+        DatagramSocket().use { socket ->
+            socket.soTimeout = timeoutMs
+            val bytes = packet.toByteArray()
+            socket.send(DatagramPacket(bytes, bytes.size, address, 53))
+            val buffer = ByteArray(1500)
+            val response = DatagramPacket(buffer, buffer.size)
+            socket.receive(response)
+            if (response.length < 12) return false
+            val responseId = ((buffer[0].toInt() and 0xff) shl 8) or (buffer[1].toInt() and 0xff)
+            val flags = ((buffer[2].toInt() and 0xff) shl 8) or (buffer[3].toInt() and 0xff)
+            responseId == id && (flags and 0x8000) != 0 && (flags and 0x000f) == 0
+        }
+    }
+
 }
