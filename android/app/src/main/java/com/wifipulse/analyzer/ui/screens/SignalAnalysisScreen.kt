@@ -723,7 +723,7 @@ fun SpectrumCanvas(
             val ssid = net.ssid.ifBlank { "Скрытая" }
             val limit = if (width > 700.dp.toPx()) 16 else 10
             val shortName = if (ssid.length > limit) ssid.take(limit - 1) + "…" else ssid
-            val label = "$" + "{shortName} · CH${'$'}{net.channel}"
+            val label = shortName + " · CH" + net.channel
             var lane = labelLanes.indexOfFirst { kotlin.math.abs(it - x) > 72.dp.toPx() }
             if (lane < 0) lane = visible.indexOf(net) % labelLanes.size
             labelLanes[lane] = x
