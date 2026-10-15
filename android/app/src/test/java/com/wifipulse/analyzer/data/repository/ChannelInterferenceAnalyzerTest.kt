@@ -3,6 +3,7 @@ package com.wifipulse.analyzer.data.repository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChannelInterferenceAnalyzerTest {
@@ -43,9 +44,9 @@ class ChannelInterferenceAnalyzerTest {
         )
         assertNotNull(strong.score)
         assertNotNull(weak.score)
-        assert("Strong overlapping AP should materially reduce the score" , strong.score!! <= 5)
-        assert("Weak AP should have limited impact", weak.score!! >= 9)
-        assert(strong.score!! < weak.score!!)
+        assertTrue("Strong overlapping AP should materially reduce the score", strong.score!! <= 5)
+        assertTrue("Weak AP should have limited impact", weak.score!! >= 9)
+        assertTrue("Strong AP should score worse than weak AP", strong.score!! < weak.score!!)
     }
 
     @Test fun noFrequencyOverlapIsNotCounted() {
@@ -63,7 +64,7 @@ class ChannelInterferenceAnalyzerTest {
         val weak = ChannelInterferenceAnalyzer.assess(
             2412, 20, listOf(ChannelObservation("weak", 2412, 20, -85))
         )
-        assert(strong.score!! < weak.score!!)
+        assertTrue(strong.score!! < weak.score!!)
     }
 
     @Test fun duplicateBssidIsCountedOnce() {
