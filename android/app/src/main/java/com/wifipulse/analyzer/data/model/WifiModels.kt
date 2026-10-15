@@ -189,7 +189,10 @@ data class ChannelRating(
     val isRecommended: Boolean,
     val overlappingNetworks: List<String> = emptyList(),
     val recommendedWidthMhz: Int = 20,
-    val explanation: String = ""
+    val explanation: String = "",
+    val hasScanData: Boolean = true,
+    val confidence: String = "LIMITED",
+    val strongestNeighborRssiDbm: Int? = null
 )
 
 data class SignalHistoryPoint(
