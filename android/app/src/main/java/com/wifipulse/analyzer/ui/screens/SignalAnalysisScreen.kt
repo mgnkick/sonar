@@ -44,7 +44,9 @@ fun SignalAnalysisScreen(
     visibleNetworkCount: Int,
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
-    lastScanTimestamp: Long = 0L
+    lastScanTimestamp: Long = 0L,
+    isBackgroundMonitoring: Boolean = false,
+    onToggleBackgroundMonitoring: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("График сигнала", "Спектр каналов", "Рейтинг каналов")
@@ -77,6 +79,10 @@ fun SignalAnalysisScreen(
                 onRefreshNetworks = onRefreshNetworks,
                 lastScanTimestamp = lastScanTimestamp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+            BackgroundMonitoringCard(
+                isActive = isBackgroundMonitoring,
+                onToggle = onToggleBackgroundMonitoring
             )
             // Selected Network Quick Selector Bar
             if (selectedNetwork != null) {
@@ -138,6 +144,68 @@ fun SignalAnalysisScreen(
                 1 -> ChannelSpectrumTab(networks = state.networks)
                 2 -> ChannelRatingTab(ratings24 = state.channelRatings24, ratings5 = state.channelRatings5)
             }
+        }
+    }
+}
+
+@Composable
+private fun BackgroundMonitoringCard(
+    isActive: Boolean,
+    onToggle: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isActive) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isActive) "Фоновый мониторинг включён" else "Фоновый мониторинг Wi-Fi",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Имя сети, RSSI и текущий трафик в системном уведомлении",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Button(
+                onClick = onToggle,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = if (isActive) Icons.Default.StopCircle else Icons.Default.PlayCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(if (isActive) "Остановить мониторинг" else "Запустить в фоне")
+            }
+            Text(
+                text = "Скорость — оценка трафика устройства по системным счётчикам, а не тест пропускной способности локальной сети.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
