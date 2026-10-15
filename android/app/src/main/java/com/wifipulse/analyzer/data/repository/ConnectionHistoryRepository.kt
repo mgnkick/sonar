@@ -50,9 +50,22 @@ class ConnectionHistoryRepository(context: Context) {
                 it != "02:00:00:00:00:00"
         }
         val key = if (currentBssid != null) currentBssid.lowercase() else if (!details.isConnected) "disconnected" else null
-        if (key == null || key == lastObservedKey) return
+        if (key == null) return
 
         val now = System.currentTimeMillis()
+        if (key == lastObservedKey) {
+            // Refresh last-seen time at most once per minute; avoid writing preferences every poll.
+            if (currentBssid != null) {
+                val latest = _entries.value.firstOrNull { it.bssid.equals(currentBssid, ignoreCase = true) }
+                if (latest != null && now - latest.lastSeenAt >= 60_000L) {
+                    _entries.value = _entries.value.map {
+                        if (it.id == latest.id) it.copy(lastSeenAt = now) else it
+                    }
+                    persistEntries()
+                }
+            }
+            return
+        }
         val connectedNetwork = currentBssid?.let { bssid ->
             networks.firstOrNull { it.bssid.equals(bssid, ignoreCase = true) }
         }
