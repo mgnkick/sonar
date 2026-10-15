@@ -92,7 +92,7 @@ class SmartAuditEngine {
             in 5925..7125 -> WifiBand.BAND_6_GHZ
             else -> WifiBand.UNKNOWN
         }
-        val targetBand = if (connectionDetails.isConnected && connectedBand != WifiBand.UNKNOWN) {
+        val targetBand = if (connectionDetails.isConnected) {
             connectedBand
         } else {
             targetGroup?.bestBand ?: WifiBand.UNKNOWN
@@ -103,10 +103,8 @@ class SmartAuditEngine {
         val targetChannel = when {
             connectionDetails.isConnected && connectionDetails.frequency > 0 ->
                 WifiRepository.frequencyToChannel(connectionDetails.frequency)
-            targetNode != null -> targetNode.channel
-            targetBand == WifiBand.BAND_2_4_GHZ -> 1
-            targetBand == WifiBand.BAND_5_GHZ -> 36
-            else -> 0
+            connectionDetails.isConnected -> 0
+            else -> targetNode?.channel ?: 0
         }
 
         // Compare only APs in the connected radio band; channel numbers can overlap across bands.
@@ -124,6 +122,17 @@ class SmartAuditEngine {
         }
 
         return when {
+            targetBand == WifiBand.UNKNOWN || targetChannel <= 0 -> {
+                AuditRecommendation(
+                    id = "rec_channel_unknown",
+                    category = AuditCategory.CHANNEL_CONGESTION,
+                    severity = AuditSeverity.WARNING,
+                    title = "Не удалось определить диапазон или канал подключения",
+                    summary = "Android не предоставил актуальную частоту подключения. Данные соседних точек доступа не используются для подстановки диапазона или канала.",
+                    actionGuide = "Обновите данные подключения и повторите анализ, когда Android предоставит частоту Wi-Fi.",
+                    metricBadge = "Недостаточно данных"
+                )
+            }
             sameChannelCount >= 6 -> {
                 AuditRecommendation(
                     id = "rec_channel_crowded",
