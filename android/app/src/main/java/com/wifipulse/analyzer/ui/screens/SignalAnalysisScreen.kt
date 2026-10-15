@@ -659,20 +659,28 @@ fun ChannelSpectrumTab(
 }
 
 @Composable
-fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand, modifier: Modifier = Modifier.fillMaxSize()) {
+fun SpectrumCanvas(
+    networks: List<WifiNetwork>,
+    band: WifiBand,
+    modifier: Modifier = Modifier.fillMaxSize(),
+    zoomScale: Float = 1f,
+    panFraction: Float = 0f,
+    onTransform: ((scaleChange: Float, panChangePx: Float, canvasWidthPx: Float) -> Unit)? = null
+) {
     val labelColor = MaterialTheme.colorScheme.onSurface
     val gridAccent = MaterialTheme.colorScheme.tertiary
+    val gestureModifier = if (onTransform != null) modifier.pointerInput(onTransform) {
+        detectTransformGestures { _, pan, zoom, _ -> onTransform(zoom, pan.x, size.width.toFloat()) }
+    } else modifier
 
-    Canvas(modifier = modifier) {
+    Canvas(modifier = gestureModifier) {
         val width = size.width
         val height = size.height
-        // Canvas can receive a transient zero/tiny size during first layout or rotation.
-        // Avoid coerceIn(min > max) and invalid draw coordinates in that frame.
         if (width < 100.dp.toPx() || height < 40.dp.toPx()) return@Canvas
         val nativeCanvas = drawContext.canvas.nativeCanvas
         val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.rgb((labelColor.red * 255).toInt(), (labelColor.green * 255).toInt(), (labelColor.blue * 255).toInt())
-            textSize = 11.dp.toPx()
+            textSize = 10.dp.toPx()
             textAlign = AndroidPaint.Align.CENTER
         }
         val channelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
@@ -680,64 +688,63 @@ fun SpectrumCanvas(networks: List<WifiNetwork>, band: WifiBand, modifier: Modifi
             textSize = 10.dp.toPx()
             textAlign = AndroidPaint.Align.CENTER
         }
-
-        // Axis
-        drawLine(
-            color = Color.Gray.copy(alpha = 0.3f),
-            start = Offset(0f, height - 20.dp.toPx()),
-            end = Offset(width, height - 20.dp.toPx()),
-            strokeWidth = 2.dp.toPx()
-        )
-
         val minChannel = if (band == WifiBand.BAND_2_4_GHZ) 1 else 36
         val maxChannel = if (band == WifiBand.BAND_2_4_GHZ) 14 else 165
-        val channelSpan = (maxChannel - minChannel).coerceAtLeast(1)
+        val channelSpan = (maxChannel - minChannel).coerceAtLeast(1).toFloat()
+        val scale = zoomScale.coerceIn(1f, 8f)
+        val visibleSpan = channelSpan / scale
+        val center = (0.5f + panFraction).coerceIn(0.5f / scale, 1f - 0.5f / scale)
+        val viewMin = minChannel + center * channelSpan - visibleSpan / 2f
+        val viewMax = viewMin + visibleSpan
+        fun channelX(channel: Float): Float = ((channel - viewMin) / visibleSpan * width).coerceIn(-width, width * 2f)
 
-        // Channel ticks along the horizontal axis
-        val tickStep = if (band == WifiBand.BAND_2_4_GHZ) 3 else 20
-        (minChannel..maxChannel step tickStep).forEach { ch ->
-            val x = ((ch - minChannel).toFloat() / channelSpan) * width
-            drawLine(color = gridAccent.copy(alpha = 0.10f), start = Offset(x, 8.dp.toPx()), end = Offset(x, height - 20.dp.toPx()), strokeWidth = 1.dp.toPx())
-            drawLine(color = gridAccent.copy(alpha = 0.60f), start = Offset(x, height - 30.dp.toPx()), end = Offset(x, height - 20.dp.toPx()), strokeWidth = 1.dp.toPx())
-            nativeCanvas.drawText(ch.toString(), x.coerceIn(12.dp.toPx(), width - 12.dp.toPx()), height - 5.dp.toPx(), channelPaint)
+        val axisY = height - 22.dp.toPx()
+        drawLine(Color.Gray.copy(alpha = 0.35f), Offset(0f, axisY), Offset(width, axisY), 2.dp.toPx())
+        val desiredTickCount = (width / (if (scale > 3f) 38.dp.toPx() else 64.dp.toPx())).toInt().coerceAtLeast(2)
+        val rawStep = visibleSpan / desiredTickCount
+        val niceSteps = if (band == WifiBand.BAND_2_4_GHZ) listOf(1f, 2f, 3f, 4f, 5f) else listOf(1f, 2f, 4f, 5f, 10f, 20f)
+        val tickStep = niceSteps.firstOrNull { it >= rawStep } ?: niceSteps.last()
+        var tick = kotlin.math.ceil(viewMin / tickStep) * tickStep
+        while (tick <= viewMax + 0.001f) {
+            val x = channelX(tick)
+            if (x in 0f..width) {
+                drawLine(gridAccent.copy(alpha = 0.12f), Offset(x, 8.dp.toPx()), Offset(x, axisY), 1.dp.toPx())
+                drawLine(gridAccent.copy(alpha = 0.6f), Offset(x, axisY - 8.dp.toPx()), Offset(x, axisY), 1.dp.toPx())
+                nativeCanvas.drawText(tick.toInt().toString(), x.coerceIn(12.dp.toPx(), width - 12.dp.toPx()), height - 5.dp.toPx(), channelPaint)
+            }
+            tick += tickStep
         }
 
-        networks.sortedByDescending { it.rssi }.take(16).forEach { net ->
-            val center = net.channel.coerceIn(minChannel, maxChannel)
-            val x = ((center - minChannel).toFloat() / channelSpan) * width
-            val peakY = height - 38.dp.toPx() - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 65.dp.toPx()))
+        val visible = networks.filter { it.channel.toFloat() in viewMin..viewMax }.sortedByDescending { it.rssi }.take(12)
+        val labelLanes = FloatArray(4) { -1000f }
+        visible.sortedBy { it.channel }.forEach { net ->
+            val x = channelX(net.channel.toFloat())
+            val peakY = height - 42.dp.toPx() - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 72.dp.toPx()))
             val ssid = net.ssid.ifBlank { "Скрытая" }
-            val limit = if (width > 700.dp.toPx()) 18 else 9
+            val limit = if (width > 700.dp.toPx()) 16 else 10
             val shortName = if (ssid.length > limit) ssid.take(limit - 1) + "…" else ssid
-            nativeCanvas.drawText("$shortName · CH${net.channel}", x.coerceIn(48.dp.toPx(), width - 48.dp.toPx()), (peakY - 7.dp.toPx()).coerceAtLeast(14.dp.toPx()), labelPaint)
+            val label = "$" + "{shortName} · CH${'$'}{net.channel}"
+            var lane = labelLanes.indexOfFirst { kotlin.math.abs(it - x) > 72.dp.toPx() }
+            if (lane < 0) lane = visible.indexOf(net) % labelLanes.size
+            labelLanes[lane] = x
+            val labelY = (peakY - 8.dp.toPx() - lane * 14.dp.toPx()).coerceIn(14.dp.toPx(), axisY - 12.dp.toPx())
+            if (x in 0f..width) nativeCanvas.drawText(label, x.coerceIn(45.dp.toPx(), width - 45.dp.toPx()), labelY, labelPaint)
         }
 
-        // Draw parabolic curves for each network
-        networks.take(12).forEach { net ->
-            val centerChannel = net.channel.coerceIn(minChannel, maxChannel)
-            val centerX = ((centerChannel - minChannel).toFloat() / channelSpan) * width
-            val curveWidth = (width / channelSpan) * (if (band == WifiBand.BAND_2_4_GHZ) 4.5f else 3.5f)
-
-            // Normalized peak height from RSSI (-100 to -30 dBm)
+        visible.forEach { net ->
+            val centerX = channelX(net.channel.toFloat())
+            val curveWidth = (width / visibleSpan) * (if (band == WifiBand.BAND_2_4_GHZ) 4.5f else 3.5f) * (net.channelWidth / 20f).coerceIn(1f, 8f)
             val peakY = height - 25.dp.toPx() - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 50.dp.toPx()))
-
             val path = Path()
-            path.moveTo(centerX - curveWidth / 2, height - 20.dp.toPx())
-            path.cubicTo(
-                centerX - curveWidth / 4, peakY,
-                centerX + curveWidth / 4, peakY,
-                centerX + curveWidth / 2, height - 20.dp.toPx()
-            )
-
+            path.moveTo(centerX - curveWidth / 2f, axisY)
+            path.cubicTo(centerX - curveWidth / 4f, peakY, centerX + curveWidth / 4f, peakY, centerX + curveWidth / 2f, axisY)
             val curveColor = Color(net.signalQuality.hexColor)
-            drawPath(path = path, color = curveColor.copy(alpha = 0.08f), style = Stroke(width = 12.dp.toPx()))
-            drawPath(path = path, color = curveColor.copy(alpha = 0.24f), style = Stroke(width = 6.dp.toPx()))
-            drawPath(path = path, color = curveColor.copy(alpha = 0.16f))
-            drawPath(path = path, color = curveColor, style = Stroke(width = 2.dp.toPx()))
+            drawPath(path, curveColor.copy(alpha = 0.10f), style = Stroke(width = 10.dp.toPx()))
+            drawPath(path, curveColor.copy(alpha = 0.16f))
+            drawPath(path, curveColor, style = Stroke(width = 2.dp.toPx()))
         }
     }
 }
-
 @Composable
 fun ChannelRatingTab(ratings24: List<ChannelRating>, ratings5: List<ChannelRating>) {
     var selectedBandTab by remember { mutableStateOf(WifiBand.BAND_2_4_GHZ) }
