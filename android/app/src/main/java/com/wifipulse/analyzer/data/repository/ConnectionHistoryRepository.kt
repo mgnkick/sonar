@@ -59,14 +59,26 @@ class ConnectionHistoryRepository(context: Context) {
             details.isConnected && it.isNotBlank() && it != "BSSID недоступен" &&
                 it != "02:00:00:00:00:00"
         }
-        val key = if (currentBssid != null) currentBssid.lowercase() else if (!details.isConnected) "disconnected" else null
+        val usableSsid = details.ssid.isNotBlank() &&
+            !details.ssid.contains("SSID скрыт системой", ignoreCase = true) &&
+            !details.ssid.startsWith("[Подключено", ignoreCase = true)
+        // Some OEM builds withhold BSSID while Android Settings still knows the SSID.
+        // Keep an explicitly weaker SSID+frequency identity instead of dropping all history.
+        val fallbackKey = if (details.isConnected && usableSsid && details.frequency > 0) {
+            "ssid:" + details.ssid.lowercase() + ":" + details.frequency
+        } else null
+        val key = currentBssid?.lowercase() ?: fallbackKey
+            ?: if (!details.isConnected) "disconnected" else null
         if (key == null) return
 
         val now = System.currentTimeMillis()
         if (key == lastObservedKey) {
             // Refresh last-seen time at most once per minute; avoid writing preferences every poll.
-            if (currentBssid != null) {
-                val latest = _entries.value.firstOrNull { it.bssid.equals(currentBssid, ignoreCase = true) }
+            if (currentBssid != null || fallbackKey != null) {
+                val latest = _entries.value.firstOrNull {
+                    if (currentBssid != null) it.bssid.equals(currentBssid, ignoreCase = true)
+                    else it.ssid.equals(details.ssid, ignoreCase = true) && it.frequencyMhz == details.frequency
+                }
                 if (latest != null && now - latest.lastSeenAt >= 60_000L) {
                     _entries.value = _entries.value.map {
                         if (it.id == latest.id) it.copy(lastSeenAt = now) else it
@@ -80,17 +92,18 @@ class ConnectionHistoryRepository(context: Context) {
             networks.firstOrNull { it.bssid.equals(bssid, ignoreCase = true) }
         }
         val event = when {
-            currentBssid == null -> "Соединение Wi-Fi завершено"
+            !details.isConnected -> "Соединение Wi-Fi завершено"
+            currentBssid == null -> "Подключение наблюдается; BSSID недоступен"
             lastObservedKey == null -> "Подключение обнаружено приложением"
             lastObservedKey == "disconnected" -> "Подключение обнаружено приложением"
             else -> "Смена точки доступа"
         }
 
-        if (currentBssid != null) {
+        if (details.isConnected && (currentBssid != null || fallbackKey != null)) {
             val entry = ConnectionHistoryEntry(
                 id = UUID.randomUUID().toString(),
                 ssid = details.ssid.ifBlank { "SSID недоступен" },
-                bssid = currentBssid,
+                bssid = currentBssid ?: "BSSID недоступен",
                 firstSeenAt = now,
                 lastSeenAt = now,
                 event = event,
