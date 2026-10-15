@@ -8,6 +8,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import java.util.UUID
 
 /**
@@ -33,7 +41,9 @@ data class ConnectionHistoryEntry(
     val ipAddress: String?,
     val gateway: String?,
     val dns1: String?,
-    val dns2: String?
+    val dns2: String?,
+    /** AES-GCM ciphertext only; the plaintext password is never persisted. */
+    val wifiPasswordCiphertext: String? = null
 )
 
 class ConnectionHistoryRepository(context: Context) {
@@ -104,6 +114,56 @@ class ConnectionHistoryRepository(context: Context) {
         prefs.edit().putString(KEY_LAST_OBSERVED, key).apply()
     }
 
+    /** Save a password explicitly entered by the technician. Never reads Android-saved credentials. */
+    @Synchronized
+    fun saveWifiPassword(id: String, password: String) {
+        require(password.length <= 256) { "Пароль слишком длинный" }
+        val encrypted = password.takeIf { it.isNotEmpty() }?.let(::encryptPassword)
+        _entries.value = _entries.value.map { if (it.id == id) it.copy(wifiPasswordCiphertext = encrypted) else it }
+        persistEntries()
+    }
+
+    /** Decrypt only on explicit user request; returns null if no password is stored or decryption fails. */
+    @Synchronized
+    fun getWifiPassword(id: String): String? {
+        val encrypted = _entries.value.firstOrNull { it.id == id }?.wifiPasswordCiphertext ?: return null
+        return runCatching { decryptPassword(encrypted) }.getOrNull()
+    }
+
+    private fun encryptPassword(password: String): String {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
+        val ciphertext = cipher.doFinal(password.toByteArray(Charsets.UTF_8))
+        return Base64.encodeToString(cipher.iv + ciphertext, Base64.NO_WRAP)
+    }
+
+    private fun decryptPassword(encoded: String): String {
+        val payload = Base64.decode(encoded, Base64.NO_WRAP)
+        require(payload.size > 12) { "Повреждённые зашифрованные данные" }
+        val iv = payload.copyOfRange(0, 12)
+        val ciphertext = payload.copyOfRange(12, payload.size)
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(128, iv))
+        return String(cipher.doFinal(ciphertext), Charsets.UTF_8)
+    }
+
+    private fun getOrCreateKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (keyStore.getKey(PASSWORD_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                PASSWORD_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+        )
+        return generator.generateKey()
+    }
+
     @Synchronized
     fun deleteEntry(id: String) {
         _entries.value = _entries.value.filterNot { it.id == id }
@@ -140,6 +200,7 @@ class ConnectionHistoryRepository(context: Context) {
                 putNullable("gateway", entry.gateway)
                 putNullable("dns1", entry.dns1)
                 putNullable("dns2", entry.dns2)
+                putNullable("wifiPasswordCiphertext", entry.wifiPasswordCiphertext)
             })
         }
         prefs.edit().putString(KEY_ENTRIES, array.toString()).apply()
@@ -174,7 +235,8 @@ class ConnectionHistoryRepository(context: Context) {
                         ipAddress = item.optNullableString("ipAddress"),
                         gateway = item.optNullableString("gateway"),
                         dns1 = item.optNullableString("dns1"),
-                        dns2 = item.optNullableString("dns2")
+                        dns2 = item.optNullableString("dns2"),
+                        wifiPasswordCiphertext = item.optNullableString("wifiPasswordCiphertext")
                     ))
                 }
             }
@@ -194,5 +256,6 @@ class ConnectionHistoryRepository(context: Context) {
         private const val KEY_ENTRIES = "entries"
         private const val KEY_LAST_OBSERVED = "last_observed_connection"
         private const val MAX_ENTRIES = 500
+        private const val PASSWORD_KEY_ALIAS = "wifi_pulse_history_password_key"
     }
 }
