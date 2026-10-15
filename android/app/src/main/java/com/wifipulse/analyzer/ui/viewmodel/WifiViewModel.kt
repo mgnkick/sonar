@@ -388,57 +388,65 @@ class WifiViewModel(
             listOf(36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 149, 153, 157, 161, 165)
         }
         val candidateWidth = if (band == WifiBand.BAND_2_4_GHZ) 20 else 40
-        val bandNetworks = networks.filter { it.band == band }
+        val observations = networks.filter { it.band == band }.map {
+            com.wifipulse.analyzer.data.repository.ChannelObservation(
+                bssid = it.bssid,
+                frequencyMhz = it.frequency,
+                widthMhz = it.channelWidth,
+                rssiDbm = it.rssi
+            )
+        }
 
         return standardChannels.map { channel ->
             val centerFrequency = WifiRepository.channelToFrequency(channel, band)
-            val candidateLow = centerFrequency - candidateWidth / 2.0
-            val candidateHigh = centerFrequency + candidateWidth / 2.0
+            val assessment = com.wifipulse.analyzer.data.repository.ChannelInterferenceAnalyzer.assess(
+                candidateFrequencyMhz = centerFrequency,
+                candidateWidthMhz = candidateWidth,
+                observations = observations
+            )
+            val names = networks.filter { it.band == band && it.bssid.isNotBlank() }
+                .distinctBy { it.bssid.lowercase() }
+                .filter { net ->
+                    val apWidth = net.channelWidth.coerceIn(20, 160)
+                    val overlap = minOf(
+                        centerFrequency + candidateWidth / 2.0,
+                        net.frequency + apWidth / 2.0
+                    ) - maxOf(
+                        centerFrequency - candidateWidth / 2.0,
+                        net.frequency - apWidth / 2.0
+                    )
+                    overlap > 0
+                }
+                .sortedByDescending { it.rssi }
+                .map { it.ssid }
+                .distinct()
 
-            // Estimate occupied-spectrum overlap, weighted by received power.
-            // Android exposes scan results, not real airtime/channel utilization.
-            val interfering = bandNetworks.mapNotNull { net ->
-                val networkWidth = net.channelWidth.coerceAtLeast(20)
-                val networkCenter = net.frequency.toDouble()
-                val networkLow = networkCenter - networkWidth / 2.0
-                val networkHigh = networkCenter + networkWidth / 2.0
-                val overlapMhz = (minOf(candidateHigh, networkHigh) - maxOf(candidateLow, networkLow)).coerceAtLeast(0.0)
-                if (overlapMhz <= 0.0) null else {
-                    val overlapRatio = (overlapMhz / candidateWidth).coerceIn(0.0, 1.0)
-                    val signalWeight = when {
-                        net.rssi >= -55 -> 4.0
-                        net.rssi >= -67 -> 2.5
-                        net.rssi >= -75 -> 1.5
-                        else -> 0.5
-                    }
-                    Triple(net, overlapRatio, signalWeight * overlapRatio)
+            val score = assessment.score ?: 0
+            val isPreferredPrimary = band != WifiBand.BAND_2_4_GHZ || channel in listOf(1, 6, 11)
+            val recommended = assessment.score != null &&
+                isPreferredPrimary &&
+                score >= if (band == WifiBand.BAND_2_4_GHZ) 6 else 7
+            val details = buildString {
+                append(assessment.explanation)
+                if (band == WifiBand.BAND_2_4_GHZ && channel !in listOf(1, 6, 11)) {
+                    append(" Для 2,4 ГГц обычно сравнивают каналы 1, 6 и 11 при ширине 20 МГц.")
                 }
             }
-
-            val penalty = interfering.sumOf { it.third }
-            val score = (10.0 - penalty).coerceIn(0.0, 10.0).toInt()
-            val isPreferredPrimary = band != WifiBand.BAND_2_4_GHZ || channel in listOf(1, 6, 11)
-            val recommended = isPreferredPrimary && score >= if (band == WifiBand.BAND_2_4_GHZ) 6 else 7
-            val names = interfering.sortedByDescending { it.third }.map { it.first.ssid }.distinct()
-            val explanation = buildString {
-                append("Ширина оценки: ${candidateWidth} МГц; ")
-                append("${interfering.size} сетей перекрывают часть канала")
-                if (names.isNotEmpty()) append(" (сильнее всего: ${names.take(3).joinToString(", ")})")
-                append(". Оценка учитывает ширину соседних сетей и их RSSI, но не измеряет фактическую загрузку эфира.")
-                if (band == WifiBand.BAND_2_4_GHZ && channel !in listOf(1, 6, 11)) append(" Для 2,4 ГГц обычно предпочтительнее каналы 1, 6 или 11 при соблюдении региональных правил.")
-            }
-
             ChannelRating(
                 channel = channel,
                 frequency = centerFrequency,
                 band = band,
-                networkCount = interfering.size,
+                networkCount = assessment.overlappingCount,
                 score = score,
                 isRecommended = recommended,
                 overlappingNetworks = names,
                 recommendedWidthMhz = candidateWidth,
-                explanation = explanation
+                explanation = details,
+                hasScanData = assessment.score != null,
+                confidence = assessment.confidence.name,
+                strongestNeighborRssiDbm = assessment.strongestRssiDbm
             )
-        }.sortedWith(compareByDescending<ChannelRating> { it.score }.thenBy { it.channel })
-    }
-}
+        }.sortedWith(compareByDescending<ChannelRating> { it.hasScanData }
+            .thenByDescending { it.score }
+            .thenBy { it.channel })
+    }}
