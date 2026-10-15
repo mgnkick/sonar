@@ -2,7 +2,7 @@ name: Android APK Build
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, feat/channel-interference-model]
     paths:
       - 'android/**'
       - 'gradle/**'
