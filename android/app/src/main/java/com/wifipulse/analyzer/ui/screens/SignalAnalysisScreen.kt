@@ -202,7 +202,7 @@ private fun BackgroundMonitoringCard(
                 Text(if (isActive) "Остановить мониторинг" else "Запустить в фоне")
             }
             Text(
-                text = "Скорость — оценка трафика устройства по системным счётчикам, а не тест пропускной способности локальной сети.",
+                text = "Скорость берётся со счётчиков Wi-Fi-интерфейса, если они доступны; иначе показывается общий трафик устройства. Это не отдельный тест LAN.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
