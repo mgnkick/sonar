@@ -499,7 +499,12 @@ fun ChannelSpectrumTab(
     val ssidKnown = connectionDetails.ssid.isNotBlank() && !connectionDetails.ssid.startsWith("Подключено к Wi-Fi") && !connectionDetails.ssid.equals("<unknown ssid>", ignoreCase = true)
     val connectedBssidKnown = connectionDetails.bssid.isNotBlank() && connectionDetails.bssid != "BSSID недоступен" && connectionDetails.bssid != "02:00:00:00:00:00"
     val spectrumNetworks = remember(networks, connectionDetails, inferredSsid) {
-        val result = networks.toMutableList()
+        val result = networks.map { network ->
+            if (connectionDetails.isConnected && connectedBssidKnown &&
+                network.bssid.equals(connectionDetails.bssid, ignoreCase = true) &&
+                !ssidKnown && inferredSsid != null
+            ) network.copy(ssid = inferredSsid + " · имя предположительно") else network
+        }.toMutableList()
         if (connectionDetails.isConnected && connectedBssidKnown && connectionDetails.frequency > 0 && result.none { it.bssid.equals(connectionDetails.bssid, ignoreCase = true) }) {
             val band = when {
                 connectionDetails.frequency in 2400..2500 -> WifiBand.BAND_2_4_GHZ
@@ -601,7 +606,7 @@ fun ChannelSpectrumTab(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-                SpectrumCanvas(networks = networks.filter { it.band == selectedBand }, band = selectedBand, modifier = Modifier.fillMaxSize())
+                SpectrumCanvas(networks = spectrumNetworks.filter { it.band == selectedBand }, band = selectedBand, modifier = Modifier.fillMaxSize())
             }
         }
 
