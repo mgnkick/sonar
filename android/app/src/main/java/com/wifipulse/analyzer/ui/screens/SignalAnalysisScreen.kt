@@ -48,13 +48,26 @@ fun SignalAnalysisScreen(
     lastScanTimestamp: Long = 0L,
     isBackgroundMonitoring: Boolean = false,
     onToggleBackgroundMonitoring: () -> Unit = {},
-    onOpenConnectionHistory: () -> Unit = {}
+    onOpenConnectionHistory: () -> Unit = {},
+    onSelectSignalTrackingBssid: (String?) -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("График сигнала", "Спектр каналов", "Рейтинг каналов")
 
-    val selectedNetwork = state.networks.firstOrNull { it.bssid == state.selectedNetworkBssid }
-        ?: state.networks.firstOrNull()
+    val connectedBssid = state.connectionDetails.bssid.takeIf {
+        state.connectionDetails.isConnected && it.isNotBlank() && it != "BSSID недоступен"
+    }
+    val trackedBssid = state.trackedSignalBssid ?: connectedBssid
+    val trackedNetwork = state.networks.firstOrNull { it.bssid.equals(trackedBssid, ignoreCase = true) }
+    val selectedNetwork = trackedNetwork
+    val connectedSsid = state.connectionDetails.ssid.takeIf {
+        it.isNotBlank() && !it.startsWith("Подключено к Wi-Fi")
+    }
+    val meshCandidates = state.networks
+        .filter { connectedSsid == null || it.ssid == connectedSsid }
+        .distinctBy { it.bssid.lowercase() }
+        .sortedByDescending { it.rssi }
+    var trackingMenuExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -91,44 +104,130 @@ fun SignalAnalysisScreen(
                 isActive = isBackgroundMonitoring,
                 onToggle = onToggleBackgroundMonitoring
             )
-            // Selected Network Quick Selector Bar
-            if (selectedNetwork != null) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+            // Signal target selector: auto-follow the connected BSSID by default,
+            // or pin another AP of the same SSID for a placement survey.
+            if (trackedBssid != null || meshCandidates.isNotEmpty()) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth().clickable { trackingMenuExpanded = true },
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Отслеживаемая сеть: ${selectedNetwork.ssid}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "${selectedNetwork.bssid} • CH ${selectedNetwork.channel} • ${selectedNetwork.band.displayName}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(selectedNetwork.signalQuality.hexColor).copy(alpha = 0.2f)
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(
-                                text = "${selectedNetwork.rssi} дБм",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                color = Color(selectedNetwork.signalQuality.hexColor),
-                                fontWeight = FontWeight.Bold
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Отслеживаемый сателлит  ▾",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = trackedNetwork?.ssid ?: state.connectionDetails.ssid.ifBlank { "Точка доступа не обнаружена" },
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    text = buildString {
+                                        append(trackedBssid ?: "BSSID недоступен")
+                                        trackedNetwork?.let {
+                                            append(" • CH ${it.channel} • ${it.band.displayName}")
+                                        } ?: run {
+                                            if (state.connectionDetails.isConnected &&
+                                                trackedBssid.equals(state.connectionDetails.bssid, ignoreCase = true)
+                                            ) append(" • ${state.connectionDetails.frequency} МГц")
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                                Text(
+                                    text = if (state.trackedSignalBssid == null)
+                                        "АВТО: следит за текущим подключением"
+                                    else "РУЧНОЙ ВЫБОР: закреплённый BSSID",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            val trackedRssi = if (trackedBssid.equals(state.connectionDetails.bssid, ignoreCase = true) &&
+                                state.connectionDetails.isConnected
+                            ) state.connectionDetails.rssi else trackedNetwork?.rssi
+                            if (trackedRssi != null && trackedRssi in -100..0) {
+                                val qualityColor = trackedNetwork?.let { Color(it.signalQuality.hexColor) }
+                                    ?: MaterialTheme.colorScheme.primary
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = qualityColor.copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = "$trackedRssi дБм",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                        color = qualityColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Icon(Icons.Default.ExpandMore, contentDescription = "Выбрать сателлит")
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = trackingMenuExpanded,
+                        onDismissRequest = { trackingMenuExpanded = false },
+                        modifier = Modifier.heightIn(max = 360.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("Автоматически: подключённый сателлит", fontWeight = FontWeight.Bold)
+                                    Text("График переключается вместе с роумингом", style = MaterialTheme.typography.labelSmall)
+                                }
+                            },
+                            leadingIcon = { Icon(Icons.Default.Wifi, contentDescription = null) },
+                            onClick = {
+                                trackingMenuExpanded = false
+                                onSelectSignalTrackingBssid(null)
+                            }
+                        )
+                        HorizontalDivider()
+                        meshCandidates.forEach { network ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(network.ssid, fontWeight = FontWeight.SemiBold)
+                                        Text(
+                                            "${network.bssid} • CH ${network.channel} • ${network.rssi} дБм",
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                },
+                                leadingIcon = {
+                                    if (network.bssid.equals(trackedBssid, ignoreCase = true)) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = "Отслеживается")
+                                    } else {
+                                        Icon(Icons.Default.Router, contentDescription = null)
+                                    }
+                                },
+                                onClick = {
+                                    trackingMenuExpanded = false
+                                    onSelectSignalTrackingBssid(network.bssid)
+                                }
                             )
                         }
                     }
+                }
+                if (!state.signalTrackingNotice.isNullOrBlank()) {
+                    Text(
+                        text = state.signalTrackingNotice,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
