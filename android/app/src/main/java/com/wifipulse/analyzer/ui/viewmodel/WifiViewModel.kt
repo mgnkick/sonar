@@ -449,4 +449,5 @@ class WifiViewModel(
         }.sortedWith(compareByDescending<ChannelRating> { it.hasScanData }
             .thenByDescending { it.score }
             .thenBy { it.channel })
-    }}
+    }
+}
