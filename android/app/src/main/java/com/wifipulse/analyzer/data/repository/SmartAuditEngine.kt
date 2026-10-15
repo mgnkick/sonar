@@ -11,9 +11,13 @@ class SmartAuditEngine {
     ): AuditReport {
         val recommendations = mutableListOf<AuditRecommendation>()
 
-        // Find current or strongest network
-        val activeGroup = networkGroups.find { it.ssid == connectionDetails.ssid && connectionDetails.isConnected }
-            ?: networkGroups.maxByOrNull { it.bestRssi }
+        // Only audit the network that is actually identified as connected.
+        // Never substitute the strongest nearby AP: it may be a different Mesh satellite/network.
+        val activeGroup = if (connectionDetails.isConnected && connectionDetails.ssid.isNotBlank()) {
+            networkGroups.find { it.ssid.equals(connectionDetails.ssid, ignoreCase = true) }
+        } else {
+            null
+        }
 
         // 1. Channel Congestion Recommendation
         recommendations.add(evaluateChannelCongestion(networkGroups, activeGroup))
@@ -177,7 +181,8 @@ class SmartAuditEngine {
     }
 
     private fun evaluateSecurity(targetGroup: WifiNetworkGroup?): AuditRecommendation {
-        val sec = targetGroup?.bestSecurity ?: SecurityType.WPA2_PSK
+        // Missing connection/group data is not evidence that the network uses WPA2.
+        val sec = targetGroup?.bestSecurity ?: SecurityType.UNKNOWN
 
         return when (sec) {
             SecurityType.OPEN -> {
@@ -222,6 +227,17 @@ class SmartAuditEngine {
                     summary = "Приложение показывает фактически обнаруженный режим безопасности и не рекомендует переходить на WPA3 автоматически. Совместимость и политика шифрования зависят от роутера и подключаемых устройств.",
                     actionGuide = "Никаких изменений только на основании этой оценки не требуется. Проверяйте защиту по настройкам роутера и совместимости клиентских устройств.",
                     metricBadge = sec.displayName
+                )
+            }
+            SecurityType.UNKNOWN -> {
+                AuditRecommendation(
+                    id = "rec_sec_unknown",
+                    category = AuditCategory.SECURITY_PROTOCOL,
+                    severity = AuditSeverity.WARNING,
+                    title = "Тип защиты сети не удалось определить",
+                    summary = "Android не предоставил достоверные сведения о защите именно подключённой сети. Это не означает, что сеть открытая или не зашифрована.",
+                    actionGuide = "Проверьте тип защиты в настройках роутера или выберите соответствующую точку доступа в списке сканирования. Не меняйте настройки безопасности только на основании отсутствующих данных.",
+                    metricBadge = "Защита неизвестна"
                 )
             }
             SecurityType.ENTERPRISE -> {
