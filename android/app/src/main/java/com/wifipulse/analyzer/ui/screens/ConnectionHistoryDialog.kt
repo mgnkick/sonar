@@ -13,6 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -22,12 +25,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.wifipulse.analyzer.data.repository.ConnectionHistoryEntry
 import java.text.SimpleDateFormat
@@ -39,8 +49,14 @@ fun ConnectionHistoryDialog(
     entries: List<ConnectionHistoryEntry>,
     onDelete: (String) -> Unit,
     onClear: () -> Unit,
+    onGetPassword: (String) -> String?,
+    onSavePassword: (String, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var passwordEntryId by remember { mutableStateOf<String?>(null) }
+    var passwordDraft by remember { mutableStateOf("") }
+    val revealedPasswords = remember { mutableStateMapOf<String, String>() }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.History, contentDescription = null) },
@@ -72,7 +88,7 @@ fun ConnectionHistoryDialog(
                                             Text(entry.ssid, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                             Text(entry.event, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                         }
-                                        IconButton(onClick = { onDelete(entry.id) }) {
+                                        IconButton(onClick = { onDelete(entry.id); revealedPasswords.remove(entry.id) }) {
                                             Icon(Icons.Default.Delete, contentDescription = "Удалить запись")
                                         }
                                     }
@@ -102,6 +118,38 @@ fun ConnectionHistoryDialog(
                                         entry.dns2?.let { "DNS2 $it" }
                                     ).joinToString(" · ")
                                     if (networkDetails.isNotBlank()) Text(networkDetails, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = {
+                                            passwordDraft = ""
+                                            passwordEntryId = entry.id
+                                        }) {
+                                            Icon(Icons.Default.Key, contentDescription = null)
+                                            Text(if (entry.wifiPasswordCiphertext == null) "Задать пароль" else "Изменить пароль")
+                                        }
+                                        if (entry.wifiPasswordCiphertext != null) {
+                                            IconButton(onClick = {
+                                                if (revealedPasswords.containsKey(entry.id)) {
+                                                    revealedPasswords.remove(entry.id)
+                                                } else {
+                                                    onGetPassword(entry.id)?.let { revealedPasswords[entry.id] = it }
+                                                }
+                                            }) {
+                                                Icon(
+                                                    if (revealedPasswords.containsKey(entry.id)) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                    contentDescription = if (revealedPasswords.containsKey(entry.id)) "Скрыть пароль" else "Показать пароль"
+                                                )
+                                            }
+                                        }
+                                    }
+                                    revealedPasswords[entry.id]?.let { password ->
+                                        Text("Пароль Wi-Fi: $password", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Text(
+                                        "Пароль вводится монтажником вручную и хранится в зашифрованном виде на этом устройстве.",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
@@ -109,22 +157,55 @@ fun ConnectionHistoryDialog(
                 }
                 Divider()
                 Text(
-                    "Пароли Wi-Fi не сохраняются: Android не предоставляет приложению доступ к паролям сохранённых сетей. История хранится локально на устройстве.",
+                    "Пароли из настроек Android автоматически не извлекаются. Для сохранения нажмите «Задать пароль» и введите пароль, предоставленный абонентом или известный монтажнику.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Закрыть") }
-        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Закрыть") } },
         dismissButton = {
-            if (entries.isNotEmpty()) {
-                OutlinedButton(onClick = onClear) { Text("Очистить всё") }
-            }
+            if (entries.isNotEmpty()) OutlinedButton(onClick = { onClear(); revealedPasswords.clear() }) { Text("Очистить всё") }
         },
         containerColor = MaterialTheme.colorScheme.surface
     )
+
+    if (passwordEntryId != null) {
+        AlertDialog(
+            onDismissRequest = { passwordEntryId = null; passwordDraft = "" },
+            title = { Text("Пароль Wi-Fi") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Введите пароль, который монтажник получил от абонента или установил на роутере. Приложение не считывает пароли из Android.")
+                    OutlinedTextField(
+                        value = passwordDraft,
+                        onValueChange = { passwordDraft = it.take(256) },
+                        label = { Text("Пароль сети") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("Хранение защищено AES-GCM с ключом Android Keystore. Удаление записи удаляет и сохранённый пароль.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    passwordEntryId?.let { onSavePassword(it, passwordDraft) }
+                    passwordEntryId = null
+                    passwordDraft = ""
+                    revealedPasswords.clear()
+                }) { Text("Сохранить") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    passwordEntryId?.let { onSavePassword(it, "") }
+                    passwordEntryId = null
+                    passwordDraft = ""
+                    revealedPasswords.clear()
+                }) { Text("Удалить пароль") }
+            }
+        )
+    }
 }
 
 private fun formatDate(timestamp: Long): String =
