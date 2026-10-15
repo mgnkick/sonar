@@ -56,26 +56,6 @@ fun SmartAuditScreen(
                         )
                     }
                 },
-                actions = {
-                    IconButton(
-                        onClick = onRefreshAudit,
-                        enabled = !isScanning
-                    ) {
-                        if (isScanning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Обновить аудит",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
@@ -229,9 +209,9 @@ fun AuditScoreCard(report: AuditReport) {
             Spacer(modifier = Modifier.height(14.dp))
 
             // Badges row
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 AuditMetricChip(
                     label = "Оптимально",
@@ -265,6 +245,7 @@ fun AuditMetricChip(
             .clip(RoundedCornerShape(10.dp))
             .background(color.copy(alpha = 0.12f))
             .padding(horizontal = 10.dp, vertical = 6.dp)
+            .fillMaxWidth()
     ) {
         Box(
             modifier = Modifier
