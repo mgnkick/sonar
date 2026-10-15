@@ -97,7 +97,7 @@ class ConnectionHistoryRepository(context: Context) {
             !details.isConnected -> "Соединение Wi-Fi завершено"
             currentBssid == null -> "Подключение наблюдается; BSSID недоступен"
             lastObservedKey == null || lastObservedKey == "disconnected" -> "Подключение к сети обнаружено приложением"
-            sameKnownSsid -> "Переключение между сателлитами"
+            sameKnownSsid -> "Смена BSSID в той же сети"
             else -> "Подключение к другой сети"
         }
 

@@ -36,6 +36,8 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences(HEAT_PREFS, Context.MODE_PRIVATE) }
     var samples by remember { mutableStateOf(readSamples(preferences.getString(HEAT_KEY, null))) }
+    val interpolationSamples = remember(samples) { samples.takeLast(60) }
+    val visibleSamples = remember(samples) { samples.takeLast(40) }
     val currentRssi = connectionDetails.rssi.takeIf { connectionDetails.isConnected && it in -100..0 }
     val currentBssid = connectionDetails.bssid.takeIf { it.isNotBlank() && it != "BSSID недоступен" } ?: "BSSID недоступен"
 
@@ -76,7 +78,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     val width = (size.width - margin * 2).coerceAtLeast(1f)
                     val height = (size.height - margin * 2).coerceAtLeast(1f)
                     drawRect(Color(0xFF10182A), Offset(left, top), Size(width, height))
-                    if (samples.isNotEmpty()) {
+                    if (interpolationSamples.isNotEmpty()) {
                         val columns = 32
                         val rows = 20
                         val cellW = width / columns
@@ -86,7 +88,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             val py = (row + 0.5f) / rows
                             var weighted = 0f
                             var totalWeight = 0f
-                            samples.forEach { sample ->
+                            interpolationSamples.forEach { sample ->
                                 val dx = px - sample.x
                                 val dy = py - sample.y
                                 val weight = 1f / (dx * dx + dy * dy + 0.012f)
@@ -95,8 +97,8 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             }
                             val value = weighted / totalWeight
                             val heat = when {
-                                value >= -50f -> lerp(Color(0xFFFF4FD8), Color(0xFF55F4FF), ((value + 50f) / 15f).coerceIn(0f, 1f))
-                                value >= -65f -> lerp(Color(0xFFFFC857), Color(0xFF55F4FF), ((value + 65f) / 15f).coerceIn(0f, 1f))
+                                value >= -50f -> lerp(Color(0xFF69F5B5), Color(0xFF55F4FF), ((value + 50f) / 15f).coerceIn(0f, 1f))
+                                value >= -65f -> lerp(Color(0xFFFFC857), Color(0xFF69F5B5), ((value + 65f) / 15f).coerceIn(0f, 1f))
                                 else -> lerp(Color(0xFFFF5364), Color(0xFFFFC857), ((value + 85f) / 20f).coerceIn(0f, 1f))
                             }
                             drawRect(heat.copy(alpha = 0.52f), Offset(left + col * cellW, top + row * cellH), Size(cellW + 1f, cellH + 1f))
@@ -119,7 +121,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     listOf(Triple("ЗОНА A", 0.17f, 0.25f), Triple("ЗОНА B", 0.51f, 0.25f), Triple("ЗОНА C", 0.84f, 0.25f), Triple("ЗОНА D", 0.17f, 0.78f), Triple("ЗОНА E", 0.51f, 0.78f), Triple("ЗОНА F", 0.84f, 0.78f)).forEach { zone ->
                         drawContext.canvas.nativeCanvas.drawText(zone.first, left + width * zone.second, top + height * zone.third, paint)
                     }
-                    samples.forEachIndexed { index, sample ->
+                    visibleSamples.forEachIndexed { index, sample ->
                         val center = Offset(left + width * sample.x, top + height * sample.y)
                         drawCircle(Color.Black.copy(alpha = 0.55f), radius = 12.dp.toPx(), center = center)
                         drawCircle(HeatCyan, radius = 8.dp.toPx(), center = center)

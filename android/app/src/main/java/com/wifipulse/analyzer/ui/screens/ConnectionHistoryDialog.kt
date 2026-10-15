@@ -57,7 +57,7 @@ fun ConnectionHistoryDialog(
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text("ХРОНОЛОГИЯ · СТАРЫЕ СОБЫТИЯ СВЕРХУ", color = HistoryCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
                         Text(
-                            "Время показывает, когда приложение обнаружило подключение или смену точки. Android не отдаёт сторонним приложениям полный журнал, пока приложение было закрыто.",
+                            "Время показывает, когда приложение обнаружило подключение или смену BSSID. Это отмечает переход между точками доступа; Android не сообщает приложению, является ли точка именно Mesh-сателлитом.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 19.sp
@@ -75,7 +75,7 @@ fun ConnectionHistoryDialog(
                         items(chronologicalEntries, key = { it.id }) { entry ->
                             val isRoam = entry.event.contains("точки доступа", true) ||
                                 entry.event.contains("сателлит", true) ||
-                                entry.event.contains("роуминг", true)
+                                entry.event.contains("роуминг", true) || entry.event.contains("bssid", true)
                             val accent = if (isRoam) HistoryMagenta else HistoryCyan
                             HistoryEntryCard(
                                 entry = entry,
@@ -205,7 +205,7 @@ private fun HistoryValue(label: String, value: String, color: Color) {
 }
 
 private fun eventTitle(event: String): String = when {
-    event.contains("сателлит", true) || event.contains("точки доступа", true) || event.contains("роуминг", true) -> "↔  ПЕРЕКЛЮЧЕНИЕ МЕЖДУ САТЕЛЛИТАМИ"
+    event.contains("сателлит", true) || event.contains("точки доступа", true) || event.contains("роуминг", true) || event.contains("bssid", true) -> "↔  РОУМИНГ · СМЕНА BSSID"
     event.contains("заверш", true) -> "■  ОТКЛЮЧЕНИЕ"
     event.contains("друг", true) -> "＋  ПОДКЛЮЧЕНИЕ К ДРУГОЙ СЕТИ"
     event.contains("подключ", true) -> "＋  ПОДКЛЮЧЕНИЕ К СЕТИ"
