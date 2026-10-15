@@ -106,10 +106,7 @@ class SmartAuditEngine {
             else -> 0
         }
 
-        // Count overlapping channels
-        val sameChannelCount = allNodes.count { it.channel == targetChannel }
-
-        // Find cleanest standard channel in 2.4 GHz (1, 6, 11) or 5 GHz (36, 44, 149)
+        // Compare only APs in the connected radio band; channel numbers can overlap across bands.
         val sameBandNodes = allNodes.filter { it.band == targetBand }
         val sameChannelCount = if (targetChannel > 0) {
             sameBandNodes.count { it.channel == targetChannel }
