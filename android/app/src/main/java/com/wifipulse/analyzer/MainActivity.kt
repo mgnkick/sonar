@@ -41,6 +41,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wifipulse.analyzer.data.repository.WifiRepository
+import com.wifipulse.analyzer.data.repository.ConnectionHistoryRepository
+import com.wifipulse.analyzer.ui.screens.ConnectionHistoryDialog
 import com.wifipulse.analyzer.ui.screens.SmartAuditScreen
 import com.wifipulse.analyzer.ui.screens.ConnectionInfoScreen
 import com.wifipulse.analyzer.ui.screens.DashboardScreen
@@ -59,6 +61,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 class MainActivity : ComponentActivity() {
 
     private lateinit var repository: WifiRepository
+    private lateinit var connectionHistoryRepository: ConnectionHistoryRepository
     private var hasPermissionsState by mutableStateOf(false)
     private var isBackgroundMonitoringState by mutableStateOf(false)
     private var pendingBackgroundMonitorStart = false
@@ -95,6 +98,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         repository = WifiRepository(this)
+        connectionHistoryRepository = ConnectionHistoryRepository(this)
         checkPermissions()
         isBackgroundMonitoringState = getSharedPreferences(
             WifiMonitorService.PREFERENCES, MODE_PRIVATE
@@ -132,6 +136,7 @@ class MainActivity : ComponentActivity() {
                         MainAppContent(
                             viewModel = viewModel,
                             uiState = uiState,
+                            connectionHistoryRepository = connectionHistoryRepository,
                             darkTheme = darkTheme,
                             onToggleTheme = {
                                 darkTheme = !darkTheme
@@ -211,6 +216,7 @@ class MainActivity : ComponentActivity() {
 fun MainAppContent(
     viewModel: WifiViewModel,
     uiState: com.wifipulse.analyzer.ui.viewmodel.WifiUiState,
+    connectionHistoryRepository: ConnectionHistoryRepository,
     darkTheme: Boolean,
     onToggleTheme: () -> Unit,
     isBackgroundMonitoring: Boolean,
@@ -218,6 +224,8 @@ fun MainAppContent(
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
     var showDonationDialog by remember { mutableStateOf(false) }
+    var showConnectionHistory by remember { mutableStateOf(false) }
+    val connectionHistory by connectionHistoryRepository.entries.collectAsState()
     val clipboardManager = LocalClipboardManager.current
     val uriHandler = LocalUriHandler.current
 
@@ -247,6 +255,10 @@ fun MainAppContent(
         viewModel.refreshAudit()
     }
 
+    LaunchedEffect(uiState.connectionDetails, uiState.networks) {
+        connectionHistoryRepository.observeConnection(uiState.connectionDetails, uiState.networks)
+    }
+
     val diagnosticViewModel: com.wifipulse.analyzer.ui.viewmodel.DiagnosticViewModel = viewModel()
     val diagnosticState by diagnosticViewModel.uiState.collectAsState()
 
@@ -256,6 +268,15 @@ fun MainAppContent(
         Screen.Diagnostics,
         Screen.SignalAnalysis
     )
+
+    if (showConnectionHistory) {
+        ConnectionHistoryDialog(
+            entries = connectionHistory,
+            onDelete = { connectionHistoryRepository.deleteEntry(it) },
+            onClear = { connectionHistoryRepository.clearHistory() },
+            onDismiss = { showConnectionHistory = false }
+        )
+    }
 
     if (showDonationDialog) {
         AlertDialog(
@@ -393,6 +414,16 @@ fun MainAppContent(
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    )
+                }
+                IconButton(
+                    onClick = { showConnectionHistory = true },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = "История подключений",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 IconButton(
