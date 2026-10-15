@@ -194,7 +194,7 @@ fun SignalAnalysisScreen(
                                 onSelectSignalTrackingBssid(null)
                             }
                         )
-                        HorizontalDivider()
+                        Divider()
                         meshCandidates.forEach { network ->
                             DropdownMenuItem(
                                 text = {
@@ -210,7 +210,7 @@ fun SignalAnalysisScreen(
                                     if (network.bssid.equals(trackedBssid, ignoreCase = true)) {
                                         Icon(Icons.Default.CheckCircle, contentDescription = "Отслеживается")
                                     } else {
-                                        Icon(Icons.Default.Router, contentDescription = null)
+                                        Icon(Icons.Default.Wifi, contentDescription = null)
                                     }
                                 },
                                 onClick = {
@@ -328,6 +328,29 @@ fun SignalGraphTab(state: WifiUiState, selectedNetwork: WifiNetwork?) {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
+        val activeBssid = state.signalTrackingBssid
+            ?: state.connectionDetails.bssid.takeIf { state.connectionDetails.isConnected }
+        if (!activeBssid.isNullOrBlank()) {
+            val isConnectedTarget = state.connectionDetails.isConnected &&
+                activeBssid.equals(state.connectionDetails.bssid, ignoreCase = true)
+            Text(
+                text = if (isConnectedTarget) {
+                    "Сейчас подключён этот BSSID • ${activeBssid}"
+                } else {
+                    "График выбранного сателлита • ${activeBssid} • телефон подключён к другому BSSID"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isConnectedTarget) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        if (!state.signalTrackingNotice.isNullOrBlank()) {
+            Text(
+                text = state.signalTrackingNotice,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Text(
             text = "Показывает стабильность приема и затухание при перемещении",
             style = MaterialTheme.typography.bodyMedium,
