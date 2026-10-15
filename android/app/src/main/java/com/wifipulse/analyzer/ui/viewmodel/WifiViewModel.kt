@@ -129,9 +129,12 @@ class WifiViewModel(
             val trackedScanNetwork = current.networks.firstOrNull {
                 it.bssid.equals(desiredBssid, ignoreCase = true)
             }
+            // The connected BSSID has live RSSI from WifiInfo. For a pinned neighbour,
+            // only append samples when a new scan result arrives; do not repeat stale RSSI
+            // every two seconds from the cached scan list.
             val liveRssi = if (desiredBssid.equals(details.bssid, ignoreCase = true) && details.isConnected) {
                 details.rssi
-            } else trackedScanNetwork?.rssi
+            } else null
             val baseHistory = if (trackingChanged) emptyList() else current.signalHistory
             val lastPoint = baseHistory.lastOrNull()
             val history = if (liveRssi != null && liveRssi in -100..0 &&
