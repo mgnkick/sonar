@@ -10,6 +10,7 @@ enum class WifiBand(val displayName: String) {
 }
 
 enum class SecurityType(val displayName: String) {
+    UNKNOWN("Неизвестно"),
     OPEN("Открытая"),
     WEP("WEP"),
     WPA_PSK("WPA-PSK"),
