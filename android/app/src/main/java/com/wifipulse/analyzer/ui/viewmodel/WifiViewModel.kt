@@ -161,8 +161,14 @@ class WifiViewModel(
     }
 
     private fun observeScans() {
+        // The repository emits the cached scan list once when observation starts.
+        // That initial snapshot is not evidence of a fresh scan, so it must not
+        // reset the "last updated" timer.
+        var isInitialSnapshot = true
         viewModelScope.launch {
             repository.observeScanResults().collect { scanResults ->
+                val isFreshScanResult = !isInitialSnapshot
+                isInitialSnapshot = false
                 scanTimeoutJob?.cancel()
                 _uiState.update { current ->
                     // Aggregate into groups
@@ -215,7 +221,11 @@ class WifiViewModel(
                         channelRatings5 = ratings5,
                         auditReport = report,
                         isScanning = false,
-                        lastScanTimestamp = System.currentTimeMillis()
+                        lastScanTimestamp = if (isFreshScanResult) {
+                            System.currentTimeMillis()
+                        } else {
+                            current.lastScanTimestamp
+                        }
                     )
                 }
             }
