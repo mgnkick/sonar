@@ -22,7 +22,7 @@ class ChannelInterferenceAnalyzerTest {
 
     @Test fun partialOverlapIsCounted() {
         val result = ChannelInterferenceAnalyzer.assess(
-            5180, 20, listOf(ChannelObservation("aa", 5200, 20, -65))
+            5180, 20, listOf(ChannelObservation("aa", 5190, 20, -65))
         )
         assertEquals(1, result.overlappingCount)
     }
@@ -43,6 +43,24 @@ class ChannelInterferenceAnalyzerTest {
         )
         assertNotNull(strong.score)
         assertNotNull(weak.score)
+        assert(strong.score!! < weak.score!!)
+    }
+
+    @Test fun noFrequencyOverlapIsNotCounted() {
+        val result = ChannelInterferenceAnalyzer.assess(
+            5180, 20, listOf(ChannelObservation("far", 5260, 20, -40))
+        )
+        assertEquals(0, result.overlappingCount)
+        assertEquals(10, result.score)
+    }
+
+    @Test fun weakNetworkHasLessInfluenceThanStrongNetwork() {
+        val strong = ChannelInterferenceAnalyzer.assess(
+            2412, 20, listOf(ChannelObservation("strong", 2412, 20, -45))
+        )
+        val weak = ChannelInterferenceAnalyzer.assess(
+            2412, 20, listOf(ChannelObservation("weak", 2412, 20, -85))
+        )
         assert(strong.score!! < weak.score!!)
     }
 
