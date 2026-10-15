@@ -274,6 +274,11 @@ fun MainAppContent(
             entries = connectionHistory,
             onDelete = { connectionHistoryRepository.deleteEntry(it) },
             onClear = { connectionHistoryRepository.clearHistory() },
+            onGetPassword = { connectionHistoryRepository.getWifiPassword(it) },
+            onSavePassword = { id, password ->
+                runCatching { connectionHistoryRepository.saveWifiPassword(id, password) }
+                    .onFailure { Toast.makeText(this, "Не удалось сохранить пароль: ${it.message ?: "ошибка"}", Toast.LENGTH_LONG).show() }
+            },
             onDismiss = { showConnectionHistory = false }
         )
     }
