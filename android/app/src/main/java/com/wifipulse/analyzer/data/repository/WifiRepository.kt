@@ -252,7 +252,7 @@ class WifiRepository(private val context: Context) {
                 }
             val displaySsid = when {
                 knownSsid -> connected.ssid
-                inferredSsid != null -> "$" + "{inferredSsid} · имя предположительно"
+                inferredSsid != null -> inferredSsid + " · имя предположительно"
                 else -> "[Подключено · SSID скрыт системой]"
             }
             if (existingIndex >= 0) {
