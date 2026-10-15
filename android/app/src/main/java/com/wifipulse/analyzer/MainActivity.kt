@@ -227,6 +227,7 @@ fun MainAppContent(
     var showConnectionHistory by remember { mutableStateOf(false) }
     val connectionHistory by connectionHistoryRepository.entries.collectAsState()
     val clipboardManager = LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val uriHandler = LocalUriHandler.current
 
     // Keep automatic scans active only while the app is visible. The periodic scan runs
@@ -277,7 +278,7 @@ fun MainAppContent(
             onGetPassword = { connectionHistoryRepository.getWifiPassword(it) },
             onSavePassword = { id, password ->
                 runCatching { connectionHistoryRepository.saveWifiPassword(id, password) }
-                    .onFailure { Toast.makeText(this, "Не удалось сохранить пароль: ${it.message ?: "ошибка"}", Toast.LENGTH_LONG).show() }
+                    .onFailure { Toast.makeText(context, "Не удалось сохранить пароль: ${it.message ?: "ошибка"}", Toast.LENGTH_LONG).show() }
             },
             onDismiss = { showConnectionHistory = false }
         )
