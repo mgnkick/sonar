@@ -97,10 +97,13 @@ class SmartAuditEngine {
         } else {
             targetGroup?.bestBand ?: WifiBand.UNKNOWN
         }
+        // Read the computed/custom-getter property once; Kotlin cannot smart-cast
+        // targetGroup.bestNode across repeated getter calls.
+        val targetNode = targetGroup?.bestNode
         val targetChannel = when {
             connectionDetails.isConnected && connectionDetails.frequency > 0 ->
                 WifiRepository.frequencyToChannel(connectionDetails.frequency)
-            targetGroup?.bestNode != null -> targetGroup.bestNode.channel
+            targetNode != null -> targetNode.channel
             targetBand == WifiBand.BAND_2_4_GHZ -> 1
             targetBand == WifiBand.BAND_5_GHZ -> 36
             else -> 0
