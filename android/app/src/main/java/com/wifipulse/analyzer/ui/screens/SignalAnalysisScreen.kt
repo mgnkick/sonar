@@ -679,12 +679,30 @@ fun ChannelRatingCard(rating: ChannelRating) {
                 }
             }
         }
-        Text(
-            text = "Ширина канала: ${rating.recommendedWidthMhz} МГц. ${rating.explanation}",
-            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 12.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = "Ширина: ${rating.recommendedWidthMhz} МГц",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = when {
+                    rating.networkCount == 0 && rating.score >= 8 ->
+                        "Перекрывающиеся сети не обнаружены. По текущему сканированию — хороший кандидат."
+                    rating.networkCount == 0 ->
+                        "Перекрывающиеся сети не обнаружены, но итоговая оценка ниже: сравните соседние каналы."
+                    rating.networkCount == 1 ->
+                        "Обнаружена 1 сеть в зоне перекрытия; оценка учитывает её уровень сигнала."
+                    else ->
+                        "Сетей в зоне перекрытия: ${rating.networkCount}. Выбирайте канал с меньшей оценкой помех."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
