@@ -100,7 +100,7 @@ data class WifiNetworkGroup(
         get() = bestNode?.band ?: WifiBand.UNKNOWN
 
     val bestSecurity: SecurityType
-        get() = bestNode?.securityType ?: SecurityType.OPEN
+        get() = bestNode?.securityType ?: SecurityType.UNKNOWN
 
     val availableBands: Set<WifiBand>
         get() = nodes.map { it.band }.toSet()
