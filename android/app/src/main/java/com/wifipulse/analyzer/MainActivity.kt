@@ -417,16 +417,6 @@ fun MainAppContent(
                     )
                 }
                 IconButton(
-                    onClick = { showConnectionHistory = true },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "История подключений",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                IconButton(
                     onClick = { showDonationDialog = true },
                     modifier = Modifier
                         .size(40.dp)
@@ -522,7 +512,8 @@ fun MainAppContent(
                     onRefreshNetworks = { viewModel.triggerScan() },
                     lastScanTimestamp = uiState.lastScanTimestamp,
                     isBackgroundMonitoring = isBackgroundMonitoring,
-                    onToggleBackgroundMonitoring = onToggleBackgroundMonitoring
+                    onToggleBackgroundMonitoring = onToggleBackgroundMonitoring,
+                    onOpenConnectionHistory = { showConnectionHistory = true }
                 )
             }
         }
