@@ -519,7 +519,8 @@ fun MainAppContent(
                     lastScanTimestamp = uiState.lastScanTimestamp,
                     isBackgroundMonitoring = isBackgroundMonitoring,
                     onToggleBackgroundMonitoring = onToggleBackgroundMonitoring,
-                    onOpenConnectionHistory = { showConnectionHistory = true }
+                    onOpenConnectionHistory = { showConnectionHistory = true },
+                    onSelectSignalTrackingBssid = { viewModel.selectSignalTrackingBssid(it) }
                 )
             }
         }
