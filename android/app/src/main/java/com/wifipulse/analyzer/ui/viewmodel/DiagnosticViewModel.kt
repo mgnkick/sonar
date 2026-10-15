@@ -195,7 +195,7 @@ class DiagnosticViewModel(
             it.copy(
                 mode = DiagnosticMode.PING,
                 status = DiagnosticStatus.RUNNING,
-                logs = listOf(DiagnosticLogEntry.Output("Запуск пошаговой диагностики…", isHighlight = true)),
+                logs = listOf(DiagnosticLogEntry.Output("Подготовка пошаговой диагностики…", isHighlight = true)),
                 pingPackets = emptyList(),
                 pingSummary = null,
                 hops = emptyList(),
@@ -204,12 +204,18 @@ class DiagnosticViewModel(
         }
         activeJob = viewModelScope.launch {
             try {
-                val lines = repository.runGuidedDiagnostics(gateway, dns1, dns2)
+                repository.runGuidedDiagnostics(gateway, dns1, dns2) { line ->
+                    _uiState.update { current ->
+                        current.copy(
+                            logs = (current.logs + DiagnosticLogEntry.Output(
+                                line,
+                                line.startsWith("===") || line.startsWith("[4/4]")
+                            )).takeLast(300)
+                        )
+                    }
+                }
                 _uiState.update { current ->
-                    current.copy(
-                        logs = (current.logs + lines.map { DiagnosticLogEntry.Output(it, it.startsWith("===") || it.startsWith("[4/4]")) }).takeLast(300),
-                        status = DiagnosticStatus.COMPLETED
-                    )
+                    current.copy(status = DiagnosticStatus.COMPLETED)
                 }
             } catch (e: Exception) {
                 _uiState.update { current ->
