@@ -554,17 +554,24 @@ fun ChannelSpectrumTab(
             }
             Dialog(onDismissRequest = { showFullscreen = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Column(Modifier.fillMaxSize().padding(12.dp)) {
+                    Column(Modifier.fillMaxSize().padding(WindowInsets.safeDrawing.asPaddingValues()).padding(horizontal = 8.dp, vertical = 4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Спектр Wi-Fi", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Text("Спектр Wi-Fi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
+                            Text((zoomScale * 100).toInt().toString() + "%", style = MaterialTheme.typography.labelMedium)
+                            TextButton(onClick = { zoomScale = 1f; panFraction = 0f }) { Text("Сбросить") }
                             IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Свернуть спектр") }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = selectedBand == WifiBand.BAND_2_4_GHZ, onClick = { selectedBand = WifiBand.BAND_2_4_GHZ }, label = { Text("2,4 ГГц") })
-                            FilterChip(selected = selectedBand == WifiBand.BAND_5_GHZ, onClick = { selectedBand = WifiBand.BAND_5_GHZ }, label = { Text("5 ГГц") })
+                            FilterChip(selected = selectedBand == WifiBand.BAND_2_4_GHZ, onClick = { selectedBand = WifiBand.BAND_2_4_GHZ; zoomScale = 1f; panFraction = 0f }, label = { Text("2,4 ГГц") })
+                            FilterChip(selected = selectedBand == WifiBand.BAND_5_GHZ, onClick = { selectedBand = WifiBand.BAND_5_GHZ; zoomScale = 1f; panFraction = 0f }, label = { Text("5 ГГц") })
                         }
-                        Spacer(Modifier.height(6.dp))
-                        SpectrumCanvas(networks = networks.filter { it.band == selectedBand }, band = selectedBand, modifier = Modifier.fillMaxSize())
+                        Text("Щипок — масштаб · перетаскивание — перемещение", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(2.dp))
+                        SpectrumCanvas(networks = spectrumNetworks.filter { it.band == selectedBand }, band = selectedBand, zoomScale = zoomScale, panFraction = panFraction, onTransform = { scaleChange, panChange, canvasWidth ->
+                            val newScale = (zoomScale * scaleChange).coerceIn(1f, 8f)
+                            zoomScale = newScale
+                            if (canvasWidth > 0f) panFraction = (panFraction - panChange / canvasWidth / newScale).coerceIn(-0.5f + 0.5f / newScale, 0.5f - 0.5f / newScale)
+                        }, modifier = Modifier.fillMaxWidth().weight(1f))
                     }
                 }
             }
@@ -600,7 +607,7 @@ fun ChannelSpectrumTab(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        val visibleNetworks = networks.filter { it.band == selectedBand }.sortedByDescending { it.rssi }
+        val visibleNetworks = spectrumNetworks.filter { it.band == selectedBand }.sortedByDescending { it.rssi }
         Text("Сети и каналы (${visibleNetworks.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(6.dp))
         if (visibleNetworks.isEmpty()) {
