@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.wifi.WifiManager
 import android.net.TrafficStats
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -32,6 +34,7 @@ class WifiMonitorService : Service() {
     private var previousRx = TrafficStats.UNSUPPORTED.toLong()
     private var previousTx = TrafficStats.UNSUPPORTED.toLong()
     private var previousSampleAt = 0L
+    private var previousInterface: String? = null
 
     private val sampleTask = object : Runnable {
         override fun run() {
@@ -92,11 +95,13 @@ class WifiMonitorService : Service() {
             ?: "Wi-Fi не подключён"
         val rssi = info?.rssi?.takeIf { it in -126..0 }
 
-        val rx = TrafficStats.getTotalRxBytes()
-        val tx = TrafficStats.getTotalTxBytes()
+        val wifiInterface = findWifiInterface()
+        val rx = wifiInterface?.let { TrafficStats.getRxBytes(it) } ?: TrafficStats.getTotalRxBytes()
+        val tx = wifiInterface?.let { TrafficStats.getTxBytes(it) } ?: TrafficStats.getTotalTxBytes()
         var rxRate: Long? = null
         var txRate: Long? = null
-        if (previousSampleAt > 0L && rx >= 0L && tx >= 0L &&
+        val sameInterface = wifiInterface == previousInterface
+        if (sameInterface && previousSampleAt > 0L && rx >= 0L && tx >= 0L &&
             previousRx >= 0L && previousTx >= 0L && now > previousSampleAt
         ) {
             val seconds = (now - previousSampleAt) / 1000.0
@@ -106,18 +111,34 @@ class WifiMonitorService : Service() {
         previousRx = rx
         previousTx = tx
         previousSampleAt = now
+        previousInterface = wifiInterface
 
         notificationManager.notify(
             NOTIFICATION_ID,
-            buildNotification(ssid, rssi, rxRate, txRate)
+            buildNotification(ssid, rssi, rxRate, txRate, wifiInterface != null)
         )
+    }
+
+    private fun findWifiInterface(): String? {
+        return try {
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            connectivityManager.allNetworks.firstOrNull { network ->
+                connectivityManager.getNetworkCapabilities(network)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+            }?.let { network ->
+                connectivityManager.getLinkProperties(network)?.interfaceName
+            }?.takeIf { it.isNotBlank() }
+        } catch (_: SecurityException) {
+            null
+        }
     }
 
     private fun buildNotification(
         ssid: String,
         rssi: Int?,
         rxRate: Long?,
-        txRate: Long?
+        txRate: Long?,
+        isWifiInterfaceRate: Boolean = false
     ): Notification {
         val stopIntent = Intent(this, WifiMonitorService::class.java).setAction(ACTION_STOP)
         val stopPendingIntent = PendingIntent.getService(
@@ -128,11 +149,16 @@ class WifiMonitorService : Service() {
         )
         val signal = rssi?.let { "$it dBm" } ?: "уровень недоступен"
         val rates = if (rxRate != null && txRate != null) {
-            "Трафик устройства: ↓ ${formatRate(rxRate)} • ↑ ${formatRate(txRate)}"
+            "${if (isWifiInterfaceRate) "Wi-Fi" else "Трафик устройства"}: ↓ ${formatRate(rxRate)} • ↑ ${formatRate(txRate)}"
         } else {
             "Сбор скорости передачи данных…"
         }
-        val expandedText = "$ssid • $signal\n$rates\nСкорость рассчитана по счётчикам трафика устройства; это не тест пропускной способности LAN."
+        val sourceNote = if (isWifiInterfaceRate) {
+            "Скорость передачи по Wi-Fi-интерфейсу; это не отдельный тест LAN."
+        } else {
+            "Нет счётчика Wi-Fi-интерфейса: показан общий трафик устройства, это не тест LAN."
+        }
+        val expandedText = "$ssid • $signal\n$rates\n$sourceNote"
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_wifi)
