@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,6 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -145,6 +150,9 @@ fun MainAppContent(
     onToggleTheme: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+    var showDonationDialog by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+    val uriHandler = LocalUriHandler.current
 
     // Keep automatic scans active only while the app is visible. The periodic scan runs
     // independently of Compose rendering and never changes focus or the manual scan state.
@@ -182,6 +190,114 @@ fun MainAppContent(
         Screen.SignalAnalysis
     )
 
+    if (showDonationDialog) {
+        AlertDialog(
+            onDismissRequest = { showDonationDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Paid,
+                    contentDescription = null,
+                    tint = Color(0xFFFFC857),
+                    modifier = Modifier.size(30.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Поддержать WiFi Pulse",
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Если приложение оказалось полезным, можно поддержать его донатом в рублях РФ на карту Сбербанка.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "Карта Сбербанка",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            Color(0xFFFFC857).copy(alpha = 0.55f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "5336 6903 0435 1846",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                            IconButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString("5336690304351846"))
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Скопировать номер карты",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = "Нажмите на номер, чтобы скопировать",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Связь по электронной почте",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "mgn.kick@gmail.com",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            textDecoration = TextDecoration.Underline
+                        ),
+                        modifier = Modifier.clickable {
+                            uriHandler.openUri("mailto:mgn.kick@gmail.com")
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDonationDialog = false }) {
+                    Text("Готово")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString("5336690304351846"))
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Копировать карту")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
     Scaffold(
         bottomBar = {
             NavigationBar(
@@ -207,6 +323,22 @@ fun MainAppContent(
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    )
+                }
+                IconButton(
+                    onClick = { showDonationDialog = true },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .border(
+                            width = 1.dp,
+                            color = Color(0xFFFFC857).copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(50)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Paid,
+                        contentDescription = "Поддержать проект донатом",
+                        tint = Color(0xFFFFC857)
                     )
                 }
                 IconButton(
