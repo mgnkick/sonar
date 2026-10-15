@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -59,6 +60,25 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var repository: WifiRepository
     private var hasPermissionsState by mutableStateOf(false)
+    private var isBackgroundMonitoringState by mutableStateOf(false)
+    private var pendingBackgroundMonitorStart = false
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (pendingBackgroundMonitorStart) {
+            pendingBackgroundMonitorStart = false
+            if (granted) {
+                startBackgroundMonitoring()
+            } else {
+                Toast.makeText(
+                    this,
+                    "Для отображения мониторинга в системной шторке разрешите уведомления WiFi Pulse.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -76,6 +96,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         repository = WifiRepository(this)
         checkPermissions()
+        isBackgroundMonitoringState = getSharedPreferences(
+            WifiMonitorService.PREFERENCES, MODE_PRIVATE
+        ).getBoolean(WifiMonitorService.KEY_RUNNING, false)
 
         setContent {
             var darkTheme by remember { mutableStateOf(getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).getBoolean("dark_theme", true)) }
@@ -113,7 +136,9 @@ class MainActivity : ComponentActivity() {
                             onToggleTheme = {
                                 darkTheme = !darkTheme
                                 getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).edit().putBoolean("dark_theme", darkTheme).apply()
-                            }
+                            },
+                            isBackgroundMonitoring = isBackgroundMonitoringState,
+                            onToggleBackgroundMonitoring = { toggleBackgroundMonitoring() }
                         )
                     }
                 }
@@ -124,6 +149,40 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         checkPermissions()
+        isBackgroundMonitoringState = getSharedPreferences(
+            WifiMonitorService.PREFERENCES, MODE_PRIVATE
+        ).getBoolean(WifiMonitorService.KEY_RUNNING, false)
+    }
+
+    private fun toggleBackgroundMonitoring() {
+        if (isBackgroundMonitoringState) {
+            WifiMonitorService.stop(this)
+            isBackgroundMonitoringState = false
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingBackgroundMonitorStart = true
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
+        startBackgroundMonitoring()
+    }
+
+    private fun startBackgroundMonitoring() {
+        try {
+            WifiMonitorService.start(this)
+            isBackgroundMonitoringState = true
+        } catch (e: Exception) {
+            isBackgroundMonitoringState = false
+            Toast.makeText(
+                this,
+                "Не удалось запустить фоновый мониторинг: ${e.message ?: "ошибка запуска"}",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun checkPermissions() {
@@ -153,7 +212,9 @@ fun MainAppContent(
     viewModel: WifiViewModel,
     uiState: com.wifipulse.analyzer.ui.viewmodel.WifiUiState,
     darkTheme: Boolean,
-    onToggleTheme: () -> Unit
+    onToggleTheme: () -> Unit,
+    isBackgroundMonitoring: Boolean,
+    onToggleBackgroundMonitoring: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
     var showDonationDialog by remember { mutableStateOf(false) }
@@ -428,7 +489,9 @@ fun MainAppContent(
                     visibleNetworkCount = uiState.networks.size,
                     isRefreshingNetworks = uiState.isScanning,
                     onRefreshNetworks = { viewModel.triggerScan() },
-                    lastScanTimestamp = uiState.lastScanTimestamp
+                    lastScanTimestamp = uiState.lastScanTimestamp,
+                    isBackgroundMonitoring = isBackgroundMonitoring,
+                    onToggleBackgroundMonitoring = onToggleBackgroundMonitoring
                 )
             }
         }
