@@ -55,7 +55,7 @@ fun SignalAnalysisScreen(
     onSelectSignalTrackingBssid: (String?) -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("График сигнала", "Спектр каналов", "Рейтинг каналов")
+    val tabs = listOf("Сигнал", "Спектр", "Рейтинг", "Экспериментальное")
 
     val connectedBssid = state.connectionDetails.bssid.takeIf {
         state.connectionDetails.isConnected && it.isNotBlank() && it != "BSSID недоступен"
@@ -235,9 +235,10 @@ fun SignalAnalysisScreen(
             }
 
             // Tab Selector
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surface,
+                edgePadding = 12.dp
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
@@ -252,6 +253,7 @@ fun SignalAnalysisScreen(
                 0 -> SignalGraphTab(state = state, selectedNetwork = selectedNetwork)
                 1 -> ChannelSpectrumTab(networks = state.networks, connectionDetails = state.connectionDetails)
                 2 -> ChannelRatingTab(ratings24 = state.channelRatings24, ratings5 = state.channelRatings5)
+                3 -> ExperimentalHeatmapTab(connectionDetails = state.connectionDetails)
             }
         }
     }

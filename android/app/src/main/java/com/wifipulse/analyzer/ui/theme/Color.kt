@@ -4,19 +4,19 @@ import androidx.compose.ui.graphics.Color
 
 // Neon accents: high contrast and restrained enough for long field sessions.
 val CyanPrimary = Color(0xFF54F4FF)
-val CyanSecondary = Color(0xFF00BCD4)
+val CyanSecondary = Color(0xFFFF4FD8)
 val BlueAccent = Color(0xFF9B8CFF)
 val MagentaAccent = Color(0xFFFF63D8)
 val NeonGreen = Color(0xFF64F7B0)
 
-val DarkBackground = Color(0xFF070B14)
-val DarkSurface = Color(0xFF0E1624)
-val DarkSurfaceVariant = Color(0xFF17243A)
-val DarkBorder = Color(0xFF29445E)
-val DarkElevatedSurface = Color(0xFF111D2D)
+val DarkBackground = Color(0xFF060711)
+val DarkSurface = Color(0xFF0C1020)
+val DarkSurfaceVariant = Color(0xFF15162B)
+val DarkBorder = Color(0xFF39315F)
+val DarkElevatedSurface = Color(0xFF11162A)
 
 val TextPrimaryDark = Color(0xFFF2FAFF)
-val TextSecondaryDark = Color(0xFFABC0D2)
+val TextSecondaryDark = Color(0xFFB7B5D0)
 
 val LightBackground = Color(0xFFF2F7FB)
 val LightSurface = Color(0xFFFFFFFF)

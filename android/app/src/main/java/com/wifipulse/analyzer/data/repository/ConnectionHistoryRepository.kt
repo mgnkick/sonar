@@ -91,12 +91,14 @@ class ConnectionHistoryRepository(context: Context) {
         val connectedNetwork = currentBssid?.let { bssid ->
             networks.firstOrNull { it.bssid.equals(bssid, ignoreCase = true) }
         }
+        val previousEntry = _entries.value.maxByOrNull { it.firstSeenAt }
+        val sameKnownSsid = usableSsid && previousEntry?.ssid?.equals(details.ssid, ignoreCase = true) == true
         val event = when {
             !details.isConnected -> "Соединение Wi-Fi завершено"
             currentBssid == null -> "Подключение наблюдается; BSSID недоступен"
-            lastObservedKey == null -> "Подключение обнаружено приложением"
-            lastObservedKey == "disconnected" -> "Подключение обнаружено приложением"
-            else -> "Смена точки доступа"
+            lastObservedKey == null || lastObservedKey == "disconnected" -> "Подключение к сети обнаружено приложением"
+            sameKnownSsid -> "Переключение между сателлитами"
+            else -> "Подключение к другой сети"
         }
 
         if (details.isConnected && (currentBssid != null || fallbackKey != null)) {
