@@ -227,7 +227,52 @@ class WifiRepository(private val context: Context) {
 
     private fun mapScanResults(results: List<ScanResult>): List<WifiNetwork> {
         val connected = getCurrentConnectionDetails()
-        return results.mapNotNull { it.toWifiNetwork(connected) }.sortedByDescending { it.rssi }
+        val mapped = results.mapNotNull { it.toWifiNetwork(connected) }.toMutableList()
+        val validBssid = connected.bssid.isNotBlank() &&
+            connected.bssid != "BSSID недоступен" &&
+            connected.bssid != "02:00:00:00:00:00"
+        if (connected.isConnected && validBssid && connected.frequency > 0) {
+            val existingIndex = mapped.indexOfFirst { it.bssid.equals(connected.bssid, ignoreCase = true) }
+            val connectedBand = when {
+                connected.frequency in 2400..2500 -> WifiBand.BAND_2_4_GHZ
+                connected.frequency in 4900..5900 -> WifiBand.BAND_5_GHZ
+                connected.frequency in 5925..7125 -> WifiBand.BAND_6_GHZ
+                else -> WifiBand.UNKNOWN
+            }
+            val knownSsid = connected.ssid.isNotBlank() &&
+                !connected.ssid.startsWith("Подключено к Wi-Fi") &&
+                !connected.ssid.equals("<unknown ssid>", ignoreCase = true)
+            val inferredSsid = mapped.filter {
+                it.band == connectedBand && it.ssid.isNotBlank() && it.ssid != "[Скрытая сеть]"
+            }.groupingBy { it.ssid }.eachCount().entries.sortedByDescending { it.value }
+                .let { names ->
+                    val first = names.firstOrNull()
+                    if (first != null && first.value >= 2 &&
+                        (names.size == 1 || first.value > (names.getOrNull(1)?.value ?: 0))) first.key else null
+                }
+            val displaySsid = when {
+                knownSsid -> connected.ssid
+                inferredSsid != null -> "$" + "{inferredSsid} · имя предположительно"
+                else -> "[Подключено · SSID скрыт системой]"
+            }
+            if (existingIndex >= 0) {
+                val existing = mapped[existingIndex]
+                if (!knownSsid && inferredSsid != null) mapped[existingIndex] = existing.copy(ssid = displaySsid)
+            } else {
+                mapped += WifiNetwork(
+                    ssid = displaySsid,
+                    bssid = connected.bssid,
+                    rssi = connected.rssi.coerceIn(-100, 0),
+                    frequency = connected.frequency,
+                    channel = frequencyToChannel(connected.frequency),
+                    band = connectedBand,
+                    channelWidth = 20,
+                    securityType = SecurityType.OPEN,
+                    capabilities = "Текущие параметры подключения Android; SSID может быть предположительным"
+                )
+            }
+        }
+        return mapped.distinctBy { it.bssid.lowercase() }.sortedByDescending { it.rssi }
     }
 
     private fun ScanResult.toWifiNetwork(connected: WifiConnectionDetails? = null): WifiNetwork? {
