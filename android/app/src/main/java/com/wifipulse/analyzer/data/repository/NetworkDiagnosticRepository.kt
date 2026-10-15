@@ -420,9 +420,23 @@ class NetworkDiagnosticRepository {
     suspend fun runGuidedDiagnostics(
         gateway: String,
         dns1: String,
-        dns2: String
+        dns2: String,
+        onProgress: (String) -> Unit = {}
     ): List<String> = withContext(Dispatchers.IO) {
-        val lines = mutableListOf<String>()
+        // Keep the existing result list while streaming each line to the UI as soon as it is produced.
+        val lines = object : ArrayList<String>() {
+            override fun add(element: String): Boolean {
+                val added = super.add(element)
+                if (added) onProgress(element)
+                return added
+            }
+
+            override fun addAll(elements: Collection<String>): Boolean {
+                val added = super.addAll(elements)
+                if (added) elements.forEach(onProgress)
+                return added
+            }
+        }
         lines += "=== ПОШАГОВАЯ ДИАГНОСТИКА ==="
         lines += "Время: ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}"
         lines += ""
