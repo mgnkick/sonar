@@ -52,6 +52,7 @@ class WifiViewModel(
 
     private var cooldownJob: Job? = null
     private var autoRefreshJob: Job? = null
+    private var autoScanJob: Job? = null
     private var scanTimeoutJob: Job? = null
 
     /**
@@ -69,16 +70,29 @@ class WifiViewModel(
                 refreshConnectionDetails()
             }
         }
+        if (autoScanJob?.isActive != true) {
+            autoScanJob = viewModelScope.launch {
+                while (true) {
+                    delay(30_000)
+                    if (_uiState.value.hasPermissions && _uiState.value.scanThrottleCooldownSeconds == 0) {
+                        triggerScan()
+                    }
+                }
+            }
+        }
     }
 
     fun stopAutoRefresh() {
         autoRefreshJob?.cancel()
         autoRefreshJob = null
+        autoScanJob?.cancel()
+        autoScanJob = null
     }
 
     override fun onCleared() {
         cooldownJob?.cancel()
         autoRefreshJob?.cancel()
+        autoScanJob?.cancel()
         scanTimeoutJob?.cancel()
         super.onCleared()
     }
