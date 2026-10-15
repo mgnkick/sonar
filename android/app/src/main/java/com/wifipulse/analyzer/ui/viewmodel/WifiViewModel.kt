@@ -25,6 +25,10 @@ data class WifiUiState(
     val searchQuery: String = "",
     val sortBy: SortOption = SortOption.SIGNAL,
     val selectedNetworkBssid: String? = null,
+    /** null means follow the BSSID currently connected by Android; non-null pins a chosen AP for survey. */
+    val trackedSignalBssid: String? = null,
+    val signalTrackingBssid: String? = null,
+    val signalTrackingNotice: String? = null,
     val signalHistory: List<SignalHistoryPoint> = emptyList(),
     val channelRatings24: List<ChannelRating> = emptyList(),
     val channelRatings5: List<ChannelRating> = emptyList(),
@@ -117,19 +121,58 @@ class WifiViewModel(
     fun refreshConnectionDetails() {
         val details = repository.getCurrentConnectionDetails()
         _uiState.update { current ->
-            val isSelectedConnection = details.isConnected &&
-                current.selectedNetworkBssid.equals(details.bssid, ignoreCase = true)
+            val desiredBssid = if (current.trackedSignalBssid.isNullOrBlank()) {
+                details.bssid.takeIf { details.isConnected && it.isNotBlank() }
+            } else current.trackedSignalBssid
+            val trackingChanged = !current.signalTrackingBssid.equals(desiredBssid, ignoreCase = true)
             val now = System.currentTimeMillis()
-            val lastPoint = current.signalHistory.lastOrNull()
-            val history = if (isSelectedConnection && details.rssi in -100..0 &&
+            val trackedScanNetwork = current.networks.firstOrNull {
+                it.bssid.equals(desiredBssid, ignoreCase = true)
+            }
+            val liveRssi = if (desiredBssid.equals(details.bssid, ignoreCase = true) && details.isConnected) {
+                details.rssi
+            } else trackedScanNetwork?.rssi
+            val baseHistory = if (trackingChanged) emptyList() else current.signalHistory
+            val lastPoint = baseHistory.lastOrNull()
+            val history = if (liveRssi != null && liveRssi in -100..0 &&
                 (lastPoint == null || now - lastPoint.timestamp >= 1_000)
             ) {
-                (current.signalHistory + SignalHistoryPoint(now, details.rssi)).takeLast(120)
-            } else current.signalHistory
+                (baseHistory + SignalHistoryPoint(now, liveRssi)).takeLast(120)
+            } else baseHistory
+            val notice = if (trackingChanged && current.signalTrackingBssid != null && current.trackedSignalBssid == null) {
+                "Android переключил подключение на другой BSSID. График начат заново для текущего сателлита."
+            } else if (trackingChanged && current.trackedSignalBssid != null) {
+                "Выбран другой сателлит. График показывает только его наблюдения."
+            } else current.signalTrackingNotice
             current.copy(
                 connectionDetails = details,
+                signalTrackingBssid = desiredBssid,
+                signalTrackingNotice = notice,
                 signalHistory = history,
                 auditReport = auditEngine.generateReport(current.networkGroups, details)
+            )
+        }
+    }
+
+    fun selectSignalTrackingBssid(bssid: String?) {
+        _uiState.update { current ->
+            val desiredBssid = bssid?.takeIf { it.isNotBlank() }
+                ?: current.connectionDetails.bssid.takeIf { current.connectionDetails.isConnected && it.isNotBlank() }
+            val net = current.networks.firstOrNull { it.bssid.equals(desiredBssid, ignoreCase = true) }
+            val rssi = if (desiredBssid.equals(current.connectionDetails.bssid, ignoreCase = true) &&
+                current.connectionDetails.isConnected) current.connectionDetails.rssi else net?.rssi
+            val initialHistory = if (rssi != null && rssi in -100..0) {
+                listOf(SignalHistoryPoint(System.currentTimeMillis(), rssi))
+            } else emptyList()
+            current.copy(
+                trackedSignalBssid = bssid?.takeIf { it.isNotBlank() },
+                signalTrackingBssid = desiredBssid,
+                signalTrackingNotice = if (bssid.isNullOrBlank()) {
+                    "Автоотслеживание включено: график следует за подключённым сателлитом."
+                } else {
+                    "Ручное отслеживание включено: график показывает выбранный BSSID независимо от текущего подключения."
+                },
+                signalHistory = initialHistory
             )
         }
     }
@@ -185,20 +228,27 @@ class WifiViewModel(
                         sort = current.sortBy
                     )
 
-                    // Auto-select first or maintain selection
+                    // The signal graph follows the live connected BSSID by default.
+                    // A manual BSSID selection pins a specific mesh node for placement surveys.
                     val connectedBssid = current.connectionDetails.bssid
                         .takeIf { current.connectionDetails.isConnected && it.isNotBlank() }
                     val selectedBssid = current.selectedNetworkBssid
                         ?: connectedBssid?.takeIf { bssid -> scanResults.any { it.bssid.equals(bssid, ignoreCase = true) } }
                         ?: scanResults.firstOrNull()?.bssid
                     val selectedNet = scanResults.firstOrNull { it.bssid.equals(selectedBssid, ignoreCase = true) }
-
-                    val updatedHistory = if (selectedNet != null) {
-                        val newPoint = SignalHistoryPoint(System.currentTimeMillis(), selectedNet.rssi)
-                        (current.signalHistory + newPoint).takeLast(30)
+                    val trackedBssid = current.trackedSignalBssid ?: connectedBssid
+                    val trackedNet = scanResults.firstOrNull { it.bssid.equals(trackedBssid, ignoreCase = true) }
+                    val trackingChanged = !current.signalTrackingBssid.equals(trackedBssid, ignoreCase = true)
+                    val historyBase = if (trackingChanged) emptyList() else current.signalHistory
+                    val updatedHistory = if (trackedNet != null) {
+                        val newPoint = SignalHistoryPoint(System.currentTimeMillis(), trackedNet.rssi)
+                        (historyBase + newPoint).takeLast(120)
                     } else {
-                        current.signalHistory
+                        historyBase
                     }
+                    val trackingNotice = if (trackingChanged && current.signalTrackingBssid != null && current.trackedSignalBssid == null) {
+                        "Android переключил подключение на другой BSSID. График начат заново для текущего сателлита."
+                    } else current.signalTrackingNotice
 
                     val ratings24 = calculateChannelRatings(scanResults, WifiBand.BAND_2_4_GHZ)
                     val ratings5 = calculateChannelRatings(scanResults, WifiBand.BAND_5_GHZ)
@@ -210,6 +260,8 @@ class WifiViewModel(
                         networkGroups = groups,
                         filteredGroups = updatedFilteredGroups,
                         selectedNetworkBssid = selectedBssid,
+                        signalTrackingBssid = trackedBssid,
+                        signalTrackingNotice = trackingNotice,
                         signalHistory = updatedHistory,
                         channelRatings24 = ratings24,
                         channelRatings5 = ratings5,
