@@ -43,6 +43,8 @@ class ChannelInterferenceAnalyzerTest {
         )
         assertNotNull(strong.score)
         assertNotNull(weak.score)
+        assert("Strong overlapping AP should materially reduce the score" , strong.score!! <= 5)
+        assert("Weak AP should have limited impact", weak.score!! >= 9)
         assert(strong.score!! < weak.score!!)
     }
 
