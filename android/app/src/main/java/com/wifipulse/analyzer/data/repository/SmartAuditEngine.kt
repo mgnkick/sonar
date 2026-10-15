@@ -20,7 +20,7 @@ class SmartAuditEngine {
         }
 
         // 1. Channel Congestion Recommendation
-        recommendations.add(evaluateChannelCongestion(networkGroups, activeGroup))
+        recommendations.add(evaluateChannelCongestion(networkGroups, activeGroup, connectionDetails))
 
         // 2. Signal Quality & Coverage Recommendation
         recommendations.add(evaluateSignalQuality(activeGroup, connectionDetails))
@@ -80,20 +80,47 @@ class SmartAuditEngine {
 
     private fun evaluateChannelCongestion(
         allGroups: List<WifiNetworkGroup>,
-        targetGroup: WifiNetworkGroup?
+        targetGroup: WifiNetworkGroup?,
+        connectionDetails: WifiConnectionDetails
     ): AuditRecommendation {
         val allNodes = allGroups.flatMap { it.nodes }
-        val targetChannel = targetGroup?.bestNode?.channel ?: 6
-        val targetBand = targetGroup?.bestBand ?: WifiBand.BAND_2_4_GHZ
+        // The connected radio's frequency is authoritative. A hidden SSID or unavailable
+        // BSSID can prevent finding its Mesh group; never default that connection to 2.4 GHz.
+        val connectedBand = when (connectionDetails.frequency) {
+            in 2400..2500 -> WifiBand.BAND_2_4_GHZ
+            in 4900..5924 -> WifiBand.BAND_5_GHZ
+            in 5925..7125 -> WifiBand.BAND_6_GHZ
+            else -> WifiBand.UNKNOWN
+        }
+        val targetBand = if (connectionDetails.isConnected && connectedBand != WifiBand.UNKNOWN) {
+            connectedBand
+        } else {
+            targetGroup?.bestBand ?: WifiBand.UNKNOWN
+        }
+        val targetChannel = when {
+            connectionDetails.isConnected && connectionDetails.frequency > 0 ->
+                WifiRepository.frequencyToChannel(connectionDetails.frequency)
+            targetGroup?.bestNode != null -> targetGroup.bestNode.channel
+            targetBand == WifiBand.BAND_2_4_GHZ -> 1
+            targetBand == WifiBand.BAND_5_GHZ -> 36
+            else -> 0
+        }
 
         // Count overlapping channels
         val sameChannelCount = allNodes.count { it.channel == targetChannel }
 
         // Find cleanest standard channel in 2.4 GHz (1, 6, 11) or 5 GHz (36, 44, 149)
-        val cleanCandidate = if (targetBand == WifiBand.BAND_2_4_GHZ) {
-            listOf(1, 6, 11).minByOrNull { ch -> allNodes.count { it.channel == ch } } ?: 1
-        } else {
-            listOf(36, 44, 48, 149).minByOrNull { ch -> allNodes.count { it.channel == ch } } ?: 36
+        val sameBandNodes = allNodes.filter { it.band == targetBand }
+        val sameChannelCount = if (targetChannel > 0) {
+            sameBandNodes.count { it.channel == targetChannel }
+        } else 0
+
+        val cleanCandidate = when (targetBand) {
+            WifiBand.BAND_2_4_GHZ ->
+                listOf(1, 6, 11).minByOrNull { ch -> sameBandNodes.count { it.channel == ch } } ?: 1
+            WifiBand.BAND_5_GHZ, WifiBand.BAND_6_GHZ ->
+                listOf(36, 44, 48, 149).minByOrNull { ch -> sameBandNodes.count { it.channel == ch } } ?: 36
+            else -> 0
         }
 
         return when {
