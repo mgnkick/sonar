@@ -113,6 +113,8 @@ class ConnectionHistoryRepository(context: Context) {
     @Synchronized
     fun clearHistory() {
         _entries.value = emptyList()
+        lastObservedKey = null
+        prefs.edit().remove(KEY_LAST_OBSERVED).apply()
         persistEntries()
     }
 
