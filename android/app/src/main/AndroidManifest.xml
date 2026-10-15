@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Location permissions required by Android for Wi-Fi scanning (SSID/BSSID disclosure protection) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -36,6 +39,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WiFiPulse"
         tools:targetApi="31">
+
+        <service
+            android:name=".WifiMonitorService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <activity
             android:name=".MainActivity"
