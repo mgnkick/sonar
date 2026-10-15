@@ -51,38 +51,54 @@ class WifiRepository(private val context: Context) {
      * Flow of scan results emitting whenever SCAN_RESULTS_AVAILABLE_ACTION broadcast is received.
      */
     fun observeScanResults(): Flow<List<WifiNetwork>> = callbackFlow {
+        // Some OEM Android builds broadcast SCAN_RESULTS_AVAILABLE_ACTION with
+        // EXTRA_RESULTS_UPDATED=false even though scanResults still contains usable
+        // cached observations. Keep the last non-empty list when the platform reports
+        // no update and its cache is temporarily empty.
+        var lastPublishedResults: List<WifiNetwork> = emptyList()
+
+        fun readAndPublishScanResults(resultsUpdated: Boolean) {
+            try {
+                @Suppress("DEPRECATION")
+                val rawResults = wifiManager.scanResults ?: emptyList()
+                val mapped = mapScanResults(rawResults).sortedByDescending { it.rssi }
+                if (mapped.isNotEmpty() || resultsUpdated || lastPublishedResults.isEmpty()) {
+                    lastPublishedResults = mapped
+                    trySend(mapped)
+                } else {
+                    // No fresh result and an empty OEM cache: retain known observations.
+                    trySend(lastPublishedResults)
+                }
+            } catch (e: SecurityException) {
+                // Do not erase usable observations if the OS temporarily denies a read.
+                if (lastPublishedResults.isNotEmpty()) trySend(lastPublishedResults)
+            } catch (e: RuntimeException) {
+                // Vendor Wi-Fi implementations can throw while the radio is transitioning.
+                if (lastPublishedResults.isNotEmpty()) trySend(lastPublishedResults)
+            }
+        }
+
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                // Android can broadcast that a scan attempt finished without fresh results
-                // (for example, when the platform throttles a request). Do not mark cached
-                // results as new in that case; only publish when the OS confirms an update.
-                val resultsUpdated = intent?.getBooleanExtra(
+                if (intent?.action != WifiManager.SCAN_RESULTS_AVAILABLE_ACTION) return
+                val resultsUpdated = intent.getBooleanExtra(
                     WifiManager.EXTRA_RESULTS_UPDATED,
                     false
-                ) ?: false
-                if (!resultsUpdated) return
-
-                try {
-                    @Suppress("DEPRECATION")
-                    val results = wifiManager.scanResults ?: emptyList()
-                    trySend(mapScanResults(results).sortedByDescending { it.rssi })
-                } catch (e: SecurityException) {
-                    // Keep the last known list instead of replacing it with an empty one.
-                }
+                )
+                readAndPublishScanResults(resultsUpdated)
             }
         }
 
         val intentFilter = IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
-        context.registerReceiver(receiver, intentFilter)
-
-        // Emit initial scan results immediately if available
-        try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
             @Suppress("DEPRECATION")
-            val initialResults = wifiManager.scanResults ?: emptyList()
-            trySend(mapScanResults(initialResults).sortedByDescending { it.rssi })
-        } catch (e: SecurityException) {
-            trySend(emptyList())
+            context.registerReceiver(receiver, intentFilter)
         }
+
+        // Read the system cache at subscription time, without assuming it is fresh.
+        readAndPublishScanResults(resultsUpdated = false)
 
         awaitClose {
             try {
@@ -105,9 +121,17 @@ class WifiRepository(private val context: Context) {
         }
         val vpnActive = capabilities.any { it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) } ||
             activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-        val wifiNetwork = allNetworks.firstOrNull { network ->
-            connectivityManager.getNetworkCapabilities(network)
-                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        // Prefer the active network when it is Wi-Fi; otherwise use the available
+        // Wi-Fi transport. On some devices VPN is activeNetwork while Wi-Fi is still
+        // the underlying transport, so retain the allNetworks fallback.
+        val activeIsWifi = activeCaps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        val wifiNetwork = if (activeIsWifi) {
+            activeNetwork
+        } else {
+            allNetworks.firstOrNull { network ->
+                connectivityManager.getNetworkCapabilities(network)
+                    ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+            }
         }
         val wifiCaps = wifiNetwork?.let { connectivityManager.getNetworkCapabilities(it) }
         val mobileActive = wifiNetwork == null && (
@@ -123,16 +147,28 @@ class WifiRepository(private val context: Context) {
             )
         }
 
+        // Android 10+ exposes connection information through the Wi-Fi network's
+        // NetworkCapabilities. Prefer that supported path; retain the legacy fallback
+        // for older Android versions and OEMs that omit transportInfo.
+        val transportWifiInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            wifiCaps.transportInfo as? WifiInfo
+        } else null
         @Suppress("DEPRECATION")
-        val wifiInfo: WifiInfo? = wifiManager.connectionInfo
+        val wifiInfo: WifiInfo? = transportWifiInfo ?: wifiManager.connectionInfo
         @Suppress("DEPRECATION")
         val dhcpInfo: DhcpInfo? = wifiManager.dhcpInfo
 
-        val rawSsid = wifiInfo?.ssid?.trim('"') ?: ""
-        val ssid = if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
+        val rawSsid = wifiInfo?.ssid?.trim('"')?.trim() ?: ""
+        val ssidUnavailable = rawSsid.isBlank() ||
+            rawSsid.equals("<unknown ssid>", ignoreCase = true) ||
+            rawSsid.equals("unknown ssid", ignoreCase = true) ||
+            rawSsid == "0x"
+        val ssid = if (ssidUnavailable) {
             "Подключено к Wi-Fi (SSID скрыт системой)"
         } else rawSsid
-        val bssid = wifiInfo?.bssid?.takeIf { it.isNotBlank() } ?: "BSSID недоступен"
+        val bssid = wifiInfo?.bssid
+            ?.takeIf { it.isNotBlank() && !it.equals("02:00:00:00:00:00", ignoreCase = true) }
+            ?: "BSSID недоступен"
         val rssi = wifiInfo?.rssi ?: -127
         val linkSpeed = wifiInfo?.linkSpeed ?: 0
         val frequency = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) wifiInfo?.frequency ?: 0 else 0
