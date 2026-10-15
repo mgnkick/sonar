@@ -267,8 +267,8 @@ class WifiRepository(private val context: Context) {
                     channel = frequencyToChannel(connected.frequency),
                     band = connectedBand,
                     channelWidth = 20,
-                    securityType = SecurityType.OPEN,
-                    capabilities = "Текущие параметры подключения Android; SSID может быть предположительным"
+                    securityType = SecurityType.UNKNOWN,
+                    capabilities = "Текущие параметры подключения Android; тип защиты не предоставлен системой; SSID может быть предположительным"
                 )
             }
         }
