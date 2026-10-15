@@ -142,7 +142,10 @@ class WifiViewModel(
             .entries
             .sortedByDescending { it.value }
         val first = counts.firstOrNull()
-        val uniqueLeader = first != null && first.value >= 2 &&
+        // One uniquely observed SSID on the connected radio band is enough for a
+        // tentative label; requiring two BSSIDs fails on sparse scans and OEM throttling.
+        // This remains explicitly tentative because Android withheld the connected BSSID.
+        val uniqueLeader = first != null && first.value >= 1 &&
             (counts.size == 1 || first.value > (counts.getOrNull(1)?.value ?: 0))
         return if (uniqueLeader) details.copy(ssid = "${first!!.key} · предположительно") else details
     }
