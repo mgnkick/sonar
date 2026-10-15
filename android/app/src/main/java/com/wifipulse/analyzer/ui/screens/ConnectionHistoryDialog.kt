@@ -78,6 +78,9 @@ fun ConnectionHistoryDialog(
                                     }
                                     Text("BSSID: ${entry.bssid}", style = MaterialTheme.typography.bodySmall)
                                     Text("Обнаружено: ${formatDate(entry.firstSeenAt)}", style = MaterialTheme.typography.bodySmall)
+                                    if (entry.lastSeenAt > entry.firstSeenAt) {
+                                        Text("Последний раз замечено: ${formatDate(entry.lastSeenAt)}", style = MaterialTheme.typography.bodySmall)
+                                    }
                                     val radio = listOfNotNull(
                                         entry.band,
                                         entry.channel?.let { "канал $it" },
