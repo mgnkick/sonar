@@ -122,7 +122,7 @@ class WifiViewModel(
         val details = repository.getCurrentConnectionDetails()
         _uiState.update { current ->
             val desiredBssid = if (current.trackedSignalBssid.isNullOrBlank()) {
-                details.bssid.takeIf { details.isConnected && it.isNotBlank() }
+                details.bssid.takeIf { details.isConnected && it.isNotBlank() && it != "BSSID недоступен" }
             } else current.trackedSignalBssid
             val trackingChanged = !current.signalTrackingBssid.equals(desiredBssid, ignoreCase = true)
             val now = System.currentTimeMillis()
@@ -160,7 +160,7 @@ class WifiViewModel(
     fun selectSignalTrackingBssid(bssid: String?) {
         _uiState.update { current ->
             val desiredBssid = bssid?.takeIf { it.isNotBlank() }
-                ?: current.connectionDetails.bssid.takeIf { current.connectionDetails.isConnected && it.isNotBlank() }
+                ?: current.connectionDetails.bssid.takeIf { current.connectionDetails.isConnected && it.isNotBlank() && it != "BSSID недоступен" }
             val net = current.networks.firstOrNull { it.bssid.equals(desiredBssid, ignoreCase = true) }
             val rssi = if (desiredBssid.equals(current.connectionDetails.bssid, ignoreCase = true) &&
                 current.connectionDetails.isConnected) current.connectionDetails.rssi else net?.rssi
@@ -234,7 +234,7 @@ class WifiViewModel(
                     // The signal graph follows the live connected BSSID by default.
                     // A manual BSSID selection pins a specific mesh node for placement surveys.
                     val connectedBssid = current.connectionDetails.bssid
-                        .takeIf { current.connectionDetails.isConnected && it.isNotBlank() }
+                        .takeIf { current.connectionDetails.isConnected && it.isNotBlank() && it != "BSSID недоступен" }
                     val selectedBssid = current.selectedNetworkBssid
                         ?: connectedBssid?.takeIf { bssid -> scanResults.any { it.bssid.equals(bssid, ignoreCase = true) } }
                         ?: scanResults.firstOrNull()?.bssid
