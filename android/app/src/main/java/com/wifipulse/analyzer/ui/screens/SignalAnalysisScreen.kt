@@ -47,7 +47,8 @@ fun SignalAnalysisScreen(
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
     isBackgroundMonitoring: Boolean = false,
-    onToggleBackgroundMonitoring: () -> Unit = {}
+    onToggleBackgroundMonitoring: () -> Unit = {},
+    onOpenConnectionHistory: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("График сигнала", "Спектр каналов", "Рейтинг каналов")
@@ -60,6 +61,11 @@ fun SignalAnalysisScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Анализ сигнала и спектра", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = onOpenConnectionHistory) {
+                        Icon(Icons.Default.History, contentDescription = "История подключений")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
