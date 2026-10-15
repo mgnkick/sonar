@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.graphics.Paint as AndroidPaint
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -623,7 +624,9 @@ fun ChannelRatingTab(ratings24: List<ChannelRating>, ratings5: List<ChannelRatin
 
 @Composable
 fun ChannelRatingCard(rating: ChannelRating) {
+    val expanded = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(
@@ -632,76 +635,84 @@ fun ChannelRatingCard(rating: ChannelRating) {
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (rating.isRecommended) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { expanded.value = !expanded.value }.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (rating.isRecommended) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = "CH ${rating.channel}",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = if (rating.isRecommended) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(text = "${rating.frequency} МГц", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = when {
+                                !rating.hasScanData -> "Недостаточно данных"
+                                rating.networkCount == 0 -> "Соседние сети не обнаружены"
+                                rating.networkCount == 1 -> "1 перекрывающаяся сеть"
+                                else -> "Перекрывающихся сетей: ${rating.networkCount}"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "CH ${rating.channel}",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        text = if (rating.hasScanData) "${rating.score}/10" else "—/10",
                         fontWeight = FontWeight.Bold,
-                        color = if (rating.isRecommended) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = "${rating.frequency} МГц",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        color = if (!rating.hasScanData) MaterialTheme.colorScheme.onSurfaceVariant
+                            else if (rating.score >= 8) Color(0xFF22C55E)
+                            else if (rating.score >= 5) Color(0xFFF59E0B) else Color(0xFFEF4444)
                     )
                     Text(
-                        text = if (rating.networkCount == 0) "Свободен (0 помех)" else "Сетей на канале/рядом: ${rating.networkCount}",
+                        text = if (rating.isRecommended) "Кандидат" else "Подробнее",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
-
-            // Score stars or number
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${rating.score}/10",
-                    fontWeight = FontWeight.Bold,
-                    color = if (rating.score >= 8) Color(0xFF22C55E) else if (rating.score >= 5) Color(0xFFF59E0B) else Color(0xFFEF4444)
-                )
-                if (rating.isRecommended) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.Default.Verified, contentDescription = "Рекомендован", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            if (expanded.value) {
+                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text("Ширина оценки: ${rating.recommendedWidthMhz} МГц", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = if (rating.confidence == "NO_DATA") "Достоверность: данных нет"
+                            else "Достоверность: ограниченная (один снимок сканирования)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    rating.strongestNeighborRssiDbm?.let {
+                        Text("Самая сильная соседняя сеть: $it dBm", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(
+                        text = rating.explanation + " Оценка не измеряет занятость радиоэфира.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (rating.overlappingNetworks.isNotEmpty()) {
+                        Text(
+                            text = "Сети: ${rating.overlappingNetworks.take(5).joinToString(", ")}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            Text(
-                text = "Ширина: ${rating.recommendedWidthMhz} МГц",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = when {
-                    rating.networkCount == 0 && rating.score >= 8 ->
-                        "Перекрывающиеся сети не обнаружены. По текущему сканированию — хороший кандидат."
-                    rating.networkCount == 0 ->
-                        "Перекрывающиеся сети не обнаружены, но итоговая оценка ниже: сравните соседние каналы."
-                    rating.networkCount == 1 ->
-                        "Обнаружена 1 сеть в зоне перекрытия; оценка учитывает её уровень сигнала."
-                    else ->
-                        "Сетей в зоне перекрытия: ${rating.networkCount}. Выбирайте канал с меньшей оценкой помех."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
