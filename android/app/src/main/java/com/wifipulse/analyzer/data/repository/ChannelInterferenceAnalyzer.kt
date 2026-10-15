@@ -54,7 +54,7 @@ object ChannelInterferenceAnalyzer {
             // Convert dBm to relative linear power. -50 dBm is the reference;
             // clamp extreme values to avoid one AP dominating the entire model.
             val relativePower = 10.0.pow((ap.rssiDbm.coerceIn(-100, -20) + 50) / 10.0)
-            val powerWeight = (relativePower / 100.0).coerceIn(0.01, 10.0)
+            val powerWeight = relativePower.coerceIn(0.01, 10.0)
             // Co-channel contention and partial-channel overlap are different cases.
             // This factor is a heuristic, not a claim about measured interference.
             val interaction = if (ap.frequencyMhz == candidateFrequencyMhz) 0.55 else 1.0
