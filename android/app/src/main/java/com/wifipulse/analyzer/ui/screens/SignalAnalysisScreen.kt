@@ -656,6 +656,21 @@ fun ChannelRatingCard(rating: ChannelRating) {
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(text = "${rating.frequency} МГц", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        if (rating.band == WifiBand.BAND_5_GHZ && rating.channel in 52..144) {
+                            Surface(
+                                color = Color(0xFF7F1D1D),
+                                shape = RoundedCornerShape(5.dp),
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Text(
+                                    text = "-=!!!=-  DFS / РАДАРНЫЙ ДИАПАЗОН",
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Black,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
                         Text(
                             text = when {
                                 !rating.hasScanData -> "Недостаточно данных"
@@ -698,6 +713,14 @@ fun ChannelRatingCard(rating: ChannelRating) {
                     )
                     rating.strongestNeighborRssiDbm?.let {
                         Text("Самая сильная соседняя сеть: $it dBm", style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (rating.band == WifiBand.BAND_5_GHZ && rating.channel in 52..144) {
+                        Text(
+                            text = "-=!!!=- DFS: этот канал может требовать обнаружения радаров. При обнаружении радара точка доступа должна освободить канал, из-за чего возможна автоматическая смена канала или пауза связи. Это регуляторное ограничение, а не измеренная помеха; доступность DFS зависит от страны и оборудования.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFEF4444),
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                     Text(
                         text = rating.explanation + " Оценка не измеряет занятость радиоэфира.",
