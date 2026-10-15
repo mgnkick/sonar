@@ -161,7 +161,7 @@ class WifiMonitorService : Service() {
         val expandedText = "$ssid • $signal\n$rates\n$sourceNote"
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_wifi)
+            .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentTitle("WiFi Pulse • Фоновый мониторинг")
             .setContentText("$ssid • $signal")
             .setSubText(rates)
