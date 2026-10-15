@@ -6,6 +6,8 @@ import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.graphics.Paint as AndroidPaint
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.ChannelRating
 import com.wifipulse.analyzer.data.model.WifiBand
 import com.wifipulse.analyzer.data.model.WifiNetwork
+import com.wifipulse.analyzer.data.model.WifiConnectionDetails
 import com.wifipulse.analyzer.ui.viewmodel.WifiUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -247,7 +250,7 @@ fun SignalAnalysisScreen(
 
             when (selectedTab) {
                 0 -> SignalGraphTab(state = state, selectedNetwork = selectedNetwork)
-                1 -> ChannelSpectrumTab(networks = state.networks)
+                1 -> ChannelSpectrumTab(networks = state.networks, connectionDetails = state.connectionDetails)
                 2 -> ChannelRatingTab(ratings24 = state.channelRatings24, ratings5 = state.channelRatings5)
             }
         }
@@ -471,11 +474,48 @@ fun SignalCanvas(history: List<com.wifipulse.analyzer.data.model.SignalHistoryPo
 }
 
 @Composable
-fun ChannelSpectrumTab(networks: List<WifiNetwork>) {
+fun ChannelSpectrumTab(
+    networks: List<WifiNetwork>,
+    connectionDetails: WifiConnectionDetails = WifiConnectionDetails()
+) {
     var selectedBand by remember { mutableStateOf(WifiBand.BAND_2_4_GHZ) }
     var showFullscreen by remember { mutableStateOf(false) }
+    var zoomScale by remember { mutableFloatStateOf(1f) }
+    var panFraction by remember { mutableFloatStateOf(0f) }
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
+    val connectedBand = when {
+        connectionDetails.frequency in 2400..2500 -> WifiBand.BAND_2_4_GHZ
+        connectionDetails.frequency in 4900..5900 -> WifiBand.BAND_5_GHZ
+        connectionDetails.frequency in 5925..7125 -> WifiBand.BAND_6_GHZ
+        else -> WifiBand.UNKNOWN
+    }
+    val inferredSsid = remember(networks, connectionDetails.frequency, connectionDetails.ssid) {
+        val names = networks.filter { it.band == connectedBand && it.ssid.isNotBlank() && it.ssid != "[Скрытая сеть]" }
+            .groupingBy { it.ssid }.eachCount().entries.sortedByDescending { it.value }
+        val first = names.firstOrNull()
+        if (first != null && first.value >= 2 && (names.size == 1 || first.value > (names.getOrNull(1)?.value ?: 0))) first.key else null
+    }
+    val ssidKnown = connectionDetails.ssid.isNotBlank() && !connectionDetails.ssid.startsWith("Подключено к Wi-Fi") && !connectionDetails.ssid.equals("<unknown ssid>", ignoreCase = true)
+    val connectedBssidKnown = connectionDetails.bssid.isNotBlank() && connectionDetails.bssid != "BSSID недоступен" && connectionDetails.bssid != "02:00:00:00:00:00"
+    val spectrumNetworks = remember(networks, connectionDetails, inferredSsid) {
+        val result = networks.toMutableList()
+        if (connectionDetails.isConnected && connectedBssidKnown && connectionDetails.frequency > 0 && result.none { it.bssid.equals(connectionDetails.bssid, ignoreCase = true) }) {
+            val band = when {
+                connectionDetails.frequency in 2400..2500 -> WifiBand.BAND_2_4_GHZ
+                connectionDetails.frequency in 4900..5900 -> WifiBand.BAND_5_GHZ
+                connectionDetails.frequency in 5925..7125 -> WifiBand.BAND_6_GHZ
+                else -> WifiBand.UNKNOWN
+            }
+            val label = when {
+                ssidKnown -> connectionDetails.ssid
+                inferredSsid != null -> inferredSsid + " · имя предположительно"
+                else -> "[Подключено · SSID скрыт]"
+            }
+            result += WifiNetwork(ssid = label, bssid = connectionDetails.bssid, rssi = connectionDetails.rssi.coerceIn(-100, 0), frequency = connectionDetails.frequency, channel = com.wifipulse.analyzer.data.repository.WifiRepository.frequencyToChannel(connectionDetails.frequency), band = band, channelWidth = 20, securityType = com.wifipulse.analyzer.data.model.SecurityType.OPEN, capabilities = "Параметры текущего подключения Android; SSID может быть предположительным")
+        }
+        result
+    }
 
     // The parent SignalAnalysisScreen already owns vertical scrolling.
     // A second verticalScroll with fillMaxSize creates unbounded nested constraints
