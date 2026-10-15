@@ -118,9 +118,39 @@ class WifiViewModel(
         _uiState.update { it.copy(isWifiEnabled = repository.isWifiEnabled) }
     }
 
+    private fun withTentativeMeshSsid(
+        details: WifiConnectionDetails,
+        networks: List<WifiNetwork>
+    ): WifiConnectionDetails {
+        val ssidUnavailable = details.ssid.isBlank() ||
+            details.ssid.contains("SSID скрыт системой", ignoreCase = true) ||
+            details.ssid.equals("<unknown ssid>", ignoreCase = true)
+        if (!details.isConnected || !ssidUnavailable || details.frequency <= 0) return details
+
+        val band = when (details.frequency) {
+            in 2400..2500 -> WifiBand.BAND_2_4_GHZ
+            in 4900..5900 -> WifiBand.BAND_5_GHZ
+            in 5925..7125 -> WifiBand.BAND_6_GHZ
+            else -> WifiBand.UNKNOWN
+        }
+        val counts = networks.asSequence()
+            .filter { it.band == band && it.ssid.isNotBlank() &&
+                it.ssid != "[Скрытая сеть]" && !it.ssid.startsWith("[Подключено") &&
+                !it.ssid.contains("предположительно", ignoreCase = true) }
+            .groupingBy { it.ssid }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+        val first = counts.firstOrNull()
+        val uniqueLeader = first != null && first.value >= 2 &&
+            (counts.size == 1 || first.value > (counts.getOrNull(1)?.value ?: 0))
+        return if (uniqueLeader) details.copy(ssid = "${first!!.key} · предположительно") else details
+    }
+
     fun refreshConnectionDetails() {
-        val details = repository.getCurrentConnectionDetails()
+        val rawDetails = repository.getCurrentConnectionDetails()
         _uiState.update { current ->
+            val details = withTentativeMeshSsid(rawDetails, current.networks)
             val desiredBssid = if (current.trackedSignalBssid.isNullOrBlank()) {
                 details.bssid.takeIf { details.isConnected && it.isNotBlank() && it != "BSSID недоступен" }
             } else current.trackedSignalBssid
@@ -132,9 +162,14 @@ class WifiViewModel(
             // The connected BSSID has live RSSI from WifiInfo. For a pinned neighbour,
             // only append samples when a new scan result arrives; do not repeat stale RSSI
             // every two seconds from the cached scan list.
-            val liveRssi = if (desiredBssid.equals(details.bssid, ignoreCase = true) && details.isConnected) {
-                details.rssi
-            } else null
+            // Some OEM firmware withholds BSSID while WifiInfo still exposes live RSSI.
+            // Continue plotting that live value in auto mode without substituting a neighbour.
+            val liveRssi = if (
+                details.isConnected && (
+                    current.trackedSignalBssid.isNullOrBlank() ||
+                    desiredBssid.equals(details.bssid, ignoreCase = true)
+                )
+            ) details.rssi else null
             val baseHistory = if (trackingChanged) emptyList() else current.signalHistory
             val lastPoint = baseHistory.lastOrNull()
             val history = if (liveRssi != null && liveRssi in -100..0 &&
@@ -258,6 +293,7 @@ class WifiViewModel(
                     val report = auditEngine.generateReport(groups, current.connectionDetails)
 
                     current.copy(
+                        connectionDetails = withTentativeMeshSsid(current.connectionDetails, scanResults),
                         networks = scanResults,
                         filteredNetworks = updatedFiltered,
                         networkGroups = groups,
