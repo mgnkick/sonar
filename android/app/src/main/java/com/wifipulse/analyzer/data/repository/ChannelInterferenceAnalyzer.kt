@@ -4,10 +4,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
-/**
- * Heuristic estimate from Android scan results only.
- * It is not an airtime/utilization measurement.
- */
+/** Heuristic based on detected AP scan results; never represents measured airtime. */
 data class ChannelObservation(
     val bssid: String,
     val frequencyMhz: Int,
@@ -22,7 +19,7 @@ data class ChannelAssessment(
     val confidence: Confidence,
     val explanation: String
 ) {
-    enum class Confidence { NO_DATA, LIMITED, MODERATE }
+    enum class Confidence { NO_DATA, LIMITED }
 }
 
 object ChannelInterferenceAnalyzer {
@@ -31,50 +28,57 @@ object ChannelInterferenceAnalyzer {
         candidateWidthMhz: Int,
         observations: List<ChannelObservation>
     ): ChannelAssessment {
-        if (observations.isEmpty()) {
-            return ChannelAssessment(
-                score = null,
-                overlappingCount = 0,
-                strongestRssiDbm = null,
-                confidence = ChannelAssessment.Confidence.NO_DATA,
-                explanation = "Нет данных сканирования; оценка не рассчитана."
-            )
-        }
+        if (observations.isEmpty()) return ChannelAssessment(
+            score = null,
+            overlappingCount = 0,
+            strongestRssiDbm = null,
+            confidence = ChannelAssessment.Confidence.NO_DATA,
+            explanation = "Нет обнаруженных сетей. Это не доказывает, что эфир свободен."
+        )
 
         val width = candidateWidthMhz.coerceAtLeast(20)
         val candidateLow = candidateFrequencyMhz - width / 2.0
         val candidateHigh = candidateFrequencyMhz + width / 2.0
-        val unique = observations.distinctBy { it.bssid.lowercase() }
+        // A BSSID is one AP; repeated rows must not amplify its influence.
+        val unique = observations.filter { it.bssid.isNotBlank() }
+            .distinctBy { it.bssid.lowercase() }
         val contributions = unique.mapNotNull { ap ->
-            val apWidth = ap.widthMhz.coerceAtLeast(20)
+            if (ap.frequencyMhz <= 0) return@mapNotNull null
+            val apWidth = ap.widthMhz.coerceIn(20, 160)
             val apLow = ap.frequencyMhz - apWidth / 2.0
             val apHigh = ap.frequencyMhz + apWidth / 2.0
-            val overlap = (min(candidateHigh, apHigh) - max(candidateLow, apLow)).coerceAtLeast(0.0)
-            if (overlap <= 0.0) return@mapNotNull null
+            val overlapMhz = (min(candidateHigh, apHigh) - max(candidateLow, apLow)).coerceAtLeast(0.0)
+            if (overlapMhz <= 0.0) return@mapNotNull null
 
-            // Power is normalized to -100 dBm and capped to prevent one AP
-            // from making the score negative by itself.
-            val relativePower = 10.0.pow(((ap.rssiDbm.coerceIn(-100, -20) + 100) / 10.0))
-            val powerWeight = (relativePower / 1000.0).coerceIn(0.03, 4.0)
-            val overlapRatio = (overlap / width).coerceIn(0.0, 1.0)
-            // Same-channel networks are potential contention; partial overlap
-            // is treated as a more uncertain interference estimate.
-            val interactionFactor = if (ap.frequencyMhz == candidateFrequencyMhz) 0.65 else 1.0
-            ap to (powerWeight * overlapRatio * interactionFactor)
+            val overlapRatio = (overlapMhz / min(width.toDouble(), apWidth.toDouble())).coerceIn(0.0, 1.0)
+            // Convert dBm to relative linear power. -50 dBm is the reference;
+            // clamp extreme values to avoid one AP dominating the entire model.
+            val relativePower = 10.0.pow((ap.rssiDbm.coerceIn(-100, -20) + 50) / 10.0)
+            val powerWeight = (relativePower / 100.0).coerceIn(0.01, 10.0)
+            // Co-channel contention and partial-channel overlap are different cases.
+            // This factor is a heuristic, not a claim about measured interference.
+            val interaction = if (ap.frequencyMhz == candidateFrequencyMhz) 0.55 else 1.0
+            ap to (powerWeight * overlapRatio * interaction)
         }
 
-        val totalLoad = contributions.sumOf { it.second }
-        val score = (10.0 / (1.0 + totalLoad)).toInt().coerceIn(0, 10)
+        val totalPenalty = contributions.sumOf { it.second }
+        val score = (10.0 / (1.0 + totalPenalty)).toInt().coerceIn(0, 10)
         val strongest = contributions.maxOfOrNull { it.first.rssiDbm }
-        val confidence = when {
-            unique.size >= 8 -> ChannelAssessment.Confidence.MODERATE
-            else -> ChannelAssessment.Confidence.LIMITED
-        }
         val explanation = when {
-            contributions.isEmpty() -> "Перекрытие с обнаруженными сетями не найдено; загрузка эфира не измерялась."
-            strongest != null && strongest >= -60 -> "Есть сильные соседние сети; возможна заметная конкуренция."
-            else -> "Обнаружено частотное перекрытие; реальная загрузка эфира неизвестна."
+            contributions.isEmpty() ->
+                "Перекрытие с обнаруженными сетями не найдено. Фактическая загрузка эфира неизвестна."
+            strongest != null && strongest >= -60 ->
+                "Обнаружена сильная соседняя сеть; возможна заметная конкуренция."
+            else ->
+                "Есть частотное перекрытие с обнаруженными сетями; фактическая загрузка эфира неизвестна."
         }
-        return ChannelAssessment(score, contributions.size, strongest, confidence, explanation)
+        // A single Android scan cannot justify moderate/high confidence.
+        return ChannelAssessment(
+            score = score,
+            overlappingCount = contributions.size,
+            strongestRssiDbm = strongest,
+            confidence = ChannelAssessment.Confidence.LIMITED,
+            explanation = explanation
+        )
     }
 }
