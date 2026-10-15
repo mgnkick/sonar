@@ -49,7 +49,7 @@ jobs:
 
       - name: Build debug and release APKs
         run: |
-          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:assembleRelease
+          ./gradlew --no-daemon --stacktrace :app:compileDebugKotlin :app:assembleDebug :app:compileReleaseKotlin :app:assembleRelease
 
       - name: Verify APK outputs
         run: |
