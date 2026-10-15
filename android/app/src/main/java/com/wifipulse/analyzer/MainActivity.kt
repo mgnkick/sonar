@@ -235,7 +235,10 @@ fun MainAppContent(
                             Text(
                                 text = "5336 6903 0435 1846",
                                 style = MaterialTheme.typography.titleSmall,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                modifier = Modifier.clickable {
+                                    clipboardManager.setText(AnnotatedString("5336690304351846"))
+                                }
                             )
                             IconButton(
                                 onClick = {
