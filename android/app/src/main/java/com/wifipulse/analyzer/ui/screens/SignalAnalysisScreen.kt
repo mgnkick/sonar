@@ -515,9 +515,9 @@ fun ChannelSpectrumTab(
             val label = when {
                 ssidKnown -> connectionDetails.ssid
                 inferredSsid != null -> inferredSsid + " · имя предположительно"
-                else -> "[Подключено · SSID скрыт]"
+                else -> "[Подключено · SSID недоступен приложению]"
             }
-            result += WifiNetwork(ssid = label, bssid = connectionDetails.bssid, rssi = connectionDetails.rssi.coerceIn(-100, 0), frequency = connectionDetails.frequency, channel = com.wifipulse.analyzer.data.repository.WifiRepository.frequencyToChannel(connectionDetails.frequency), band = band, channelWidth = 20, securityType = com.wifipulse.analyzer.data.model.SecurityType.OPEN, capabilities = "Параметры текущего подключения Android; SSID может быть предположительным")
+            result += WifiNetwork(ssid = label, bssid = connectionDetails.bssid, rssi = connectionDetails.rssi.coerceIn(-100, 0), frequency = connectionDetails.frequency, channel = com.wifipulse.analyzer.data.repository.WifiRepository.frequencyToChannel(connectionDetails.frequency), band = band, channelWidth = 20, securityType = com.wifipulse.analyzer.data.model.SecurityType.UNKNOWN, capabilities = "Параметры текущего подключения Android; защита и SSID могут быть недоступны")
         }
         result
     }
@@ -720,20 +720,32 @@ fun SpectrumCanvas(
             tick += tickStep
         }
 
-        val visible = networks.filter { it.channel.toFloat() in viewMin..viewMax }.sortedByDescending { it.rssi }.take(12)
-        val labelLanes = FloatArray(4) { -1000f }
-        visible.sortedBy { it.channel }.forEach { net ->
-            val x = channelX(net.channel.toFloat())
-            val peakY = height - 42.dp.toPx() - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 72.dp.toPx()))
-            val ssid = net.ssid.ifBlank { "Скрытая" }
-            val limit = if (width > 700.dp.toPx()) 16 else 10
-            val shortName = if (ssid.length > limit) ssid.take(limit - 1) + "…" else ssid
-            val label = shortName + " · CH" + net.channel
-            var lane = labelLanes.indexOfFirst { kotlin.math.abs(it - x) > 72.dp.toPx() }
-            if (lane < 0) lane = visible.indexOf(net) % labelLanes.size
-            labelLanes[lane] = x
-            val labelY = (peakY - 8.dp.toPx() - lane * 14.dp.toPx()).coerceIn(14.dp.toPx(), axisY - 12.dp.toPx())
-            if (x in 0f..width) nativeCanvas.drawText(label, x.coerceIn(45.dp.toPx(), width - 45.dp.toPx()), labelY, labelPaint)
+        val visible = networks.filter { it.channel.toFloat() in viewMin..viewMax }.sortedByDescending { it.rssi }
+        // Draw one readable label per channel. The network list below keeps the individual AP details.
+        val labelLaneRightEdges = FloatArray(4) { Float.NEGATIVE_INFINITY }
+        val labelLineHeight = 14.dp.toPx()
+        val labelGap = 6.dp.toPx()
+        visible.groupBy { it.channel }.toSortedMap().forEach { (channel, channelNetworks) ->
+            val strongest = channelNetworks.maxByOrNull { it.rssi } ?: return@forEach
+            val label = if (channelNetworks.size == 1) {
+                val ssid = strongest.ssid.ifBlank { "Скрытая" }
+                val limit = if (width > 700.dp.toPx()) 16 else 10
+                val shortName = if (ssid.length > limit) ssid.take(limit - 1) + "…" else ssid
+                shortName + " · CH" + channel
+            } else {
+                "CH" + channel + " · " + channelNetworks.size + " AP"
+            }
+            val halfTextWidth = labelPaint.measureText(label) / 2f
+            if (halfTextWidth * 2f + 8.dp.toPx() > width) return@forEach
+            val x = channelX(channel.toFloat())
+            val labelCenter = x.coerceIn(halfTextWidth + 4.dp.toPx(), width - halfTextWidth - 4.dp.toPx())
+            val left = labelCenter - halfTextWidth
+            val lane = labelLaneRightEdges.indexOfFirst { it + labelGap <= left }
+            if (lane >= 0) {
+                labelLaneRightEdges[lane] = labelCenter + halfTextWidth
+                val labelY = 14.dp.toPx() + (lane + 1) * labelLineHeight
+                nativeCanvas.drawText(label, labelCenter, labelY, labelPaint)
+            }
         }
 
         visible.forEach { net ->

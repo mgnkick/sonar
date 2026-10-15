@@ -56,7 +56,7 @@ fun PermissionsScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Для обнаружения окружающих Wi-Fi сетей и анализа уровня сигнала операционная система Android требует разрешения на точное местоположение и поиск близлежащих устройств Wi-Fi.",
+            text = "Для чтения SSID/BSSID и результатов Wi-Fi сканирования требуется точное местоположение и доступ к устройствам поблизости. В системном запросе выберите «Точная», а не «Приблизительная» геолокация; также включите системную настройку «Местоположение».",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
@@ -66,8 +66,8 @@ fun PermissionsScreen(
 
         PermissionItem(
             icon = Icons.Default.LocationOn,
-            title = "Точная геолокация (ACCESS_FINE_LOCATION)",
-            subtitle = "Требование безопасности Android для предотвращения несанкционированного отслеживания через SSID сетей."
+            title = "Точная геолокация (ACCESS_FINE_LOCATION), не приблизительная",
+            subtitle = "Нужно Android для доступа приложения к SSID/BSSID текущей сети и результатам сканирования Wi-Fi."
         )
 
         Spacer(modifier = Modifier.height(14.dp))

@@ -50,22 +50,18 @@ jobs:
       - name: Run Android unit tests
         run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest
 
-      - name: Build debug and release APKs
-        run: |
-          ./gradlew --no-daemon --stacktrace :app:compileDebugKotlin :app:assembleDebug :app:compileReleaseKotlin :app:assembleRelease
+      - name: Build release APK
+        run: ./gradlew --no-daemon --stacktrace :app:compileReleaseKotlin :app:assembleRelease
 
       - name: Verify APK outputs
         run: |
-          test -s android/app/build/outputs/apk/debug/app-debug.apk
           test -s android/app/build/outputs/apk/release/app-release.apk
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/release/app-release.apk
+          ls -lh android/app/build/outputs/apk/release/app-release.apk
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: WiFiPulse-Android-APKs
-          path: |
-            android/app/build/outputs/apk/debug/app-debug.apk
-            android/app/build/outputs/apk/release/app-release.apk
+          name: WiFiPulse-Android-Release-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14

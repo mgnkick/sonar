@@ -123,7 +123,7 @@ class WifiViewModel(
         networks: List<WifiNetwork>
     ): WifiConnectionDetails {
         val ssidUnavailable = details.ssid.isBlank() ||
-            details.ssid.contains("SSID скрыт системой", ignoreCase = true) ||
+            details.ssid.contains("SSID недоступен приложению", ignoreCase = true) ||
             details.ssid.equals("<unknown ssid>", ignoreCase = true)
         if (!details.isConnected || !ssidUnavailable || details.frequency <= 0) return details
 

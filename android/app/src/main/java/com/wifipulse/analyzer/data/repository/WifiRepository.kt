@@ -147,14 +147,35 @@ class WifiRepository(private val context: Context) {
             )
         }
 
-        // Android 10+ exposes connection information through the Wi-Fi network's
-        // NetworkCapabilities. Prefer that supported path; retain the legacy fallback
-        // for older Android versions and OEMs that omit transportInfo.
+        // WifiInfo in an on-demand NetworkCapabilities snapshot can have location-
+        // sensitive fields redacted. Prefer whichever current-connection source exposes
+        // the most data; the legacy API remains useful when the modern snapshot is masked.
         val transportWifiInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             wifiCaps.transportInfo as? WifiInfo
         } else null
         @Suppress("DEPRECATION")
-        val wifiInfo: WifiInfo? = transportWifiInfo ?: wifiManager.connectionInfo
+        val legacyWifiInfo: WifiInfo? = try {
+            wifiManager.connectionInfo
+        } catch (_: SecurityException) {
+            null
+        }
+        fun hasUsableSsid(info: WifiInfo?): Boolean {
+            val value = info?.ssid?.removeSurrounding("\"")?.trim().orEmpty()
+            return value.isNotBlank() &&
+                !value.equals("<unknown ssid>", ignoreCase = true) &&
+                !value.equals("unknown ssid", ignoreCase = true) &&
+                value != "0x"
+        }
+        fun hasUsableBssid(info: WifiInfo?): Boolean {
+            val value = info?.bssid.orEmpty()
+            return value.isNotBlank() && !value.equals("02:00:00:00:00:00", ignoreCase = true)
+        }
+        val wifiCandidates = listOfNotNull(legacyWifiInfo, transportWifiInfo)
+        val wifiInfo = wifiCandidates.maxWithOrNull(
+            compareBy<WifiInfo> {
+                (if (hasUsableSsid(it)) 2 else 0) + (if (hasUsableBssid(it)) 1 else 0)
+            }.thenBy { if (it === legacyWifiInfo) 1 else 0 }
+        )
         @Suppress("DEPRECATION")
         val dhcpInfo: DhcpInfo? = wifiManager.dhcpInfo
 
@@ -164,7 +185,7 @@ class WifiRepository(private val context: Context) {
             rawSsid.equals("unknown ssid", ignoreCase = true) ||
             rawSsid == "0x"
         val ssid = if (ssidUnavailable) {
-            "Подключено к Wi-Fi (SSID скрыт системой)"
+            "Подключено к Wi-Fi (SSID недоступен приложению)"
         } else rawSsid
         val bssid = wifiInfo?.bssid
             ?.takeIf { it.isNotBlank() && !it.equals("02:00:00:00:00:00", ignoreCase = true) }
@@ -253,7 +274,7 @@ class WifiRepository(private val context: Context) {
             val displaySsid = when {
                 knownSsid -> connected.ssid
                 inferredSsid != null -> inferredSsid + " · имя предположительно"
-                else -> "[Подключено · SSID скрыт системой]"
+                else -> "[Подключено · SSID недоступен приложению]"
             }
             if (existingIndex >= 0) {
                 val existing = mapped[existingIndex]

@@ -60,7 +60,7 @@ class ConnectionHistoryRepository(context: Context) {
                 it != "02:00:00:00:00:00"
         }
         val usableSsid = details.ssid.isNotBlank() &&
-            !details.ssid.contains("SSID скрыт системой", ignoreCase = true) &&
+            !details.ssid.contains("SSID недоступен приложению", ignoreCase = true) &&
             !details.ssid.startsWith("[Подключено", ignoreCase = true)
         // Some OEM builds withhold BSSID while Android Settings still knows the SSID.
         // Keep an explicitly weaker SSID+frequency identity instead of dropping all history.
