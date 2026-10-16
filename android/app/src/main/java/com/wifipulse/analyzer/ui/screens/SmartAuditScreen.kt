@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.*
+import com.wifipulse.analyzer.AboutIconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +36,8 @@ fun SmartAuditScreen(
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenAbout: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -56,6 +58,7 @@ fun SmartAuditScreen(
                         )
                     }
                 },
+                actions = { AboutIconButton(onOpenAbout) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },

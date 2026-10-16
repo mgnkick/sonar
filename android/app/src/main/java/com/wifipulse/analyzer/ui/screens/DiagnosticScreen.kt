@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.wifipulse.analyzer.data.model.*
+import com.wifipulse.analyzer.AboutIconButton
 import com.wifipulse.analyzer.ui.viewmodel.DiagnosticUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +54,8 @@ fun DiagnosticScreen(
     visibleNetworkCount: Int,
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
-    lastScanTimestamp: Long = 0L
+    lastScanTimestamp: Long = 0L,
+    onOpenAbout: () -> Unit = {}
 ) {
     var selectedOutputTab by remember { mutableIntStateOf(0) }
     var showTroubleshooting by remember { mutableStateOf(false) }
@@ -100,6 +102,7 @@ fun DiagnosticScreen(
                     ) {
                         Icon(Icons.Default.DeleteOutline, contentDescription = "Очистить логи")
                     }
+                    AboutIconButton(onOpenAbout)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface

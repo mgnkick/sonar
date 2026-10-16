@@ -38,8 +38,16 @@ import com.wifipulse.analyzer.ui.screens.DashboardScreen
 import com.wifipulse.analyzer.ui.screens.PermissionsScreen
 import com.wifipulse.analyzer.ui.screens.SignalAnalysisScreen
 import com.wifipulse.analyzer.ui.screens.ExperimentalHeatmapTab
+import com.wifipulse.analyzer.ui.screens.AboutProgramDialog
 import com.wifipulse.analyzer.ui.theme.WiFiPulseTheme
 import com.wifipulse.analyzer.ui.viewmodel.WifiViewModel
+
+@Composable
+fun AboutIconButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(Icons.Default.QuestionMark, contentDescription = "О программе")
+    }
+}
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : Screen("dashboard", "Сканер (Mesh)", Icons.Default.Wifi)
@@ -242,6 +250,7 @@ fun MainAppContent(
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
     var showConnectionHistory by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
     val connectionHistory by connectionHistoryRepository.entries.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -298,6 +307,10 @@ fun MainAppContent(
             },
             onDismiss = { showConnectionHistory = false }
         )
+    }
+
+    if (showAbout) {
+        AboutProgramDialog(onDismiss = { showAbout = false })
     }
 
     Scaffold(
@@ -370,7 +383,8 @@ fun MainAppContent(
                     onToggleGroup = { viewModel.toggleGroupExpansion(it) },
                     onNetworkSelected = { viewModel.selectNetworkForAnalysis(it) },
                     onNavigateToAnalysis = { currentScreen = Screen.SignalAnalysis },
-                    onRefreshNetworks = { viewModel.triggerScan() }
+                    onRefreshNetworks = { viewModel.triggerScan() },
+                    onOpenAbout = { showAbout = true }
                 )
                 is Screen.SmartAudit -> SmartAuditScreen(
                     report = uiState.auditReport,
@@ -380,7 +394,8 @@ fun MainAppContent(
                     visibleNetworkCount = uiState.networks.size,
                     isRefreshingNetworks = uiState.isScanning,
                     onRefreshNetworks = { viewModel.triggerScan() },
-                    lastScanTimestamp = uiState.lastScanTimestamp
+                    lastScanTimestamp = uiState.lastScanTimestamp,
+                    onOpenAbout = { showAbout = true }
                 )
                 is Screen.Diagnostics -> com.wifipulse.analyzer.ui.screens.DiagnosticScreen(
                     state = diagnosticState,
@@ -397,7 +412,8 @@ fun MainAppContent(
                     visibleNetworkCount = uiState.networks.size,
                     isRefreshingNetworks = uiState.isScanning,
                     onRefreshNetworks = { viewModel.triggerScan() },
-                    lastScanTimestamp = uiState.lastScanTimestamp
+                    lastScanTimestamp = uiState.lastScanTimestamp,
+                    onOpenAbout = { showAbout = true }
                 )
                 is Screen.SignalAnalysis -> SignalAnalysisScreen(
                     state = uiState,
@@ -409,9 +425,13 @@ fun MainAppContent(
                     isBackgroundMonitoring = isBackgroundMonitoring,
                     onToggleBackgroundMonitoring = onToggleBackgroundMonitoring,
                     onOpenConnectionHistory = { showConnectionHistory = true },
-                    onSelectSignalTrackingBssid = { viewModel.selectSignalTrackingBssid(it) }
+                    onSelectSignalTrackingBssid = { viewModel.selectSignalTrackingBssid(it) },
+                    onOpenAbout = { showAbout = true }
                 )
-                is Screen.CoverageMap -> ExperimentalHeatmapTab(connectionDetails = uiState.connectionDetails)
+                is Screen.CoverageMap -> ExperimentalHeatmapTab(
+                    connectionDetails = uiState.connectionDetails,
+                    onOpenAbout = { showAbout = true }
+                )
             }
         }
     }

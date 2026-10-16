@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.*
+import com.wifipulse.analyzer.AboutIconButton
 import com.wifipulse.analyzer.ui.viewmodel.SortOption
 import com.wifipulse.analyzer.ui.viewmodel.WifiUiState
 
@@ -46,7 +47,8 @@ fun DashboardScreen(
     onToggleGroup: (String) -> Unit,
     onNetworkSelected: (String) -> Unit,
     onNavigateToAnalysis: () -> Unit,
-    onRefreshNetworks: () -> Unit
+    onRefreshNetworks: () -> Unit,
+    onOpenAbout: () -> Unit = {}
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
     var showSurveyDialog by remember { mutableStateOf(false) }
@@ -73,6 +75,7 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    AboutIconButton(onOpenAbout)
                     IconButton(onClick = { showSurveyDialog = true }) {
                         Icon(Icons.Default.Place, contentDescription = "Обследование квартиры")
                     }

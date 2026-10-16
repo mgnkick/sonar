@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.WifiConnectionDetails
+import com.wifipulse.analyzer.AboutIconButton
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
@@ -69,7 +70,10 @@ private enum class SketchKind { LINE, RECTANGLE, CIRCLE }
 private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Float, val x2: Float, val y2: Float)
 
 @Composable
-fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
+fun ExperimentalHeatmapTab(
+    connectionDetails: WifiConnectionDetails,
+    onOpenAbout: () -> Unit = {}
+) {
     val colors = MaterialTheme.colorScheme
     val heatAccent = colors.primary
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -154,6 +158,10 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Карта покрытия", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = heatAccent)
+            AboutIconButton(onOpenAbout)
+        }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Image, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Загрузить план")

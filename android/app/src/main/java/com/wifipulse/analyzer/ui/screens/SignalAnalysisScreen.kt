@@ -39,6 +39,7 @@ import com.wifipulse.analyzer.data.model.WifiBand
 import com.wifipulse.analyzer.data.model.WifiNetwork
 import com.wifipulse.analyzer.data.model.WifiConnectionDetails
 import com.wifipulse.analyzer.ui.viewmodel.WifiUiState
+import com.wifipulse.analyzer.AboutIconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +53,8 @@ fun SignalAnalysisScreen(
     isBackgroundMonitoring: Boolean = false,
     onToggleBackgroundMonitoring: () -> Unit = {},
     onOpenConnectionHistory: () -> Unit = {},
-    onSelectSignalTrackingBssid: (String?) -> Unit = {}
+    onSelectSignalTrackingBssid: (String?) -> Unit = {},
+    onOpenAbout: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Сигнал", "Спектр", "Рейтинг")
@@ -81,6 +83,7 @@ fun SignalAnalysisScreen(
                     IconButton(onClick = onOpenConnectionHistory) {
                         Icon(Icons.Default.History, contentDescription = "История подключений")
                     }
+                    AboutIconButton(onOpenAbout)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
