@@ -87,7 +87,7 @@ fun DiagnosticScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Ping • Traceroute • диагностика",
+                            text = "PING • ТСАП • диагностика",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -324,7 +324,7 @@ fun DiagnosticScreen(
                 ) {
                     Icon(Icons.Default.AltRoute, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Трассировка")
+                    Text("Трассировка\nс анализом потерь (ТСАП)", fontSize = 11.sp, lineHeight = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
 
                 if (isRunning) {
@@ -401,7 +401,7 @@ fun DiagnosticScreen(
                     if (state.logs.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Готов к запуску. Выберите IP или домен и нажмите «Пинг» или «Трассировка».",
+                                text = "Готов к запуску. Выберите IP или домен и нажмите «Пинг» или «Трассировка с анализом потерь (ТСАП)».",
                                 color = Color.Gray,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace
@@ -482,7 +482,7 @@ fun DiagnosticScreen(
                     if (state.hops.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = if (isRunning) "WinMTR собирает выборку. Остановите трассировку, чтобы зафиксировать результат." else "Нет данных трассировки. Нажмите «Трассировка» для запуска WinMTR.",
+                                text = if (isRunning) "ТСАП собирает выборку. Остановите трассировку, чтобы зафиксировать результат." else "Нет данных трассировки. Нажмите «ТСАП» для запуска непрерывного анализа потерь.",
                                 color = Color.Gray,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace
@@ -494,74 +494,68 @@ fun DiagnosticScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             items(state.hops) { hop ->
+                                val lossColor = when {
+                                    hop.probesSent == 0 -> Color(0xFF68758D)
+                                    hop.lossPercent >= 25f -> Color(0xFFFF5577)
+                                    hop.lossPercent > 0f -> Color(0xFFFFC857)
+                                    else -> Color(0xFF59F2BD)
+                                }
+                                val avgRtt = hop.averageRttMs ?: hop.rttMs
+                                val rttColor = when {
+                                    avgRtt == null -> Color(0xFFFF5577)
+                                    avgRtt < 35f -> Color(0xFF59F2BD)
+                                    avgRtt < 80f -> Color(0xFFFFC857)
+                                    else -> Color(0xFFFF7799)
+                                }
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (hop.isTargetReached) Color(0xFF1E3A5F) else Color(0xFF111D2D),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFF101827),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, if (hop.isTargetReached) Color(0xFF55F4FF) else lossColor.copy(alpha = 0.7f)),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
+                                    Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = if (hop.isTargetReached) Color(0xFF54F4FF) else Color(0xFF29445E),
-                                                modifier = Modifier.size(24.dp)
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = if (hop.isTargetReached) Color(0xFF55F4FF) else if (hop.probesSent > 0) lossColor.copy(alpha = 0.18f) else Color(0xFF303B55),
+                                                modifier = Modifier.size(32.dp)
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Text(
                                                         text = hop.hopNumber.toString(),
-                                                        fontSize = 10.sp,
+                                                        fontSize = 12.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = if (hop.isTargetReached) Color.Black else Color.White
+                                                        color = if (hop.isTargetReached) Color.Black else lossColor
                                                     )
                                                 }
                                             }
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Column {
-                                                Text(
-                                                    text = hop.ip ?: "* * *",
-                                                    fontFamily = FontFamily.Monospace,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 12.sp,
-                                                    color = if (hop.isTimeout) Color(0xFFEF4444) else Color.White
-                                                )
-                                                if (hop.hostName != null) {
-                                                    Text(
-                                                        text = hop.hostName,
-                                                        fontSize = 10.sp,
-                                                        color = Color(0xFF94A3B8)
-                                                    )
+                                            Spacer(Modifier.width(10.dp))
+                                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(hop.ip ?: "Нет ответа от узла", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (hop.probesReceived == 0 && hop.probesSent > 0) Color(0xFFFF7799) else Color(0xFFEAF6FF), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                                Text(hop.hostName ?: if (hop.isTargetReached) "Конечный узел" else "Маршрутный хоп", fontSize = 10.sp, color = Color(0xFF94A3B8), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                            }
+                                            if (hop.isTargetReached) {
+                                                Surface(color = Color(0xFF143D49), shape = RoundedCornerShape(20.dp)) {
+                                                    Text("ЦЕЛЬ", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color(0xFF55F4FF), letterSpacing = 0.8.sp)
                                                 }
                                             }
                                         }
-
-                                        if (hop.rttMs != null) {
-                                            Text(
-                                                text = "${"%.1f".format(hop.rttMs)} ms",
-                                                fontFamily = FontFamily.Monospace,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (hop.rttMs < 35) Color(0xFF22C55E) else if (hop.rttMs < 80) Color(0xFFF59E0B) else Color(0xFFEF4444)
-                                            )
-                                        } else if (hop.probesSent == 0) {
-                                            Text(
-                                                text = "Таймаут",
-                                                fontSize = 10.sp,
-                                                color = Color(0xFFEF4444)
-                                            )
-                                        }
-                                    }
                                     if (hop.probesSent > 0) {
-                                        Text(
-                                            text = "Потери ${hop.lossPercent.toInt()}% • ${hop.probesReceived}/${hop.probesSent} ответов • RTT min/avg/max ${hop.minRttMs?.let { "%.1f".format(it) } ?: "—"}/${hop.averageRttMs?.let { "%.1f".format(it) } ?: "—"}/${hop.maxRttMs?.let { "%.1f".format(it) } ?: "—"} ms",
-                                            modifier = Modifier.fillMaxWidth().padding(start = 42.dp, end = 8.dp, bottom = 8.dp),
-                                            fontFamily = FontFamily.Monospace,
-                                            fontSize = 10.sp,
-                                            color = if (hop.lossPercent > 0f) Color(0xFFFFC857) else Color(0xFF69F5B5)
-                                        )
+                                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                TsapMetric("ПОТЕРИ", "${"%.0f".format(hop.lossPercent)}%", lossColor, Modifier.weight(0.8f))
+                                                TsapMetric("ОТВЕТЫ", "${hop.probesReceived} / ${hop.probesSent}", Color(0xFF55F4FF), Modifier.weight(1f))
+                                                TsapMetric("СРЕДНИЙ RTT", avgRtt?.let { "${"%.1f".format(it)} ms" } ?: "—", rttColor, Modifier.weight(1.2f))
+                                            }
+                                            Text(
+                                                text = "МИН ${hop.minRttMs?.let { "%.1f".format(it) } ?: "—"} ms     МАКС ${hop.maxRttMs?.let { "%.1f".format(it) } ?: "—"} ms",
+                                                modifier = Modifier.padding(start = 2.dp),
+                                                fontFamily = FontFamily.Monospace,
+                                                fontSize = 9.sp,
+                                                color = Color(0xFF9EACC2)
+                                            )
+                                        } else {
+                                            Text("ОЖИДАНИЕ ПЕРВОЙ ПРОБЫ", fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF9EACC2), letterSpacing = 0.7.sp)
+                                        }
                                     }
                                 }
                             }
@@ -667,6 +661,21 @@ fun DiagnosticScreen(
     }
 }
 
+@Composable
+private fun TsapMetric(label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        color = accent.copy(alpha = 0.09f),
+        shape = RoundedCornerShape(8.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.28f))
+    ) {
+        Column(Modifier.padding(horizontal = 7.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(label, fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA4B2C7), letterSpacing = 0.6.sp, maxLines = 1)
+            Text(value, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = accent, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+    }
+}
+
 
 @Composable
 private fun SpeedTestLinks(
@@ -696,3 +705,4 @@ private fun SpeedTestLinks(
         }
     }
 }
+

@@ -25,10 +25,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val HistoryCyan = Color(0xFF55F4FF)
-private val HistoryMagenta = Color(0xFFFF5AD9)
-private val HistoryGreen = Color(0xFF69F5B5)
-
 @Composable
 fun ConnectionHistoryDialog(
     entries: List<ConnectionHistoryEntry>,
@@ -42,20 +38,21 @@ fun ConnectionHistoryDialog(
     var passwordDraft by remember { mutableStateOf("") }
     val revealedPasswords = remember { mutableStateMapOf<String, String>() }
     val chronologicalEntries = remember(entries) { entries.sortedBy { it.firstSeenAt } }
+    val colors = MaterialTheme.colorScheme
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.History, contentDescription = null, tint = HistoryCyan) },
+        icon = { Icon(Icons.Default.History, contentDescription = null, tint = colors.primary) },
         title = { Text("История подключений", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Surface(
-                    color = Color(0xFF11182A),
+                    color = colors.surfaceVariant,
                     shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, HistoryCyan.copy(alpha = 0.35f))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.primary.copy(alpha = 0.55f))
                 ) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("ХРОНОЛОГИЯ · СТАРЫЕ СОБЫТИЯ СВЕРХУ", color = HistoryCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
+                        Text("ХРОНОЛОГИЯ · СТАРЫЕ СОБЫТИЯ СВЕРХУ", color = colors.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
                         Text(
                             "Время показывает, когда приложение обнаружило подключение или смену BSSID. Это отмечает переход между точками доступа; Android не сообщает приложению, является ли точка именно Mesh-сателлитом.",
                             style = MaterialTheme.typography.bodySmall,
@@ -76,7 +73,7 @@ fun ConnectionHistoryDialog(
                             val isRoam = entry.event.contains("точки доступа", true) ||
                                 entry.event.contains("сателлит", true) ||
                                 entry.event.contains("роуминг", true) || entry.event.contains("bssid", true)
-                            val accent = if (isRoam) HistoryMagenta else HistoryCyan
+                            val accent = if (isRoam) colors.secondary else colors.primary
                             HistoryEntryCard(
                                 entry = entry,
                                 accent = accent,
@@ -150,10 +147,11 @@ private fun HistoryEntryCard(
     onTogglePassword: () -> Unit,
     onSetPassword: () -> Unit
 ) {
+    val colors = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF101626)),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.6f))
     ) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -174,24 +172,24 @@ private fun HistoryEntryCard(
             HistoryValue("СЕТЬ (SSID)", entry.ssid, accent)
             HistoryValue(if (entry.bssid == "BSSID недоступен") "ТОЧКА ДОСТУПА" else "BSSID САТЕЛЛИТА", entry.bssid, accent)
             val radio = listOfNotNull(entry.band, entry.channel?.let { "канал $it" }, entry.frequencyMhz?.let { "$it МГц" }, entry.rssiDbm?.let { "$it дБм" }).joinToString(" · ")
-            if (radio.isNotBlank()) HistoryValue("РАДИОПАРАМЕТРЫ", radio, HistoryGreen)
+            if (radio.isNotBlank()) HistoryValue("РАДИОПАРАМЕТРЫ", radio, colors.tertiary)
             val tech = listOfNotNull(entry.security, entry.channelWidthMhz?.let { "ширина $it МГц" }, entry.standard, entry.linkSpeedMbps?.let { "линк $it Мбит/с" }).joinToString(" · ")
             if (tech.isNotBlank()) HistoryValue("ПОДКЛЮЧЕНИЕ", tech, MaterialTheme.colorScheme.onSurfaceVariant)
             val networkDetails = listOfNotNull(entry.ipAddress?.let { "IP $it" }, entry.gateway?.let { "шлюз $it" }, entry.dns1?.let { "DNS $it" }, entry.dns2?.let { "DNS2 $it" }).joinToString(" · ")
             if (networkDetails.isNotBlank()) HistoryValue("СЕТЕВЫЕ ДАННЫЕ", networkDetails, MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onSetPassword) {
-                    Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(16.dp), tint = HistoryCyan)
+                    Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.primary)
                     Spacer(Modifier.width(6.dp))
                     Text(if (entry.wifiPasswordCiphertext == null) "Задать пароль" else "Изменить пароль")
                 }
                 if (entry.wifiPasswordCiphertext != null) {
                     IconButton(onClick = onTogglePassword) {
-                        Icon(if (passwordRevealed != null) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = if (passwordRevealed != null) "Скрыть пароль" else "Показать пароль", tint = HistoryCyan)
+                        Icon(if (passwordRevealed != null) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = if (passwordRevealed != null) "Скрыть пароль" else "Показать пароль", tint = colors.primary)
                     }
                 }
             }
-            passwordRevealed?.let { Text("Пароль Wi-Fi: " + it, color = HistoryGreen, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold) }
+            passwordRevealed?.let { Text("Пароль Wi-Fi: " + it, color = colors.tertiary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -214,3 +212,4 @@ private fun eventTitle(event: String): String = when {
 
 private fun formatDate(timestamp: Long): String = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()).format(Date(timestamp))
 private fun formatTime(timestamp: Long): String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
+

@@ -868,7 +868,7 @@ fun ChannelRatingCard(rating: ChannelRating) {
                                 Text(
                                     text = "-=!!!=-  DFS / РАДАРНЫЙ ДИАПАЗОН",
                                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                    color = Color.White,
+                                    color = Color(0xFFE9EEF2),
                                     fontWeight = FontWeight.Black,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -964,3 +964,4 @@ private fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+

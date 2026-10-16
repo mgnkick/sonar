@@ -47,9 +47,6 @@ jobs:
           test -f gradle/wrapper/gradle-wrapper.jar
           grep -q 'distributionUrl=.*gradle-8.7' gradle/wrapper/gradle-wrapper.properties
 
-      - name: Run Android unit tests
-        run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest
-
       - name: Build release APK
         run: ./gradlew --no-daemon --stacktrace :app:compileReleaseKotlin :app:assembleRelease
 

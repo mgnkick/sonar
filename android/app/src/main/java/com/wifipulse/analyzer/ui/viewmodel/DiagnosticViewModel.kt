@@ -165,7 +165,7 @@ class DiagnosticViewModel(
 
         activeJob = viewModelScope.launch {
             try {
-                repository.executeWinMtr(
+                repository.executeTsapTraceroute(
                     rawTarget = target,
                     maxHops = 30,
                     timeoutSeconds = _uiState.value.timeoutSeconds
@@ -255,3 +255,4 @@ class DiagnosticViewModel(
         }
     }
 }
+

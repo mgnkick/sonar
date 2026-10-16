@@ -50,6 +50,8 @@ fun DashboardScreen(
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
     var showSurveyDialog by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val isAtContentEnd = scrollState.maxValue > 0 && scrollState.value >= scrollState.maxValue
     val totalNodesCount = state.networkGroups.sumOf { it.totalNodesCount }
 
     Scaffold(
@@ -102,6 +104,7 @@ fun DashboardScreen(
                 )
             )
         },
+        floatingActionButtonPosition = if (isAtContentEnd) FabPosition.Start else FabPosition.End,
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onScanClick,
@@ -132,7 +135,7 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 12.dp)
         ) {
             ConnectionStatusPanel(
@@ -642,3 +645,4 @@ fun BadgeChip(label: String, color: Color) {
         )
     }
 }
+
