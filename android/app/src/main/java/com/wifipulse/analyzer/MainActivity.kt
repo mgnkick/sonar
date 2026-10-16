@@ -9,17 +9,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,10 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -252,14 +241,9 @@ fun MainAppContent(
     onToggleBackgroundMonitoring: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
-    var showDonationDialog by remember { mutableStateOf(false) }
     var showConnectionHistory by remember { mutableStateOf(false) }
     val connectionHistory by connectionHistoryRepository.entries.collectAsState()
-    val clipboardManager = LocalClipboardManager.current
     val context = androidx.compose.ui.platform.LocalContext.current
-    val uriHandler = LocalUriHandler.current
-    val supportCardNumber = BuildConfig.SUPPORT_CARD_NUMBER
-    val supportEmail = BuildConfig.SUPPORT_EMAIL
 
     // Keep automatic scans active only while the app is visible. The periodic scan runs
     // independently of Compose rendering and never changes focus or the manual scan state.
@@ -316,130 +300,6 @@ fun MainAppContent(
         )
     }
 
-    if (showDonationDialog) {
-        AlertDialog(
-            onDismissRequest = { showDonationDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Paid,
-                    contentDescription = null,
-                    tint = Color(0xFFFFC857),
-                    modifier = Modifier.size(30.dp)
-                )
-            },
-            title = {
-                Text(
-                    text = "Поддержать WiFi Pulse",
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                )
-            },
-            text = {
-                Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Если приложение оказалось полезным, можно поддержать его разработку.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    if (supportCardNumber.isNotBlank()) {
-                        Text(
-                            text = "Банковская карта",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                Color(0xFFFFC857).copy(alpha = 0.55f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = supportCardNumber,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                    modifier = Modifier.clickable {
-                                        clipboardManager.setText(AnnotatedString(supportCardNumber.filter(Char::isDigit)))
-                                    }
-                                )
-                                IconButton(
-                                    onClick = {
-                                        clipboardManager.setText(AnnotatedString(supportCardNumber.filter(Char::isDigit)))
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Скопировать номер карты",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-                        Text(
-                            text = "Нажмите на номер, чтобы скопировать",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (supportEmail.isNotBlank()) {
-                        Text(
-                            text = "Связь по электронной почте",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = supportEmail,
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                textDecoration = TextDecoration.Underline
-                            ),
-                            modifier = Modifier.clickable {
-                                uriHandler.openUri("mailto:$supportEmail")
-                            }
-                        )
-                    }
-                    if (supportCardNumber.isBlank() && supportEmail.isBlank()) {
-                            Text(
-                            text = "Платёжные данные задаются отдельно для каждой сборки.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDonationDialog = false }) {
-                    Text("Готово")
-                }
-            },
-            dismissButton = {
-                if (supportCardNumber.isNotBlank()) {
-                    TextButton(
-                        onClick = {
-                            clipboardManager.setText(AnnotatedString(supportCardNumber.filter(Char::isDigit)))
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text("Копировать карту")
-                    }
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurface
-        )
-    }
-
     Scaffold(
         bottomBar = {
             NavigationBar(
@@ -465,22 +325,6 @@ fun MainAppContent(
                             unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    )
-                }
-                IconButton(
-                    onClick = { showDonationDialog = true },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .border(
-                            width = 1.dp,
-                            color = Color(0xFFFFC857).copy(alpha = 0.8f),
-                            shape = RoundedCornerShape(50)
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Paid,
-                        contentDescription = "Поддержать проект донатом",
-                        tint = Color(0xFFFFC857)
                     )
                 }
                 IconButton(

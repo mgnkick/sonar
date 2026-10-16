@@ -10,6 +10,7 @@ import android.os.Build
 import android.app.Activity
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
@@ -20,6 +21,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
@@ -44,6 +47,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.WifiConnectionDetails
@@ -69,6 +73,8 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     val colors = MaterialTheme.colorScheme
     val heatAccent = colors.primary
     val context = androidx.compose.ui.platform.LocalContext.current
+    val configuration = LocalConfiguration.current
+    val activity = context.findActivity()
     val preferences = remember(context) { context.getSharedPreferences(HEAT_PREFS, Context.MODE_PRIVATE) }
     var samples by remember { mutableStateOf(readSamples(preferences.getString(HEAT_KEY, null))) }
     var sketchShapes by remember { mutableStateOf(readShapes(preferences.getString(SHAPES_KEY, null))) }
@@ -78,9 +84,24 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     var drawStart by remember { mutableStateOf<Offset?>(null) }
     var drawPreviewEnd by remember { mutableStateOf<Offset?>(null) }
     var showFullscreen by remember { mutableStateOf(false) }
+    var fullscreenEntryPending by remember { mutableStateOf(false) }
+    var previousOrientation by remember { mutableIntStateOf(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) }
     var fullscreenToolsExpanded by remember { mutableStateOf(true) }
     var zoom by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
+    LaunchedEffect(fullscreenEntryPending, configuration.orientation) {
+        if (fullscreenEntryPending && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            showFullscreen = true
+            fullscreenEntryPending = false
+        }
+    }
+    DisposableEffect(showFullscreen, activity, previousOrientation) {
+        if (showFullscreen) {
+            onDispose { activity?.requestedOrientation = previousOrientation }
+        } else {
+            onDispose { }
+        }
+    }
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
         val newZoom = (zoom * zoomChange).coerceIn(1f, 5f)
         val ratio = newZoom / zoom
@@ -129,7 +150,10 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     val currentRssi = connectionDetails.rssi.takeIf { connectionDetails.isConnected && it in -100..0 }
     val currentBssid = connectionDetails.bssid.takeIf { it.isNotBlank() && it != "BSSID недоступен" } ?: "BSSID недоступен"
 
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Image, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Загрузить план")
@@ -174,16 +198,24 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             style = MaterialTheme.typography.labelSmall,
             color = heatAccent
         )
+        Text("КАРТА ПОКРЫТИЯ", color = heatAccent, style = MaterialTheme.typography.labelLarge, letterSpacing = 0.8.sp)
+        Text(
+            "Сейчас: " + (currentRssi?.let { it.toString() + " дБм" } ?: "нет достоверного RSSI") + " · " + currentBssid,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }, enabled = zoom > 1f || pan != Offset.Zero) { Text("Сбросить масштаб") }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { fullscreenToolsExpanded = true; showFullscreen = true }) { Icon(Icons.Default.Fullscreen, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("На весь экран · альбомно") }
-        }
-        Surface(color = colors.surfaceVariant, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("ЭКСПЕРИМЕНТАЛЬНОЕ · КАРТА ПОКРЫТИЯ", color = heatAccent, style = MaterialTheme.typography.labelLarge, letterSpacing = 0.8.sp)
-                Text("Переместитесь в нужную зону и коснитесь её на схеме. В точку запишутся текущие RSSI и BSSID.", style = MaterialTheme.typography.bodyMedium)
-                Text("Сейчас: " + (currentRssi?.let { it.toString() + " дБм" } ?: "нет достоверного RSSI") + " · " + currentBssid, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = {
+                fullscreenToolsExpanded = true
+                previousOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                fullscreenEntryPending = true
+            }) {
+                Icon(Icons.Default.Fullscreen, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("На весь экран · альбомно")
             }
         }
 
@@ -261,7 +293,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column {
                 CoverageMapCanvas(
-                    modifier = Modifier.fillMaxWidth().height(340.dp),
+                    modifier = Modifier.fillMaxWidth().height(420.dp),
                     samples = samples,
                     sketchShapes = sketchShapes,
                     planBitmap = planBitmap,
@@ -281,13 +313,21 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
             }
         }
-        if (showFullscreen) {
-            val activity = context.findActivity()
-            val previousOrientation = remember(activity) { activity?.requestedOrientation }
-            DisposableEffect(activity) {
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                onDispose { if (previousOrientation != null) activity?.requestedOrientation = previousOrientation }
+        if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                val selected = samples.firstOrNull { it.time == selectedPointTime }
+                val selectedShape = sketchShapes.getOrNull(selectedShapeIndex)
+                Text(
+                    selected?.let { "Выбрана точка замера · ${it.rssi} дБм · ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.time))}" }
+                        ?: selectedShape?.let { "Выбрана фигура: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг" }}" }
+                        ?: "Объект не выбран",
+                    modifier = Modifier.weight(1f), color = heatAccent, style = MaterialTheme.typography.labelMedium
+                )
+                OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") }
             }
+        }
+        if (showFullscreen) {
+            key(configuration.screenWidthDp, configuration.screenHeightDp, fullscreenToolsExpanded) {
             androidx.compose.ui.window.Dialog(
                 onDismissRequest = { showFullscreen = false },
                 properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
@@ -328,7 +368,10 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.7f))
                         ) {
                             if (fullscreenToolsExpanded) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(
+                                    Modifier.heightIn(max = 290.dp).verticalScroll(rememberScrollState()),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
                                     IconButton(onClick = { fullscreenToolsExpanded = false }) {
                                         Text("›", color = heatAccent, style = MaterialTheme.typography.titleLarge)
                                     }
@@ -346,18 +389,6 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     }
                 }
             }
-        }
-        if (selectedPointTime != null || selectedShapeIndex >= 0) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                val selected = samples.firstOrNull { it.time == selectedPointTime }
-                val selectedShape = sketchShapes.getOrNull(selectedShapeIndex)
-                Text(
-                    selected?.let { "Выбрана точка замера · ${it.rssi} дБм · ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.time))}" }
-                        ?: selectedShape?.let { "Выбрана фигура: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг" }}" }
-                        ?: "Объект не выбран",
-                    modifier = Modifier.weight(1f), color = heatAccent, style = MaterialTheme.typography.labelMedium
-                )
-                OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -622,12 +653,16 @@ private fun distanceToShapeSquared(point: Offset, shape: SketchShape): Float {
             val right = maxOf(start.x, end.x)
             val top = minOf(start.y, end.y)
             val bottom = maxOf(start.y, end.y)
-            minOf(
-                distanceToSegmentSquared(point, Offset(left, top), Offset(right, top)),
-                distanceToSegmentSquared(point, Offset(right, top), Offset(right, bottom)),
-                distanceToSegmentSquared(point, Offset(right, bottom), Offset(left, bottom)),
-                distanceToSegmentSquared(point, Offset(left, bottom), Offset(left, top))
-            )
+            if (point.x in left..right && point.y in top..bottom) {
+                0f
+            } else {
+                minOf(
+                    distanceToSegmentSquared(point, Offset(left, top), Offset(right, top)),
+                    distanceToSegmentSquared(point, Offset(right, top), Offset(right, bottom)),
+                    distanceToSegmentSquared(point, Offset(right, bottom), Offset(left, bottom)),
+                    distanceToSegmentSquared(point, Offset(left, bottom), Offset(left, top))
+                )
+            }
         }
         SketchKind.CIRCLE -> {
             val center = Offset((start.x + end.x) / 2f, (start.y + end.y) / 2f)
