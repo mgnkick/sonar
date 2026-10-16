@@ -107,6 +107,7 @@ fun DashboardScreen(
         floatingActionButtonPosition = if (isAtContentEnd) FabPosition.Start else FabPosition.End,
         floatingActionButton = {
             ExtendedFloatingActionButton(
+                modifier = Modifier.offset(y = (-24).dp),
                 onClick = onScanClick,
                 icon = {
                     if (state.isScanning) {

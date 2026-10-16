@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -160,17 +161,6 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             }) { Text("Убрать изображение и начать заново") }
         }
         Text("РИСОВАНИЕ И ЗАМЕРЫ", color = heatAccent, style = MaterialTheme.typography.labelLarge)
-        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            item { FilterChip(selected = currentTool == MapTool.MEASURE, onClick = { currentTool = MapTool.MEASURE; drawStart = null; drawPreviewEnd = null }, label = { Text("Замер") }) }
-            item { FilterChip(selected = currentTool == MapTool.LINE, onClick = { currentTool = MapTool.LINE; drawStart = null; drawPreviewEnd = null }, label = { Text("Линия") }) }
-            item { FilterChip(selected = currentTool == MapTool.RECTANGLE, onClick = { currentTool = MapTool.RECTANGLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Прямоугольник") }) }
-            item { FilterChip(selected = currentTool == MapTool.CIRCLE, onClick = { currentTool = MapTool.CIRCLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Круг") }) }
-            item { FilterChip(selected = currentTool == MapTool.ERASER, onClick = { currentTool = MapTool.ERASER; drawStart = null; drawPreviewEnd = null }, label = { Text("Ластик") }) }
-        }
-        Text("РАБОТА С ОБЪЕКТАМИ", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge)
-        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null; drawPreviewEnd = null }, label = { Text("Выбрать объект") }) }
-        }
         Text(
             when (currentTool) {
                 MapTool.MEASURE -> "Коснитесь плана, чтобы поставить замер; двумя пальцами можно менять масштаб и перемещать план."
@@ -268,24 +258,27 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         }
 
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
-            CoverageMapCanvas(
-                modifier = Modifier.fillMaxWidth().height(340.dp),
-                samples = samples,
-                sketchShapes = sketchShapes,
-                planBitmap = planBitmap,
-                tool = currentTool,
-                drawStart = drawStart,
-                drawPreviewEnd = drawPreviewEnd,
-                selectedPointTime = selectedPointTime,
-                selectedShapeIndex = selectedShapeIndex,
-                zoom = zoom,
-                pan = pan,
-                transformState = transformState,
-                onMapTap = onMapTap,
-                onShapeDrag = onShapeDrag,
-                onShapeDragPreview = onShapeDragPreview,
-                clearShapePreview = clearShapePreview
-            )
+            Column {
+                CoverageMapCanvas(
+                    modifier = Modifier.fillMaxWidth().height(340.dp),
+                    samples = samples,
+                    sketchShapes = sketchShapes,
+                    planBitmap = planBitmap,
+                    tool = currentTool,
+                    drawStart = drawStart,
+                    drawPreviewEnd = drawPreviewEnd,
+                    selectedPointTime = selectedPointTime,
+                    selectedShapeIndex = selectedShapeIndex,
+                    zoom = zoom,
+                    pan = pan,
+                    transformState = transformState,
+                    onMapTap = onMapTap,
+                    onShapeDrag = onShapeDrag,
+                    onShapeDragPreview = onShapeDragPreview,
+                    clearShapePreview = clearShapePreview
+                )
+                MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
+            }
         }
         if (showFullscreen) {
             val activity = context.findActivity()
@@ -299,40 +292,9 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
             ) {
                 Surface(Modifier.fillMaxSize(), color = colors.background) {
-                    Column(Modifier.fillMaxSize().padding(10.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("КАРТА ПОКРЫТИЯ · ТСАП", color = heatAccent, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                            TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Сброс масштаба") }
-                            IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Закрыть полноэкранный режим", tint = heatAccent) }
-                        }
-                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            item { FilterChip(selected = currentTool == MapTool.MEASURE, onClick = { currentTool = MapTool.MEASURE; drawStart = null; drawPreviewEnd = null }, label = { Text("Замер") }) }
-                            item { FilterChip(selected = currentTool == MapTool.LINE, onClick = { currentTool = MapTool.LINE; drawStart = null; drawPreviewEnd = null }, label = { Text("Линия") }) }
-                            item { FilterChip(selected = currentTool == MapTool.RECTANGLE, onClick = { currentTool = MapTool.RECTANGLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Прямоугольник") }) }
-                            item { FilterChip(selected = currentTool == MapTool.CIRCLE, onClick = { currentTool = MapTool.CIRCLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Круг") }) }
-                            item { FilterChip(selected = currentTool == MapTool.ERASER, onClick = { currentTool = MapTool.ERASER; drawStart = null; drawPreviewEnd = null }, label = { Text("Ластик") }) }
-                        }
-                        Text("ОБЪЕКТЫ", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall)
-                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null; drawPreviewEnd = null }, label = { Text("Выбрать объект") }) }
-                            if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
-                                item { OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") } }
-                            }
-                        }
-                        Text(
-                            when (currentTool) {
-                                MapTool.MEASURE -> "Коснитесь плана, чтобы поставить точку замера."
-                                MapTool.SELECT_OBJECT -> "Коснитесь точки или фигуры, чтобы выделить её."
-                                MapTool.ERASER -> "Коснитесь объекта, чтобы сразу стереть его."
-                                MapTool.LINE -> "Проведите пальцем от начала линии до конца."
-                                MapTool.RECTANGLE -> "Перетащите палец от одного угла к противоположному."
-                                MapTool.CIRCLE -> "Перетащите палец от одного края круга к противоположному."
-                            },
-                            color = heatAccent,
-                            style = MaterialTheme.typography.labelSmall
-                        )
+                    Box(Modifier.fillMaxSize().padding(10.dp)) {
                         CoverageMapCanvas(
-                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            modifier = Modifier.fillMaxSize(),
                             samples = samples,
                             sketchShapes = sketchShapes,
                             planBitmap = planBitmap,
@@ -349,6 +311,24 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             onShapeDragPreview = onShapeDragPreview,
                             clearShapePreview = clearShapePreview
                         )
+                        Row(Modifier.align(Alignment.TopStart).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("КАРТА ПОКРЫТИЯ · ТСАП", color = heatAccent, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Сброс масштаба") }
+                            IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Закрыть полноэкранный режим", tint = heatAccent) }
+                        }
+                        Surface(
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            color = colors.surface.copy(alpha = 0.78f),
+                            shape = RoundedCornerShape(14.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.7f))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = true)
+                                if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
+                                    TextButton(onClick = deleteSelectedObject) { Text("Удалить") }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -400,6 +380,36 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             color = if (currentRssi == null) MaterialTheme.colorScheme.error else heatAccent,
             style = MaterialTheme.typography.bodySmall
         )
+    }
+}
+
+@Composable
+private fun MapToolSelector(selected: MapTool, onSelect: (MapTool) -> Unit, vertical: Boolean) {
+    val tools = listOf(
+        MapTool.SELECT_OBJECT to "Выбрать объект",
+        MapTool.ERASER to "Ластик",
+        MapTool.MEASURE to "Замер",
+        MapTool.LINE to "Линия",
+        MapTool.RECTANGLE to "Прямоугольник",
+        MapTool.CIRCLE to "Круг"
+    )
+    if (vertical) {
+        Column(Modifier.width(88.dp).padding(4.dp), verticalArrangement = Arrangement.spacedBy(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            tools.forEach { (tool, label) ->
+                FilterChip(
+                    selected = selected == tool,
+                    onClick = { onSelect(tool) },
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 2) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    } else {
+        androidx.compose.foundation.lazy.LazyRow(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(tools) { (tool, label) ->
+                FilterChip(selected = selected == tool, onClick = { onSelect(tool) }, label = { Text(label) })
+            }
+        }
     }
 }
 
@@ -544,21 +554,24 @@ private fun CoverageMapCanvas(
                 }
             }
             val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
-                color = colors.primary.toArgb()
+                color = colors.onSurface.toArgb()
                 textSize = 10.dp.toPx()
                 typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
             }
-            samples.forEachIndexed { index, sample ->
+            samples.forEach { sample ->
                 val center = Offset(left + width * sample.x, top + height * sample.y)
                 if (sample.time == selectedPointTime) drawCircle(Color(0xFFFFC857), radius = 16.dp.toPx(), center = center, style = Stroke(3.dp.toPx()))
                 drawCircle(Color.Black.copy(alpha = 0.75f), radius = 11.dp.toPx(), center = center)
                 drawCircle(if (sample.time == selectedPointTime) Color(0xFFFFC857) else heatAccent, radius = 8.dp.toPx(), center = center)
                 drawCircle(Color(0xFF071018), radius = 4.dp.toPx(), center = center)
-                labelPaint.color = colors.onSurface.toArgb()
-                labelPaint.textSize = 9.dp.toPx()
-                if (sample.time == selectedPointTime || index >= samples.lastIndex - 39) {
-                    drawContext.canvas.nativeCanvas.drawText((index + 1).toString(), center.x + 10.dp.toPx(), center.y - 8.dp.toPx(), labelPaint)
-                }
+                val signalLabel = sample.rssi.toString()
+                labelPaint.textSize = 10.dp.toPx()
+                val labelWidth = labelPaint.measureText(signalLabel)
+                val labelX = (center.x + 12.dp.toPx()).coerceAtMost(width - labelWidth - 8.dp.toPx())
+                val labelY = (center.y - 8.dp.toPx()).coerceAtLeast(top + 12.dp.toPx())
+                val labelBounds = android.graphics.RectF(labelX - 4.dp.toPx(), labelY - 10.dp.toPx(), labelX + labelWidth + 4.dp.toPx(), labelY + 4.dp.toPx())
+                drawContext.canvas.nativeCanvas.drawRoundRect(labelBounds, 5.dp.toPx(), 5.dp.toPx(), AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply { color = Color(0xDD071018).toArgb() })
+                drawContext.canvas.nativeCanvas.drawText(signalLabel, labelX, labelY, labelPaint)
             }
             if (drawStart != null && drawPreviewEnd != null) {
                 val start = Offset(left + width * drawStart.x, top + height * drawStart.y)
@@ -710,4 +723,3 @@ private fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
-
