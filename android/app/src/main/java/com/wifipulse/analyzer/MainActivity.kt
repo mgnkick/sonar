@@ -48,6 +48,7 @@ import com.wifipulse.analyzer.ui.screens.ConnectionInfoScreen
 import com.wifipulse.analyzer.ui.screens.DashboardScreen
 import com.wifipulse.analyzer.ui.screens.PermissionsScreen
 import com.wifipulse.analyzer.ui.screens.SignalAnalysisScreen
+import com.wifipulse.analyzer.ui.screens.ExperimentalHeatmapTab
 import com.wifipulse.analyzer.ui.theme.WiFiPulseTheme
 import com.wifipulse.analyzer.ui.viewmodel.WifiViewModel
 
@@ -56,6 +57,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     object SmartAudit : Screen("audit", "Смарт-Аудит", Icons.Default.Shield)
     object Diagnostics : Screen("diagnostics", "Диагностика", Icons.Default.Speed)
     object SignalAnalysis : Screen("signal", "Спектр/Инфо", Icons.Default.Assessment)
+    object CoverageMap : Screen("coverage-map", "Карта", Icons.Default.Map)
 }
 
 class MainActivity : ComponentActivity() {
@@ -64,16 +66,15 @@ class MainActivity : ComponentActivity() {
     private lateinit var connectionHistoryRepository: ConnectionHistoryRepository
     private var hasPermissionsState by mutableStateOf(false)
     private var isBackgroundMonitoringState by mutableStateOf(false)
-    private var pendingBackgroundMonitorStart = false
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (pendingBackgroundMonitorStart) {
-            pendingBackgroundMonitorStart = false
+        if (isBackgroundMonitorStartPending()) {
             if (granted) {
-                startBackgroundMonitoring()
+                completePendingBackgroundMonitorStart()
             } else {
+                setBackgroundMonitorStartPending(false)
                 Toast.makeText(
                     this,
                     "Для отображения мониторинга в системной шторке разрешите уведомления WiFi Pulse.",
@@ -157,6 +158,9 @@ class MainActivity : ComponentActivity() {
         isBackgroundMonitoringState = getSharedPreferences(
             WifiMonitorService.PREFERENCES, MODE_PRIVATE
         ).getBoolean(WifiMonitorService.KEY_RUNNING, false)
+        // A permission dialog can recreate the Activity. Resume the user's pending
+        // start request as soon as Android reports the permission has been granted.
+        completePendingBackgroundMonitorStart()
     }
 
     private fun toggleBackgroundMonitoring() {
@@ -169,11 +173,32 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            pendingBackgroundMonitorStart = true
+            setBackgroundMonitorStartPending(true)
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             return
         }
         startBackgroundMonitoring()
+    }
+
+    private fun completePendingBackgroundMonitorStart() {
+        if (!isBackgroundMonitorStartPending()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+
+        // Clear the marker before starting so an activity-result callback and
+        // onResume cannot start the same foreground service twice.
+        setBackgroundMonitorStartPending(false)
+        startBackgroundMonitoring()
+    }
+
+    private fun isBackgroundMonitorStartPending(): Boolean = getSharedPreferences(
+        WifiMonitorService.PREFERENCES, MODE_PRIVATE
+    ).getBoolean(KEY_PENDING_BACKGROUND_MONITOR_START, false)
+
+    private fun setBackgroundMonitorStartPending(pending: Boolean) {
+        getSharedPreferences(WifiMonitorService.PREFERENCES, MODE_PRIVATE)
+            .edit().putBoolean(KEY_PENDING_BACKGROUND_MONITOR_START, pending).apply()
     }
 
     private fun startBackgroundMonitoring() {
@@ -210,6 +235,10 @@ class MainActivity : ComponentActivity() {
         }
         permissionLauncher.launch(permissions.toTypedArray())
     }
+
+    private companion object {
+        const val KEY_PENDING_BACKGROUND_MONITOR_START = "background_monitor_start_pending"
+    }
 }
 
 @Composable
@@ -229,6 +258,8 @@ fun MainAppContent(
     val clipboardManager = LocalClipboardManager.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val supportCardNumber = BuildConfig.SUPPORT_CARD_NUMBER
+    val supportEmail = BuildConfig.SUPPORT_EMAIL
 
     // Keep automatic scans active only while the app is visible. The periodic scan runs
     // independently of Compose rendering and never changes focus or the manual scan state.
@@ -267,7 +298,8 @@ fun MainAppContent(
         Screen.Dashboard,
         Screen.SmartAudit,
         Screen.Diagnostics,
-        Screen.SignalAnalysis
+        Screen.SignalAnalysis,
+        Screen.CoverageMap
     )
 
     if (showConnectionHistory) {
@@ -304,69 +336,80 @@ fun MainAppContent(
             text = {
                 Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Если приложение оказалось полезным, можно поддержать его донатом в рублях РФ на карту Сбербанка.",
+                        text = "Если приложение оказалось полезным, можно поддержать его разработку.",
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    Text(
-                        text = "Карта Сбербанка",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            Color(0xFFFFC857).copy(alpha = 0.55f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+                    if (supportCardNumber.isNotBlank()) {
+                        Text(
+                            text = "Банковская карта",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                Color(0xFFFFC857).copy(alpha = 0.55f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = "5336 6903 0435 1846",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                modifier = Modifier.clickable {
-                                    clipboardManager.setText(AnnotatedString("5336690304351846"))
-                                }
-                            )
-                            IconButton(
-                                onClick = {
-                                    clipboardManager.setText(AnnotatedString("5336690304351846"))
-                                }
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "Скопировать номер карты",
-                                    tint = MaterialTheme.colorScheme.primary
+                                Text(
+                                    text = supportCardNumber,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    modifier = Modifier.clickable {
+                                        clipboardManager.setText(AnnotatedString(supportCardNumber.filter(Char::isDigit)))
+                                    }
                                 )
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(supportCardNumber.filter(Char::isDigit)))
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Скопировать номер карты",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
+                        Text(
+                            text = "Нажмите на номер, чтобы скопировать",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    Text(
-                        text = "Нажмите на номер, чтобы скопировать",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Связь по электронной почте",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "mgn.kick@gmail.com",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            textDecoration = TextDecoration.Underline
-                        ),
-                        modifier = Modifier.clickable {
-                            uriHandler.openUri("mailto:mgn.kick@gmail.com")
-                        }
-                    )
+                    if (supportEmail.isNotBlank()) {
+                        Text(
+                            text = "Связь по электронной почте",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = supportEmail,
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                textDecoration = TextDecoration.Underline
+                            ),
+                            modifier = Modifier.clickable {
+                                uriHandler.openUri("mailto:$supportEmail")
+                            }
+                        )
+                    }
+                    if (supportCardNumber.isBlank() && supportEmail.isBlank()) {
+                            Text(
+                            text = "Платёжные данные задаются отдельно для каждой сборки.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -375,18 +418,20 @@ fun MainAppContent(
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        clipboardManager.setText(AnnotatedString("5336690304351846"))
+                if (supportCardNumber.isNotBlank()) {
+                    TextButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(supportCardNumber.filter(Char::isDigit)))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Копировать карту")
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text("Копировать карту")
                 }
             },
             containerColor = MaterialTheme.colorScheme.surface,
@@ -522,6 +567,7 @@ fun MainAppContent(
                     onOpenConnectionHistory = { showConnectionHistory = true },
                     onSelectSignalTrackingBssid = { viewModel.selectSignalTrackingBssid(it) }
                 )
+                is Screen.CoverageMap -> ExperimentalHeatmapTab(connectionDetails = uiState.connectionDetails)
             }
         }
     }

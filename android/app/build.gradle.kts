@@ -1,8 +1,25 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
 }
+
+val localSupportProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+fun buildConfigString(value: String): String =
+    "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+val supportCardNumber = System.getenv("SUPPORT_CARD_NUMBER")
+    ?: localSupportProperties.getProperty("support.card.number", "")
+val supportEmail = System.getenv("SUPPORT_EMAIL")
+    ?: localSupportProperties.getProperty("support.email", "")
 
 android {
     namespace = "com.wifipulse.analyzer"
@@ -14,6 +31,9 @@ android {
         targetSdk = 34
         versionCode = 104
         versionName = "0.9.14"
+
+        buildConfigField("String", "SUPPORT_CARD_NUMBER", buildConfigString(supportCardNumber))
+        buildConfigField("String", "SUPPORT_EMAIL", buildConfigString(supportEmail))
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
