@@ -1,5 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
+import com.wifipulse.analyzer.ui.components.Text
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState

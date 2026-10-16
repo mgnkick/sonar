@@ -12,8 +12,8 @@ android {
         applicationId = "com.wifipulse.analyzer"
         minSdk = 26 // Android 8.0 Oreo
         targetSdk = 34
-        versionCode = 108
-        versionName = "0.9.18"
+        versionCode = 109
+        versionName = "0.9.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

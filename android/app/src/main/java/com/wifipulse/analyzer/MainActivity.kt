@@ -1,5 +1,7 @@
 package com.wifipulse.analyzer
 
+import com.wifipulse.analyzer.ui.components.Text
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -9,6 +11,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.border
@@ -18,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -41,6 +46,8 @@ import com.wifipulse.analyzer.ui.screens.ExperimentalHeatmapTab
 import com.wifipulse.analyzer.ui.screens.AboutProgramDialog
 import com.wifipulse.analyzer.ui.theme.WiFiPulseTheme
 import com.wifipulse.analyzer.ui.viewmodel.WifiViewModel
+import com.wifipulse.analyzer.ui.components.AppLanguage
+import com.wifipulse.analyzer.ui.components.LocalAppLanguage
 
 @Composable
 fun AboutIconButton(onClick: () -> Unit) {
@@ -104,7 +111,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             var darkTheme by remember { mutableStateOf(getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).getBoolean("dark_theme", true)) }
+            var appLanguage by remember {
+                mutableStateOf(
+                    if (getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).getString("app_language", "ru") == "en") AppLanguage.EN else AppLanguage.RU
+                )
+            }
             WiFiPulseTheme(darkTheme = darkTheme) {
+                CompositionLocalProvider(LocalAppLanguage provides appLanguage) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -136,6 +149,12 @@ class MainActivity : ComponentActivity() {
                             uiState = uiState,
                             connectionHistoryRepository = connectionHistoryRepository,
                             darkTheme = darkTheme,
+                            appLanguage = appLanguage,
+                            onToggleLanguage = {
+                                appLanguage = if (appLanguage == AppLanguage.RU) AppLanguage.EN else AppLanguage.RU
+                                getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).edit()
+                                    .putString("app_language", if (appLanguage == AppLanguage.EN) "en" else "ru").apply()
+                            },
                             onToggleTheme = {
                                 darkTheme = !darkTheme
                                 getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).edit().putBoolean("dark_theme", darkTheme).apply()
@@ -144,6 +163,7 @@ class MainActivity : ComponentActivity() {
                             onToggleBackgroundMonitoring = { toggleBackgroundMonitoring() }
                         )
                     }
+                }
                 }
             }
         }
@@ -244,6 +264,8 @@ fun MainAppContent(
     uiState: com.wifipulse.analyzer.ui.viewmodel.WifiUiState,
     connectionHistoryRepository: ConnectionHistoryRepository,
     darkTheme: Boolean,
+    appLanguage: AppLanguage,
+    onToggleLanguage: () -> Unit,
     onToggleTheme: () -> Unit,
     isBackgroundMonitoring: Boolean,
     onToggleBackgroundMonitoring: () -> Unit
@@ -340,10 +362,33 @@ fun MainAppContent(
                         )
                     )
                 }
+                androidx.compose.material3.Surface(
+                    onClick = onToggleLanguage,
+                    modifier = Modifier
+                        .padding(end = 2.dp)
+                        .size(width = 34.dp, height = 32.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                            shape = RoundedCornerShape(9.dp)
+                        ),
+                    shape = RoundedCornerShape(9.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            if (appLanguage == AppLanguage.RU) "RU" else "EN",
+                            fontSize = 11.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 IconButton(
                     onClick = onToggleTheme,
                     modifier = Modifier
-                        .padding(end = 4.dp)
+                        .padding(end = 3.dp)
+                        .size(34.dp)
                         .border(
                             width = 1.dp,
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
@@ -352,7 +397,8 @@ fun MainAppContent(
                 ) {
                     Icon(
                         imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                        contentDescription = if (darkTheme) "Включить светлую тему" else "Включить тёмную тему",
+                        contentDescription = if (darkTheme) "Switch to light theme" else "Switch to dark theme",
+                        modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
