@@ -45,15 +45,15 @@ private val DarkColorScheme = darkColorScheme(
 
 private val LightColorScheme = lightColorScheme(
     primary = LightCyanPrimary,
-    onPrimary = Color.White,
+    onPrimary = TextPrimaryLight,
     primaryContainer = ColorTokens.LightPrimaryContainer,
     onPrimaryContainer = Color(0xFF004451),
     secondary = LightCyanSecondary,
-    onSecondary = Color.White,
+    onSecondary = TextPrimaryLight,
     secondaryContainer = ColorTokens.LightSecondaryContainer,
     onSecondaryContainer = Color(0xFF123D49),
     tertiary = LightBlueAccent,
-    onTertiary = Color.White,
+    onTertiary = TextPrimaryLight,
     tertiaryContainer = ColorTokens.LightTertiaryContainer,
     onTertiaryContainer = Color(0xFF30215F),
     background = LightBackground,
@@ -66,7 +66,7 @@ private val LightColorScheme = lightColorScheme(
     outline = LightBorder,
     outlineVariant = Color(0xFFD4E1EA),
     error = Color(0xFFBA1A35),
-    onError = Color.White,
+    onError = TextPrimaryLight,
     errorContainer = Color(0xFFFFDADF),
     onErrorContainer = Color(0xFF41000D)
 )
@@ -115,3 +115,4 @@ fun WiFiPulseTheme(
         content = content
     )
 }
+

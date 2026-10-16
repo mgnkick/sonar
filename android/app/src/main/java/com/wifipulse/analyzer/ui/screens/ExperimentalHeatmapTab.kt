@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -53,7 +54,6 @@ import java.io.File
 import kotlin.math.sqrt
 
 private data class CoverageSample(val x: Float, val y: Float, val rssi: Int, val bssid: String, val time: Long)
-private val HeatCyan = Color(0xFF55F4FF)
 private const val HEAT_PREFS = "wifi_pulse_experimental_coverage"
 private const val HEAT_KEY = "samples"
 private const val PLAN_KEY = "plan_uri"
@@ -65,6 +65,8 @@ private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Floa
 
 @Composable
 fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
+    val colors = MaterialTheme.colorScheme
+    val heatAccent = colors.primary
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences(HEAT_PREFS, Context.MODE_PRIVATE) }
     var samples by remember { mutableStateOf(readSamples(preferences.getString(HEAT_KEY, null))) }
@@ -157,14 +159,17 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 preferences.edit().remove(SHAPES_KEY).apply()
             }) { Text("Убрать изображение и начать заново") }
         }
-        Text("ИНСТРУМЕНТЫ ПЛАНА", color = HeatCyan, style = MaterialTheme.typography.labelLarge)
+        Text("РИСОВАНИЕ И ЗАМЕРЫ", color = heatAccent, style = MaterialTheme.typography.labelLarge)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             item { FilterChip(selected = currentTool == MapTool.MEASURE, onClick = { currentTool = MapTool.MEASURE; drawStart = null; drawPreviewEnd = null }, label = { Text("Замер") }) }
             item { FilterChip(selected = currentTool == MapTool.LINE, onClick = { currentTool = MapTool.LINE; drawStart = null; drawPreviewEnd = null }, label = { Text("Линия") }) }
             item { FilterChip(selected = currentTool == MapTool.RECTANGLE, onClick = { currentTool = MapTool.RECTANGLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Прямоугольник") }) }
             item { FilterChip(selected = currentTool == MapTool.CIRCLE, onClick = { currentTool = MapTool.CIRCLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Круг") }) }
-            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null; drawPreviewEnd = null }, label = { Text("Выбрать объект") }) }
             item { FilterChip(selected = currentTool == MapTool.ERASER, onClick = { currentTool = MapTool.ERASER; drawStart = null; drawPreviewEnd = null }, label = { Text("Ластик") }) }
+        }
+        Text("РАБОТА С ОБЪЕКТАМИ", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge)
+        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null; drawPreviewEnd = null }, label = { Text("Выбрать объект") }) }
         }
         Text(
             when (currentTool) {
@@ -176,16 +181,16 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 MapTool.CIRCLE -> "Проведите пальцем от одного края круга к противоположному."
             },
             style = MaterialTheme.typography.labelSmall,
-            color = HeatCyan
+            color = heatAccent
         )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }, enabled = zoom > 1f || pan != Offset.Zero) { Text("Сбросить масштаб") }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { showFullscreen = true }) { Icon(Icons.Default.Fullscreen, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("На весь экран · альбомно") }
         }
-        Surface(color = Color(0xFF11162A), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, HeatCyan.copy(alpha = 0.55f))) {
+        Surface(color = colors.surfaceVariant, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("ЭКСПЕРИМЕНТАЛЬНОЕ · КАРТА ПОКРЫТИЯ", color = HeatCyan, style = MaterialTheme.typography.labelLarge, letterSpacing = 0.8.sp)
+                Text("ЭКСПЕРИМЕНТАЛЬНОЕ · КАРТА ПОКРЫТИЯ", color = heatAccent, style = MaterialTheme.typography.labelLarge, letterSpacing = 0.8.sp)
                 Text("Переместитесь в нужную зону и коснитесь её на схеме. В точку запишутся текущие RSSI и BSSID.", style = MaterialTheme.typography.bodyMedium)
                 Text("Сейчас: " + (currentRssi?.let { it.toString() + " дБм" } ?: "нет достоверного RSSI") + " · " + currentBssid, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -262,7 +267,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             }
         }
 
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF090D19)), border = androidx.compose.foundation.BorderStroke(1.dp, HeatCyan.copy(alpha = 0.65f))) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             CoverageMapCanvas(
                 modifier = Modifier.fillMaxWidth().height(340.dp),
                 samples = samples,
@@ -293,20 +298,26 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 onDismissRequest = { showFullscreen = false },
                 properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
             ) {
-                Surface(Modifier.fillMaxSize(), color = Color(0xFF070B13)) {
+                Surface(Modifier.fillMaxSize(), color = colors.background) {
                     Column(Modifier.fillMaxSize().padding(10.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("КАРТА ПОКРЫТИЯ · ТСАП", color = HeatCyan, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text("КАРТА ПОКРЫТИЯ · ТСАП", color = heatAccent, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Сброс масштаба") }
-                            IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Закрыть полноэкранный режим", tint = HeatCyan) }
+                            IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Закрыть полноэкранный режим", tint = heatAccent) }
                         }
                         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             item { FilterChip(selected = currentTool == MapTool.MEASURE, onClick = { currentTool = MapTool.MEASURE; drawStart = null; drawPreviewEnd = null }, label = { Text("Замер") }) }
                             item { FilterChip(selected = currentTool == MapTool.LINE, onClick = { currentTool = MapTool.LINE; drawStart = null; drawPreviewEnd = null }, label = { Text("Линия") }) }
                             item { FilterChip(selected = currentTool == MapTool.RECTANGLE, onClick = { currentTool = MapTool.RECTANGLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Прямоугольник") }) }
                             item { FilterChip(selected = currentTool == MapTool.CIRCLE, onClick = { currentTool = MapTool.CIRCLE; drawStart = null; drawPreviewEnd = null }, label = { Text("Круг") }) }
-                            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null; drawPreviewEnd = null }, label = { Text("Выбрать объект") }) }
                             item { FilterChip(selected = currentTool == MapTool.ERASER, onClick = { currentTool = MapTool.ERASER; drawStart = null; drawPreviewEnd = null }, label = { Text("Ластик") }) }
+                        }
+                        Text("ОБЪЕКТЫ", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall)
+                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null; drawPreviewEnd = null }, label = { Text("Выбрать объект") }) }
+                            if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
+                                item { OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") } }
+                            }
                         }
                         Text(
                             when (currentTool) {
@@ -317,15 +328,9 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                                 MapTool.RECTANGLE -> "Перетащите палец от одного угла к противоположному."
                                 MapTool.CIRCLE -> "Перетащите палец от одного края круга к противоположному."
                             },
-                            color = HeatCyan,
+                            color = heatAccent,
                             style = MaterialTheme.typography.labelSmall
                         )
-                        if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text("Объект выбран", color = Color(0xFFFFC857), modifier = Modifier.weight(1f))
-                                OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") }
-                            }
-                        }
                         CoverageMapCanvas(
                             modifier = Modifier.fillMaxWidth().weight(1f),
                             samples = samples,
@@ -356,7 +361,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     selected?.let { "Выбрана точка замера · ${it.rssi} дБм · ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.time))}" }
                         ?: selectedShape?.let { "Выбрана фигура: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг" }}" }
                         ?: "Объект не выбран",
-                    modifier = Modifier.weight(1f), color = HeatCyan, style = MaterialTheme.typography.labelMedium
+                    modifier = Modifier.weight(1f), color = heatAccent, style = MaterialTheme.typography.labelMedium
                 )
                 OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") }
             }
@@ -368,7 +373,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         }
         Text(if (planBitmap == null) "ПУСТАЯ СХЕМА · рисуйте помещение инструментами выше. Точки хранятся локально; цвет между ними — интерполяция измеренного RSSI, не прогноз покрытия." else "ПЛАН/ФОТО · точки привязаны к изображению и хранятся локально. Интерполяция показывает RSSI между реальными замерами.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Измерений: " + samples.size, style = MaterialTheme.typography.titleSmall, color = HeatCyan)
+            Text("Измерений: " + samples.size, style = MaterialTheme.typography.titleSmall, color = heatAccent)
             TextButton(onClick = {
                 val removed = samples.lastOrNull()
                 samples = samples.dropLast(1)
@@ -392,7 +397,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         Text(
             if (currentRssi == null) "Подключите Wi-Fi, чтобы записывать реальные точки уровня сигнала."
             else "Переместитесь в нужную зону и коснитесь её на плане для записи измерения.",
-            color = if (currentRssi == null) MaterialTheme.colorScheme.error else HeatCyan,
+            color = if (currentRssi == null) MaterialTheme.colorScheme.error else heatAccent,
             style = MaterialTheme.typography.bodySmall
         )
     }
@@ -417,6 +422,8 @@ private fun CoverageMapCanvas(
     onShapeDragPreview: (Offset?, Offset?) -> Unit,
     clearShapePreview: () -> Unit
 ) {
+    val colors = MaterialTheme.colorScheme
+    val heatAccent = colors.primary
     val interpolationSamples = remember(samples) { samples.takeLast(60) }
     Box(
         modifier.clip(RoundedCornerShape(14.dp))
@@ -488,7 +495,7 @@ private fun CoverageMapCanvas(
             val height = minOf(availableHeight, availableWidth / aspect)
             val left = (size.width - width) / 2f
             val top = (size.height - height) / 2f
-            drawRect(Color(0xFF090D19), Offset.Zero, Size(size.width, size.height))
+            drawRect(colors.surfaceVariant, Offset.Zero, Size(size.width, size.height))
             planBitmap?.let { bitmap ->
                 drawIntoCanvas { canvas ->
                     val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG or AndroidPaint.FILTER_BITMAP_FLAG)
@@ -521,7 +528,7 @@ private fun CoverageMapCanvas(
                     drawRect(heat.copy(alpha = 0.48f), Offset(left + col * cellW, top + row * cellH), Size(cellW + 1f, cellH + 1f))
                 }
             }
-            val wall = HeatCyan.copy(alpha = 0.8f)
+            val wall = heatAccent.copy(alpha = 0.8f)
             sketchShapes.forEachIndexed { index, shape ->
                 val p1 = Offset(left + width * shape.x1, top + height * shape.y1)
                 val p2 = Offset(left + width * shape.x2, top + height * shape.y2)
@@ -537,7 +544,7 @@ private fun CoverageMapCanvas(
                 }
             }
             val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
-                color = android.graphics.Color.argb(230, 85, 244, 255)
+                color = colors.primary.toArgb()
                 textSize = 10.dp.toPx()
                 typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
             }
@@ -545,9 +552,9 @@ private fun CoverageMapCanvas(
                 val center = Offset(left + width * sample.x, top + height * sample.y)
                 if (sample.time == selectedPointTime) drawCircle(Color(0xFFFFC857), radius = 16.dp.toPx(), center = center, style = Stroke(3.dp.toPx()))
                 drawCircle(Color.Black.copy(alpha = 0.75f), radius = 11.dp.toPx(), center = center)
-                drawCircle(if (sample.time == selectedPointTime) Color(0xFFFFC857) else HeatCyan, radius = 8.dp.toPx(), center = center)
+                drawCircle(if (sample.time == selectedPointTime) Color(0xFFFFC857) else heatAccent, radius = 8.dp.toPx(), center = center)
                 drawCircle(Color(0xFF071018), radius = 4.dp.toPx(), center = center)
-                labelPaint.color = android.graphics.Color.WHITE
+                labelPaint.color = colors.onSurface.toArgb()
                 labelPaint.textSize = 9.dp.toPx()
                 if (sample.time == selectedPointTime || index >= samples.lastIndex - 39) {
                     drawContext.canvas.nativeCanvas.drawText((index + 1).toString(), center.x + 10.dp.toPx(), center.y - 8.dp.toPx(), labelPaint)
@@ -570,10 +577,10 @@ private fun CoverageMapCanvas(
         Canvas(Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val halfLength = 9.dp.toPx()
-            val crosshair = HeatCyan.copy(alpha = 0.9f)
+            val crosshair = heatAccent.copy(alpha = 0.9f)
             drawLine(crosshair, Offset(center.x - halfLength, center.y), Offset(center.x + halfLength, center.y), strokeWidth = 1.4.dp.toPx())
             drawLine(crosshair, Offset(center.x, center.y - halfLength), Offset(center.x, center.y + halfLength), strokeWidth = 1.4.dp.toPx())
-            drawCircle(Color.White.copy(alpha = 0.9f), radius = 1.8.dp.toPx(), center = center)
+            drawCircle(colors.onSurface.copy(alpha = 0.9f), radius = 1.8.dp.toPx(), center = center)
         }
     }
 }
@@ -703,3 +710,4 @@ private fun Context.findActivity(): Activity? = when (this) {
     is ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+

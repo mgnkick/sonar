@@ -650,3 +650,4 @@ class NetworkDiagnosticRepository {
     }
 
 }
+
