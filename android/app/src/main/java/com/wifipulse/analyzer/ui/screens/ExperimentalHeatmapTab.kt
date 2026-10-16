@@ -5,6 +5,8 @@ import android.graphics.Paint as AndroidPaint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.RectF
+import android.graphics.ImageDecoder
+import android.os.Build
 import android.app.Activity
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
@@ -56,7 +58,6 @@ private const val HEAT_PREFS = "wifi_pulse_experimental_coverage"
 private const val HEAT_KEY = "samples"
 private const val PLAN_KEY = "plan_uri"
 private const val SHAPES_KEY = "sketch_shapes"
-private const val DEFAULT_PLAN_ASPECT = 1f
 
 private enum class MapTool { MEASURE, SELECT_OBJECT, ERASER, LINE, RECTANGLE, CIRCLE }
 private enum class SketchKind { LINE, RECTANGLE, CIRCLE }
@@ -84,9 +85,15 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     }
     var planUriString by remember { mutableStateOf(preferences.getString(PLAN_KEY, null)) }
     var pendingCameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var planLoadFailed by remember(planUriString) { mutableStateOf(false) }
     val planBitmap by produceState<Bitmap?>(null, planUriString) {
-        value = withContext(Dispatchers.IO) {
-            planUriString?.let { uri -> runCatching { decodePlanBitmap(context, android.net.Uri.parse(uri)) }.getOrNull() }
+        val uri = planUriString
+        if (uri == null) {
+            value = null
+        } else {
+            val result = withContext(Dispatchers.IO) { runCatching { decodePlanBitmap(context, android.net.Uri.parse(uri)) } }
+            value = result.getOrNull()
+            planLoadFailed = result.isFailure || result.getOrNull() == null
         }
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -134,6 +141,9 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             }
         }
         Text("Поддерживаются JPG/JPEG, PNG, BMP, GIF и WebP (у анимации берётся первый кадр). HEIC/HEIF — Android 9+, AVIF — Android 12+ при поддержке устройством. PDF и SVG не поддерживаются.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (planLoadFailed) {
+            Text("Не удалось открыть изображение. Выберите JPG или PNG и попробуйте ещё раз.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
         if (planUriString != null) {
             TextButton(onClick = {
                 planUriString?.let { uri -> runCatching { context.contentResolver.releasePersistableUriPermission(android.net.Uri.parse(uri), android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
@@ -418,17 +428,14 @@ private fun CoverageMapCanvas(
                         (position.x - center.x - pan.x) / zoom + center.x,
                         (position.y - center.y - pan.y) / zoom + center.y
                     )
-                    val margin = 20.dp.toPx()
-                    val availableWidth = (size.width - 2 * margin).coerceAtLeast(1f)
-                    val availableHeight = (size.height - 2 * margin).coerceAtLeast(1f)
-                    val aspect = planBitmap?.let { it.width.toFloat() / it.height.toFloat() } ?: DEFAULT_PLAN_ASPECT
+                    val availableWidth = size.width.coerceAtLeast(1f)
+                    val availableHeight = size.height.coerceAtLeast(1f)
+                    val aspect = planBitmap?.let { it.width.toFloat() / it.height.toFloat() } ?: (availableWidth / availableHeight)
                     val mapWidth = minOf(availableWidth, availableHeight * aspect)
                     val mapHeight = minOf(availableHeight, availableWidth / aspect)
                     val left = (size.width - mapWidth) / 2f
                     val top = (size.height - mapHeight) / 2f
-                    return if (untransformed.x in left..(left + mapWidth) && untransformed.y in top..(top + mapHeight)) {
-                        Offset(((untransformed.x - left) / mapWidth).coerceIn(0f, 1f), ((untransformed.y - top) / mapHeight).coerceIn(0f, 1f))
-                    } else null
+                    return Offset((untransformed.x - left) / mapWidth, (untransformed.y - top) / mapHeight)
                 }
                 if (tool == MapTool.LINE || tool == MapTool.RECTANGLE || tool == MapTool.CIRCLE) {
                     var dragStart: Offset? = null
@@ -472,19 +479,17 @@ private fun CoverageMapCanvas(
             translationY = pan.y
             transformOrigin = TransformOrigin.Center
         }) {
-            val margin = 20.dp.toPx()
-            val availableWidth = (size.width - 2 * margin).coerceAtLeast(1f)
-            val availableHeight = (size.height - 2 * margin).coerceAtLeast(1f)
-            val aspect = planBitmap?.let { it.width.toFloat() / it.height.toFloat() } ?: DEFAULT_PLAN_ASPECT
+            val availableWidth = size.width.coerceAtLeast(1f)
+            val availableHeight = size.height.coerceAtLeast(1f)
+            val aspect = planBitmap?.let { it.width.toFloat() / it.height.toFloat() } ?: (availableWidth / availableHeight)
             val width = minOf(availableWidth, availableHeight * aspect)
             val height = minOf(availableHeight, availableWidth / aspect)
             val left = (size.width - width) / 2f
             val top = (size.height - height) / 2f
             drawRect(Color(0xFF090D19), Offset.Zero, Size(size.width, size.height))
-            drawRect(Color(0xFF10182A), Offset(left, top), Size(width, height))
             planBitmap?.let { bitmap ->
                 drawIntoCanvas { canvas ->
-                    val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG or AndroidPaint.FILTER_BITMAP_FLAG).apply { alpha = 165 }
+                    val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG or AndroidPaint.FILTER_BITMAP_FLAG)
                     canvas.nativeCanvas.drawBitmap(bitmap, null, RectF(left, top, left + width, top + height), paint)
                 }
             }
@@ -559,7 +564,14 @@ private fun CoverageMapCanvas(
                     else -> Unit
                 }
             }
-            drawRect(HeatCyan.copy(alpha = 0.8f), Offset(left, top), Size(width, height), style = Stroke(2.dp.toPx()))
+        }
+        Canvas(Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val halfLength = 9.dp.toPx()
+            val crosshair = HeatCyan.copy(alpha = 0.9f)
+            drawLine(crosshair, Offset(center.x - halfLength, center.y), Offset(center.x + halfLength, center.y), strokeWidth = 1.4.dp.toPx())
+            drawLine(crosshair, Offset(center.x, center.y - halfLength), Offset(center.x, center.y + halfLength), strokeWidth = 1.4.dp.toPx())
+            drawCircle(Color.White.copy(alpha = 0.9f), radius = 1.8.dp.toPx(), center = center)
         }
     }
 }
@@ -620,8 +632,8 @@ private fun readSamples(serialized: String?): List<CoverageSample> {
             for (i in 0 until array.length()) {
                 val item = array.getJSONObject(i)
                 add(CoverageSample(
-                    x = item.getDouble("x").toFloat().coerceIn(0f, 1f),
-                    y = item.getDouble("y").toFloat().coerceIn(0f, 1f),
+                    x = item.getDouble("x").toFloat(),
+                    y = item.getDouble("y").toFloat(),
                     rssi = item.getInt("rssi").coerceIn(-100, 0),
                     bssid = item.optString("bssid", "BSSID недоступен"),
                     time = item.optLong("time")
@@ -668,6 +680,14 @@ private fun writeShapes(shapes: List<SketchShape>): String = JSONArray().apply {
 }.toString()
 
 private fun decodePlanBitmap(context: Context, uri: android.net.Uri): Bitmap? {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        val source = ImageDecoder.createSource(context.contentResolver, uri)
+        return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+            val scale = minOf(1f, 2048f / maxOf(info.size.width, info.size.height).toFloat())
+            decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+    }
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
     var sampleSize = 1
