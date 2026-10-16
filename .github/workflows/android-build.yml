@@ -55,11 +55,35 @@ jobs:
           test -s android/app/build/outputs/apk/release/app-release.apk
           ls -lh android/app/build/outputs/apk/release/app-release.apk
 
+      - name: Prepare APK and version metadata
+        run: |
+          mkdir -p release-assets
+          cp android/app/build/outputs/apk/release/app-release.apk release-assets/app-release.apk
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import re
+
+          gradle = pathlib.Path("android/app/build.gradle.kts").read_text(encoding="utf-8")
+          version_name = re.search(r'\bversionName\s*=\s*"([^"]+)"', gradle)
+          version_code = re.search(r"\bversionCode\s*=\s*(\d+)", gradle)
+          if not version_name or not version_code:
+              raise SystemExit("Could not read Android versionName/versionCode")
+          metadata = {
+              "versionName": version_name.group(1),
+              "versionCode": int(version_code.group(1)),
+          }
+          pathlib.Path("release-assets/version.json").write_text(
+              json.dumps(metadata, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(metadata))
+          PY
+
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: WiFiPulse-Android-Release-APK
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: release-assets/*
           if-no-files-found: error
           retention-days: 14
   publish-release:
@@ -84,7 +108,7 @@ jobs:
           RELEASE_TAG: wifi-sonar-build-${{ github.run_id }}-${{ github.run_attempt }}
           RELEASE_TITLE: WiFi Sonar APK build ${{ github.run_number }}
         run: |
-          gh release create "$RELEASE_TAG" "$APK_PATH" --repo "$GITHUB_REPOSITORY" \
+          gh release create "$RELEASE_TAG" "$APK_PATH" release/version.json --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$RELEASE_TITLE" \
-            --notes "Automatically built from commit $GITHUB_SHA."
+            --notes "Automatically built from commit $GITHUB_SHA. Includes app version metadata for the website."
