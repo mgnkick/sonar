@@ -1,5 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
+import com.wifipulse.analyzer.ui.components.Text
+
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper

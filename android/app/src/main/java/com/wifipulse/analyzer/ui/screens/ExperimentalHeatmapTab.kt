@@ -1,5 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
+import com.wifipulse.analyzer.ui.components.Text
+
 import android.content.Context
 import android.graphics.Paint as AndroidPaint
 import android.graphics.Bitmap
