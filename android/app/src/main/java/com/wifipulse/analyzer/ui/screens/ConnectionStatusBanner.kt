@@ -1,5 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
+import com.wifipulse.analyzer.ui.components.Text
+
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.provider.Settings

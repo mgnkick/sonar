@@ -1,5 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
+import com.wifipulse.analyzer.ui.components.Text
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
