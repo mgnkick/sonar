@@ -78,6 +78,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     var drawStart by remember { mutableStateOf<Offset?>(null) }
     var drawPreviewEnd by remember { mutableStateOf<Offset?>(null) }
     var showFullscreen by remember { mutableStateOf(false) }
+    var fullscreenToolsExpanded by remember { mutableStateOf(true) }
     var zoom by remember { mutableFloatStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
@@ -176,7 +177,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }, enabled = zoom > 1f || pan != Offset.Zero) { Text("Сбросить масштаб") }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { showFullscreen = true }) { Icon(Icons.Default.Fullscreen, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("На весь экран · альбомно") }
+            TextButton(onClick = { fullscreenToolsExpanded = true; showFullscreen = true }) { Icon(Icons.Default.Fullscreen, contentDescription = null); Spacer(Modifier.width(4.dp)); Text("На весь экран · альбомно") }
         }
         Surface(color = colors.surfaceVariant, shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -311,10 +312,14 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             onShapeDragPreview = onShapeDragPreview,
                             clearShapePreview = clearShapePreview
                         )
-                        Row(Modifier.align(Alignment.TopStart).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("КАРТА ПОКРЫТИЯ · ТСАП", color = heatAccent, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        Column(Modifier.align(Alignment.TopStart).width(150.dp)) {
+                            Text("КАРТА ПОКРЫТИЯ · ТСАП", color = heatAccent, style = MaterialTheme.typography.labelLarge)
                             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Сброс масштаба") }
-                            IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Закрыть полноэкранный режим", tint = heatAccent) }
+                            TextButton(onClick = { showFullscreen = false }) {
+                                Icon(Icons.Default.FullscreenExit, contentDescription = null, tint = heatAccent)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Выйти")
+                            }
                         }
                         Surface(
                             modifier = Modifier.align(Alignment.CenterEnd),
@@ -322,10 +327,19 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             shape = RoundedCornerShape(14.dp),
                             border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.7f))
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = true)
-                                if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
-                                    TextButton(onClick = deleteSelectedObject) { Text("Удалить") }
+                            if (fullscreenToolsExpanded) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    IconButton(onClick = { fullscreenToolsExpanded = false }) {
+                                        Text("›", color = heatAccent, style = MaterialTheme.typography.titleLarge)
+                                    }
+                                    MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = true)
+                                    if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
+                                        TextButton(onClick = deleteSelectedObject) { Text("Удалить") }
+                                    }
+                                }
+                            } else {
+                                IconButton(onClick = { fullscreenToolsExpanded = true }) {
+                                    Text("‹", color = heatAccent, style = MaterialTheme.typography.titleLarge)
                                 }
                             }
                         }
