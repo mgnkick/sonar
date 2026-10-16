@@ -56,7 +56,7 @@ private const val HEAT_KEY = "samples"
 private const val PLAN_KEY = "plan_uri"
 private const val SHAPES_KEY = "sketch_shapes"
 
-private enum class MapTool { MEASURE, SELECT_POINT, LINE, RECTANGLE, CIRCLE }
+private enum class MapTool { MEASURE, DELETE, ERASER, LINE, RECTANGLE, CIRCLE }
 private enum class SketchKind { LINE, RECTANGLE, CIRCLE }
 private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Float, val x2: Float, val y2: Float)
 
@@ -67,6 +67,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     var samples by remember { mutableStateOf(readSamples(preferences.getString(HEAT_KEY, null))) }
     var sketchShapes by remember { mutableStateOf(readShapes(preferences.getString(SHAPES_KEY, null))) }
     var selectedPointTime by remember { mutableStateOf<Long?>(null) }
+    var selectedShapeIndex by remember { mutableIntStateOf(-1) }
     var currentTool by remember { mutableStateOf(MapTool.MEASURE) }
     var drawStart by remember { mutableStateOf<Offset?>(null) }
     var showFullscreen by remember { mutableStateOf(false) }
@@ -93,6 +94,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             samples = emptyList()
             sketchShapes = emptyList()
             selectedPointTime = null
+            selectedShapeIndex = -1
             preferences.edit().remove(HEAT_KEY).apply()
             preferences.edit().remove(SHAPES_KEY).apply()
         }
@@ -105,6 +107,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             samples = emptyList()
             sketchShapes = emptyList()
             selectedPointTime = null
+            selectedShapeIndex = -1
             preferences.edit().remove(HEAT_KEY).apply()
             preferences.edit().remove(SHAPES_KEY).apply()
         }
@@ -136,21 +139,25 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 samples = emptyList()
                 sketchShapes = emptyList()
                 selectedPointTime = null
+                selectedShapeIndex = -1
                 preferences.edit().remove(HEAT_KEY).apply()
                 preferences.edit().remove(SHAPES_KEY).apply()
             }) { Text("Убрать изображение и начать заново") }
         }
+        Text("ИНСТРУМЕНТЫ ПЛАНА", color = HeatCyan, style = MaterialTheme.typography.labelLarge)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            item { FilterChip(selected = currentTool == MapTool.MEASURE, onClick = { currentTool = MapTool.MEASURE; drawStart = null }, label = { Text("Точка замера") }) }
-            item { FilterChip(selected = currentTool == MapTool.SELECT_POINT, onClick = { currentTool = MapTool.SELECT_POINT; drawStart = null }, label = { Text("Выбрать точку") }) }
+            item { FilterChip(selected = currentTool == MapTool.MEASURE, onClick = { currentTool = MapTool.MEASURE; drawStart = null }, label = { Text("Замер") }) }
             item { FilterChip(selected = currentTool == MapTool.LINE, onClick = { currentTool = MapTool.LINE; drawStart = null }, label = { Text("Линия") }) }
             item { FilterChip(selected = currentTool == MapTool.RECTANGLE, onClick = { currentTool = MapTool.RECTANGLE; drawStart = null }, label = { Text("Прямоугольник") }) }
             item { FilterChip(selected = currentTool == MapTool.CIRCLE, onClick = { currentTool = MapTool.CIRCLE; drawStart = null }, label = { Text("Круг") }) }
+            item { FilterChip(selected = currentTool == MapTool.DELETE, onClick = { currentTool = MapTool.DELETE; drawStart = null }, label = { Text("Удаление") }) }
+            item { FilterChip(selected = currentTool == MapTool.ERASER, onClick = { currentTool = MapTool.ERASER; drawStart = null }, label = { Text("Ластик") }) }
         }
         Text(
             when (currentTool) {
                 MapTool.MEASURE -> "Касание добавляет замер RSSI. Сведите/разведите пальцы для масштаба, перетаскивайте план для перемещения."
-                MapTool.SELECT_POINT -> "Коснитесь метки замера, чтобы выбрать её и удалить отдельно."
+                MapTool.DELETE -> "Коснитесь метки или контура, чтобы выбрать объект; затем нажмите «Удалить выбранное»."
+                MapTool.ERASER -> "Коснитесь метки или контура, чтобы сразу стереть ближайший объект."
                 else -> "Коснитесь двух точек: первая задаёт начало, вторая — конец фигуры."
             },
             style = MaterialTheme.typography.labelSmall,
@@ -175,19 +182,36 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     val timestamp = maxOf(System.currentTimeMillis(), (samples.lastOrNull()?.time ?: 0L) + 1L)
                     samples = (samples + CoverageSample(point.x, point.y, currentRssi, currentBssid, timestamp)).takeLast(200)
                     selectedPointTime = timestamp
+                    selectedShapeIndex = -1
                     preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
                 }
-                MapTool.SELECT_POINT -> {
-                    val nearest = samples.minByOrNull { sample ->
+                MapTool.DELETE, MapTool.ERASER -> {
+                    val sampleHit = samples.map { sample ->
                         val dx = sample.x - point.x
                         val dy = sample.y - point.y
-                        dx * dx + dy * dy
+                        sample to (dx * dx + dy * dy)
+                    }.filter { it.second < 0.0064f / (zoom * zoom) }
+                        .minByOrNull { it.second }
+                    val shapeHit = sketchShapes.mapIndexed { index, shape ->
+                        index to distanceToShape(point, shape)
+                    }.filter { it.second < 0.0036f / (zoom * zoom) }
+                        .minByOrNull { it.second }
+                    val hitSampleFirst = sampleHit != null && (shapeHit == null || sampleHit.second <= shapeHit.second)
+                    if (currentTool == MapTool.DELETE) {
+                        selectedPointTime = if (hitSampleFirst) sampleHit?.first?.time else null
+                        selectedShapeIndex = if (!hitSampleFirst) shapeHit?.first ?: -1 else -1
+                    } else if (hitSampleFirst) {
+                        val erasedTime = sampleHit?.first?.time
+                        samples = samples.filterNot { it.time == erasedTime }
+                        selectedPointTime = null
+                        selectedShapeIndex = -1
+                        preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
+                    } else if (shapeHit != null) {
+                        sketchShapes = sketchShapes.filterIndexed { index, _ -> index != shapeHit.first }
+                        selectedPointTime = null
+                        selectedShapeIndex = -1
+                        preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
                     }
-                    selectedPointTime = nearest?.takeIf { sample ->
-                        val dx = sample.x - point.x
-                        val dy = sample.y - point.y
-                        dx * dx + dy * dy < 0.0064f / (zoom * zoom)
-                    }?.time
                 }
                 else -> {
                     val start = drawStart
@@ -199,6 +223,8 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             else -> SketchKind.CIRCLE
                         }
                         sketchShapes = sketchShapes + SketchShape(kind, start.x, start.y, point.x, point.y)
+                        selectedPointTime = null
+                        selectedShapeIndex = sketchShapes.lastIndex
                         preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
                         drawStart = null
                     }
@@ -215,6 +241,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 tool = currentTool,
                 drawStart = drawStart,
                 selectedPointTime = selectedPointTime,
+                selectedShapeIndex = selectedShapeIndex,
                 zoom = zoom,
                 pan = pan,
                 transformState = transformState,
@@ -247,6 +274,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             tool = currentTool,
                             drawStart = drawStart,
                             selectedPointTime = selectedPointTime,
+                            selectedShapeIndex = selectedShapeIndex,
                             zoom = zoom,
                             pan = pan,
                             transformState = transformState,
@@ -256,15 +284,27 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                 }
             }
         }
-        if (selectedPointTime != null) {
+        if (selectedPointTime != null || selectedShapeIndex >= 0) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 val selected = samples.firstOrNull { it.time == selectedPointTime }
-                Text(selected?.let { "Выбрана точка: ${it.rssi} дБм · ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.time))}" } ?: "Точка не выбрана", modifier = Modifier.weight(1f), color = HeatCyan, style = MaterialTheme.typography.labelMedium)
+                val selectedShape = sketchShapes.getOrNull(selectedShapeIndex)
+                Text(
+                    selected?.let { "Выбрана точка замера · ${it.rssi} дБм · ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.time))}" }
+                        ?: selectedShape?.let { "Выбрана фигура: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг" }}" }
+                        ?: "Объект не выбран",
+                    modifier = Modifier.weight(1f), color = HeatCyan, style = MaterialTheme.typography.labelMedium
+                )
                 OutlinedButton(onClick = {
-                    samples = samples.filterNot { it.time == selectedPointTime }
-                    selectedPointTime = null
-                    preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
-                }) { Text("Удалить выбранную") }
+                    if (selectedPointTime != null) {
+                        samples = samples.filterNot { it.time == selectedPointTime }
+                        selectedPointTime = null
+                        preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
+                    } else if (selectedShapeIndex in sketchShapes.indices) {
+                        sketchShapes = sketchShapes.filterIndexed { index, _ -> index != selectedShapeIndex }
+                        selectedShapeIndex = -1
+                        preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
+                    }
+                }) { Text("Удалить выбранное") }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -272,7 +312,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             HeatLegend(Color(0xFFFFC857), "Средний −65")
             HeatLegend(Color(0xFFFF5364), "Слабый ≤ −85")
         }
-        Text(if (planBitmap == null) "СХЕМА УСЛОВНАЯ · точки хранятся локально. Цвет между точками — интерполяция измеренного RSSI, не прогноз радиопокрытия." else "ПЛАН/ФОТО · точки привязаны к изображению и хранятся локально. Интерполяция показывает RSSI между реальными замерами.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (planBitmap == null) "ПУСТАЯ СХЕМА · рисуйте помещение инструментами выше. Точки хранятся локально; цвет между ними — интерполяция измеренного RSSI, не прогноз покрытия." else "ПЛАН/ФОТО · точки привязаны к изображению и хранятся локально. Интерполяция показывает RSSI между реальными замерами.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Измерений: " + samples.size, style = MaterialTheme.typography.titleSmall, color = HeatCyan)
             TextButton(onClick = {
@@ -289,7 +329,9 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         }
         if (sketchShapes.isNotEmpty()) {
             TextButton(onClick = {
+                val removedIndex = sketchShapes.lastIndex
                 sketchShapes = sketchShapes.dropLast(1)
+                if (selectedShapeIndex == removedIndex) selectedShapeIndex = -1
                 preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
             }) { Text("Отменить последнюю фигуру") }
         }
@@ -311,6 +353,7 @@ private fun CoverageMapCanvas(
     tool: MapTool,
     drawStart: Offset?,
     selectedPointTime: Long?,
+    selectedShapeIndex: Int,
     zoom: Float,
     pan: Offset,
     transformState: androidx.compose.foundation.gestures.TransformableState,
@@ -382,24 +425,17 @@ private fun CoverageMapCanvas(
                 }
             }
             val wall = HeatCyan.copy(alpha = 0.8f)
-            if (planBitmap == null) {
-                drawRect(wall, Offset(left, top), Size(width, height), style = Stroke(2.dp.toPx()))
-                drawLine(wall.copy(alpha = 0.45f), Offset(left + width * 0.34f, top), Offset(left + width * 0.34f, top + height * 0.42f), 1.5.dp.toPx())
-                drawLine(wall.copy(alpha = 0.45f), Offset(left + width * 0.34f, top + height * 0.58f), Offset(left + width * 0.34f, top + height), 1.5.dp.toPx())
-                drawLine(wall.copy(alpha = 0.45f), Offset(left + width * 0.68f, top), Offset(left + width * 0.68f, top + height * 0.35f), 1.5.dp.toPx())
-                drawLine(wall.copy(alpha = 0.45f), Offset(left + width * 0.68f, top + height * 0.52f), Offset(left + width * 0.68f, top + height), 1.5.dp.toPx())
-                drawLine(wall.copy(alpha = 0.45f), Offset(left, top + height * 0.55f), Offset(left + width * 0.34f, top + height * 0.55f), 1.5.dp.toPx())
-                drawLine(wall.copy(alpha = 0.45f), Offset(left + width * 0.68f, top + height * 0.55f), Offset(left + width, top + height * 0.55f), 1.5.dp.toPx())
-            }
-            sketchShapes.forEach { shape ->
+            sketchShapes.forEachIndexed { index, shape ->
                 val p1 = Offset(left + width * shape.x1, top + height * shape.y1)
                 val p2 = Offset(left + width * shape.x2, top + height * shape.y2)
+                val shapeColor = if (index == selectedShapeIndex) Color(0xFFFFC857) else wall
+                val shapeStroke = if (index == selectedShapeIndex) 5.dp.toPx() else 3.dp.toPx()
                 when (shape.kind) {
-                    SketchKind.LINE -> drawLine(wall, p1, p2, strokeWidth = 3.dp.toPx())
-                    SketchKind.RECTANGLE -> drawRect(wall, Offset(minOf(p1.x, p2.x), minOf(p1.y, p2.y)), Size(kotlin.math.abs(p2.x - p1.x), kotlin.math.abs(p2.y - p1.y)), style = Stroke(3.dp.toPx()))
+                    SketchKind.LINE -> drawLine(shapeColor, p1, p2, strokeWidth = shapeStroke)
+                    SketchKind.RECTANGLE -> drawRect(shapeColor, Offset(minOf(p1.x, p2.x), minOf(p1.y, p2.y)), Size(kotlin.math.abs(p2.x - p1.x), kotlin.math.abs(p2.y - p1.y)), style = Stroke(shapeStroke))
                     SketchKind.CIRCLE -> {
                         val center = Offset((p1.x + p2.x) / 2f, (p1.y + p2.y) / 2f)
-                        drawCircle(wall, radius = sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)) / 2f, center = center, style = Stroke(3.dp.toPx()))
+                        drawCircle(shapeColor, radius = sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)) / 2f, center = center, style = Stroke(shapeStroke))
                     }
                 }
             }
@@ -407,11 +443,6 @@ private fun CoverageMapCanvas(
                 color = android.graphics.Color.argb(230, 85, 244, 255)
                 textSize = 10.dp.toPx()
                 typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
-            }
-            if (planBitmap == null) {
-                listOf(Triple("ЗОНА A", 0.17f, 0.25f), Triple("ЗОНА B", 0.51f, 0.25f), Triple("ЗОНА C", 0.84f, 0.25f), Triple("ЗОНА D", 0.17f, 0.78f), Triple("ЗОНА E", 0.51f, 0.78f), Triple("ЗОНА F", 0.84f, 0.78f)).forEach { zone ->
-                    drawContext.canvas.nativeCanvas.drawText(zone.first, left + width * zone.second, top + height * zone.third, labelPaint)
-                }
             }
             samples.forEachIndexed { index, sample ->
                 val center = Offset(left + width * sample.x, top + height * sample.y)
@@ -431,6 +462,46 @@ private fun CoverageMapCanvas(
             drawRect(HeatCyan.copy(alpha = 0.8f), Offset(left, top), Size(width, height), style = Stroke(2.dp.toPx()))
         }
     }
+}
+
+private fun distanceToShapeSquared(point: Offset, shape: SketchShape): Float {
+    val start = Offset(shape.x1, shape.y1)
+    val end = Offset(shape.x2, shape.y2)
+    return when (shape.kind) {
+        SketchKind.LINE -> distanceToSegmentSquared(point, start, end)
+        SketchKind.RECTANGLE -> {
+            val left = minOf(start.x, end.x)
+            val right = maxOf(start.x, end.x)
+            val top = minOf(start.y, end.y)
+            val bottom = maxOf(start.y, end.y)
+            minOf(
+                distanceToSegmentSquared(point, Offset(left, top), Offset(right, top)),
+                distanceToSegmentSquared(point, Offset(right, top), Offset(right, bottom)),
+                distanceToSegmentSquared(point, Offset(right, bottom), Offset(left, bottom)),
+                distanceToSegmentSquared(point, Offset(left, bottom), Offset(left, top))
+            )
+        }
+        SketchKind.CIRCLE -> {
+            val center = Offset((start.x + end.x) / 2f, (start.y + end.y) / 2f)
+            val radius = sqrt((end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y)) / 2f
+            val radialDifference = (sqrt(distanceToSegmentSquared(point, center, center)) - radius).coerceAtLeast(0f)
+            radialDifference * radialDifference
+        }
+    }
+}
+
+private fun distanceToShape(point: Offset, shape: SketchShape): Float = distanceToShapeSquared(point, shape)
+
+private fun distanceToSegmentSquared(point: Offset, start: Offset, end: Offset): Float {
+    val dx = end.x - start.x
+    val dy = end.y - start.y
+    val lengthSquared = dx * dx + dy * dy
+    val projection = if (lengthSquared == 0f) 0f else (((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared).coerceIn(0f, 1f)
+    val nearestX = start.x + projection * dx
+    val nearestY = start.y + projection * dy
+    val deltaX = point.x - nearestX
+    val deltaY = point.y - nearestY
+    return deltaX * deltaX + deltaY * deltaY
 }
 
 @Composable
