@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -185,7 +186,8 @@ fun ConnectionStatusPanel(
     isRefreshing: Boolean,
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showRefreshButton: Boolean = true
 ) {
     var clockNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(lastScanTimestamp) {
@@ -224,21 +226,31 @@ fun ConnectionStatusPanel(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            IconButton(
-                onClick = onRefreshNetworks,
-                enabled = !isRefreshing,
-                modifier = Modifier.size(36.dp)
-            ) {
-                if (isRefreshing) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    androidx.compose.material3.Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Обновить список видимых сетей",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+            if (showRefreshButton) {
+                IconButton(
+                    onClick = onRefreshNetworks,
+                    enabled = !isRefreshing,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Обновить список видимых сетей",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StickyWifiRefreshButton(isRefreshing: Boolean, onRefresh: () -> Unit) {
+    FloatingActionButton(onClick = onRefresh, containerColor = MaterialTheme.colorScheme.primary) {
+        if (isRefreshing) CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+        else androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Обновить статус Wi-Fi и список сетей", tint = MaterialTheme.colorScheme.onPrimary)
     }
 }

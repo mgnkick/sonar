@@ -40,7 +40,13 @@ data class TracerouteHop(
     val rttMs: Float? = null,
     val isTimeout: Boolean = false,
     val isTargetReached: Boolean = false,
-    val rawOutput: String = ""
+    val rawOutput: String = "",
+    val probesSent: Int = 0,
+    val probesReceived: Int = 0,
+    val lossPercent: Float = 0f,
+    val minRttMs: Float? = null,
+    val averageRttMs: Float? = null,
+    val maxRttMs: Float? = null
 )
 
 sealed class DiagnosticLogEntry {
