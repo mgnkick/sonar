@@ -223,8 +223,8 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
         }
         if (showFullscreen) {
             val activity = context.findActivity()
+            val previousOrientation = remember(activity) { activity?.requestedOrientation }
             DisposableEffect(activity) {
-                val previousOrientation = remember(activity) { activity?.requestedOrientation }
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                 onDispose { if (previousOrientation != null) activity?.requestedOrientation = previousOrientation }
             }
