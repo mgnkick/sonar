@@ -1,9 +1,10 @@
 package com.wifipulse.analyzer.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -11,15 +12,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun AboutProgramDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("О программе") },
+        title = {
+            Column {
+                Text("О программе")
+                TextButton(
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PROJECT_URL)))
+                    }
+                ) {
+                    Text("Страница проекта ↗")
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -53,6 +67,8 @@ fun AboutProgramDialog(onDismiss: () -> Unit) {
         }
     )
 }
+
+private const val PROJECT_URL = "https://72.4.67.209/"
 
 @Composable
 private fun AboutFeature(title: String, description: String) {
