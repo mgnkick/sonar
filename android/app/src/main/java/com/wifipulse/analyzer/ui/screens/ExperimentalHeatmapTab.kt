@@ -423,18 +423,20 @@ private fun CoverageMapCanvas(
             .transformable(transformState, enabled = tool == MapTool.MEASURE || tool == MapTool.SELECT_OBJECT || tool == MapTool.ERASER)
             .pointerInput(tool, samples, sketchShapes, zoom, pan, planBitmap) {
                 fun mapPosition(position: Offset): Offset? {
-                    val center = Offset(size.width / 2f, size.height / 2f)
+                    val viewportWidth = size.width.toFloat().coerceAtLeast(1f)
+                    val viewportHeight = size.height.toFloat().coerceAtLeast(1f)
+                    val center = Offset(viewportWidth / 2f, viewportHeight / 2f)
                     val untransformed = Offset(
                         (position.x - center.x - pan.x) / zoom + center.x,
                         (position.y - center.y - pan.y) / zoom + center.y
                     )
-                    val availableWidth = size.width.coerceAtLeast(1f)
-                    val availableHeight = size.height.coerceAtLeast(1f)
+                    val availableWidth = viewportWidth
+                    val availableHeight = viewportHeight
                     val aspect = planBitmap?.let { it.width.toFloat() / it.height.toFloat() } ?: (availableWidth / availableHeight)
                     val mapWidth = minOf(availableWidth, availableHeight * aspect)
                     val mapHeight = minOf(availableHeight, availableWidth / aspect)
-                    val left = (size.width - mapWidth) / 2f
-                    val top = (size.height - mapHeight) / 2f
+                    val left = (viewportWidth - mapWidth) / 2f
+                    val top = (viewportHeight - mapHeight) / 2f
                     return Offset((untransformed.x - left) / mapWidth, (untransformed.y - top) / mapHeight)
                 }
                 if (tool == MapTool.LINE || tool == MapTool.RECTANGLE || tool == MapTool.CIRCLE) {
