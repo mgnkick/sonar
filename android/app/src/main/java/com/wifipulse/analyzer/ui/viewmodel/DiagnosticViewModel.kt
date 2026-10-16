@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wifipulse.analyzer.data.model.*
 import com.wifipulse.analyzer.data.repository.NetworkDiagnosticRepository
@@ -26,13 +27,30 @@ data class DiagnosticUiState(
 )
 
 class DiagnosticViewModel(
-    private val repository: NetworkDiagnosticRepository = NetworkDiagnosticRepository()
-) : ViewModel() {
+    application: Application
+) : AndroidViewModel(application) {
 
-    private val _uiState = MutableStateFlow(DiagnosticUiState())
+    private val repository = NetworkDiagnosticRepository()
+    private val consoleStore = com.wifipulse.analyzer.data.repository.DiagnosticConsoleStore(application)
+    private val restoredLogs = consoleStore.readAll()
+
+    private val _uiState = MutableStateFlow(DiagnosticUiState(
+        logs = restoredLogs,
+        pingPackets = restoredLogs.filterIsInstance<DiagnosticLogEntry.PingEntry>().map { it.packet },
+        pingSummary = restoredLogs.filterIsInstance<DiagnosticLogEntry.Summary>().lastOrNull()?.summary,
+        hops = restoredLogs.filterIsInstance<DiagnosticLogEntry.HopEntry>().map { it.hop }.groupBy { it.hopNumber }.values.map { it.last() }.sortedBy { it.hopNumber }.takeLast(30)
+    ))
     val uiState: StateFlow<DiagnosticUiState> = _uiState.asStateFlow()
 
     private var activeJob: Job? = null
+
+    private fun append(entry: DiagnosticLogEntry) {
+        consoleStore.append(entry)
+        _uiState.update { current ->
+            val hops = if (entry is DiagnosticLogEntry.HopEntry) (current.hops.filterNot { it.hopNumber == entry.hop.hopNumber } + entry.hop).sortedBy { it.hopNumber } else current.hops
+            current.copy(logs = current.logs + entry, hops = hops)
+        }
+    }
 
     fun setTarget(target: String) {
         _uiState.update { it.copy(target = target, errorMessage = null) }
@@ -67,7 +85,6 @@ class DiagnosticViewModel(
             it.copy(
                 mode = DiagnosticMode.PING,
                 status = DiagnosticStatus.RUNNING,
-                logs = emptyList(),
                 pingPackets = emptyList(),
                 pingSummary = null,
                 errorMessage = null
@@ -82,8 +99,9 @@ class DiagnosticViewModel(
                     timeoutSeconds = _uiState.value.timeoutSeconds,
                     packetSizeBytes = _uiState.value.packetSizeBytes
                 ).collect { entry ->
+                    consoleStore.append(entry)
                     _uiState.update { current ->
-                        val updatedLogs = (current.logs + entry).takeLast(200)
+                        val updatedLogs = current.logs + entry
                         when (entry) {
                             is DiagnosticLogEntry.PingEntry -> {
                                 current.copy(
@@ -116,12 +134,13 @@ class DiagnosticViewModel(
                     } else current
                 }
             } catch (e: Exception) {
+                val message = if (e is kotlinx.coroutines.CancellationException) "Операция остановлена." else "Ошибка выполнения: ${e.message ?: "неизвестная ошибка"}"
                 _uiState.update {
                     it.copy(
-                        status = DiagnosticStatus.CANCELLED,
-                        logs = it.logs + DiagnosticLogEntry.Output("Операция остановлена.")
+                        status = if (e is kotlinx.coroutines.CancellationException) DiagnosticStatus.CANCELLED else DiagnosticStatus.ERROR,
                     )
                 }
+                append(DiagnosticLogEntry.Output(message))
             }
         }
     }
@@ -139,7 +158,6 @@ class DiagnosticViewModel(
             it.copy(
                 mode = DiagnosticMode.TRACEROUTE,
                 status = DiagnosticStatus.RUNNING,
-                logs = emptyList(),
                 hops = emptyList(),
                 errorMessage = null
             )
@@ -147,18 +165,19 @@ class DiagnosticViewModel(
 
         activeJob = viewModelScope.launch {
             try {
-                repository.executeTraceroute(
+                repository.executeWinMtr(
                     rawTarget = target,
                     maxHops = 30,
                     timeoutSeconds = _uiState.value.timeoutSeconds
                 ).collect { entry ->
+                    consoleStore.append(entry)
                     _uiState.update { current ->
-                        val updatedLogs = (current.logs + entry).takeLast(200)
+                        val updatedLogs = current.logs + entry
                         when (entry) {
                             is DiagnosticLogEntry.HopEntry -> {
                                 current.copy(
                                     logs = updatedLogs,
-                                    hops = current.hops + entry.hop
+                                    hops = (current.hops.filterNot { it.hopNumber == entry.hop.hopNumber } + entry.hop).sortedBy { it.hopNumber }
                                 )
                             }
                             is DiagnosticLogEntry.Error -> {
@@ -179,23 +198,19 @@ class DiagnosticViewModel(
                     } else current
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        status = DiagnosticStatus.CANCELLED,
-                        logs = it.logs + DiagnosticLogEntry.Output("Трассировка прервана.")
-                    )
-                }
+                _uiState.update { it.copy(status = if (e is kotlinx.coroutines.CancellationException) DiagnosticStatus.CANCELLED else DiagnosticStatus.ERROR) }
+                append(DiagnosticLogEntry.Output(if (e is kotlinx.coroutines.CancellationException) "Трассировка остановлена." else "Ошибка трассировки: ${e.message ?: "неизвестная ошибка"}"))
             }
         }
     }
 
     fun startGuidedDiagnostics(gateway: String, dns1: String, dns2: String) {
         stopDiagnostic()
+        append(DiagnosticLogEntry.Output("Подготовка пошаговой диагностики…", isHighlight = true))
         _uiState.update {
             it.copy(
                 mode = DiagnosticMode.PING,
                 status = DiagnosticStatus.RUNNING,
-                logs = listOf(DiagnosticLogEntry.Output("Подготовка пошаговой диагностики…", isHighlight = true)),
                 pingPackets = emptyList(),
                 pingSummary = null,
                 hops = emptyList(),
@@ -205,26 +220,14 @@ class DiagnosticViewModel(
         activeJob = viewModelScope.launch {
             try {
                 repository.runGuidedDiagnostics(gateway, dns1, dns2) { line ->
-                    _uiState.update { current ->
-                        current.copy(
-                            logs = (current.logs + DiagnosticLogEntry.Output(
-                                line,
-                                line.startsWith("===") || line.startsWith("[4/4]")
-                            )).takeLast(300)
-                        )
-                    }
+                    append(DiagnosticLogEntry.Output(line, line.startsWith("===") || line.startsWith("[4/4]")))
                 }
                 _uiState.update { current ->
                     current.copy(status = DiagnosticStatus.COMPLETED)
                 }
             } catch (e: Exception) {
-                _uiState.update { current ->
-                    current.copy(
-                        logs = current.logs + DiagnosticLogEntry.Error("Диагностика завершилась с ошибкой: ${e.message ?: "неизвестная ошибка"}"),
-                        errorMessage = e.message,
-                        status = DiagnosticStatus.ERROR
-                    )
-                }
+                    _uiState.update { it.copy(errorMessage = e.message, status = DiagnosticStatus.ERROR) }
+                    append(DiagnosticLogEntry.Error("Диагностика завершилась с ошибкой: ${e.message ?: "неизвестная ошибка"}"))
             }
         }
     }
@@ -232,19 +235,22 @@ class DiagnosticViewModel(
     fun stopDiagnostic() {
         activeJob?.cancel()
         activeJob = null
-        if (_uiState.value.status == DiagnosticStatus.RUNNING) {
+        val wasRunning = _uiState.value.status == DiagnosticStatus.RUNNING
+        if (wasRunning) {
             _uiState.update { it.copy(status = DiagnosticStatus.CANCELLED) }
+            append(DiagnosticLogEntry.Output("Операция остановлена пользователем."))
         }
     }
 
     fun clearLogs() {
+        consoleStore.clear()
         _uiState.update {
             it.copy(
                 logs = emptyList(),
                 pingPackets = emptyList(),
                 pingSummary = null,
                 hops = emptyList(),
-                status = DiagnosticStatus.IDLE
+                status = if (activeJob?.isActive == true) DiagnosticStatus.RUNNING else DiagnosticStatus.IDLE
             )
         }
     }

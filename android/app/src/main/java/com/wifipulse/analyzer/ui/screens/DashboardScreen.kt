@@ -141,7 +141,8 @@ fun DashboardScreen(
                 isRefreshing = state.isScanning,
                 onRefreshNetworks = onRefreshNetworks,
                 lastScanTimestamp = state.lastScanTimestamp,
-                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                showRefreshButton = false
             )
 
             // Search Bar

@@ -303,6 +303,74 @@ class NetworkDiagnosticRepository {
         }
     }.flowOn(Dispatchers.IO)
 
+    /** Continuously probes each TTL and emits cumulative per-hop loss/latency statistics (WinMTR style). */
+    fun executeWinMtr(
+        rawTarget: String,
+        maxHops: Int = 30,
+        timeoutSeconds: Int = 2
+    ): Flow<DiagnosticLogEntry> = flow {
+        val target = cleanHost(rawTarget)
+        if (target.isBlank()) {
+            emit(DiagnosticLogEntry.Error("Ошибка: Введите целевой хост для трассировки"))
+            return@flow
+        }
+        val targetIp = runCatching { withContext(Dispatchers.IO) { InetAddress.getByName(target).hostAddress } }
+            .getOrNull()
+        if (targetIp.isNullOrBlank()) {
+            emit(DiagnosticLogEntry.Error("Не удалось разрешить домен $target"))
+            return@flow
+        }
+
+        emit(DiagnosticLogEntry.Output("=== WINMTR START: $target [$targetIp] ===", isHighlight = true))
+        emit(DiagnosticLogEntry.Output("Непрерывная трассировка: одна проба на хоп за цикл; остановите вручную. Потери на промежуточном хопе могут быть вызваны ограничением ICMP."))
+        data class Stats(val sent: Int, val received: Int, val times: List<Float>, val latest: TracerouteHop)
+        val stats = linkedMapOf<Int, Stats>()
+        var routeLength = maxHops
+        var cycle = 0
+        var reportedLossHop: Int? = null
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            cycle++
+            var reached = false
+            for (ttl in 1..routeLength) {
+                currentCoroutineContext().ensureActive()
+                val probe = executeSingleHopProbe(targetIp, ttl, timeoutSeconds)
+                val prev = stats[ttl]
+                val sent = (prev?.sent ?: 0) + 1
+                val received = (prev?.received ?: 0) + if (probe.isTimeout) 0 else 1
+                val times = (prev?.times.orEmpty() + listOfNotNull(probe.rttMs)).takeLast(500)
+                val avg = times.takeIf { it.isNotEmpty() }?.average()?.toFloat()
+                val aggregate = probe.copy(
+                    probesSent = sent,
+                    probesReceived = received,
+                    lossPercent = (sent - received) * 100f / sent,
+                    minRttMs = times.minOrNull(),
+                    averageRttMs = avg,
+                    maxRttMs = times.maxOrNull()
+                )
+                stats[ttl] = Stats(sent, received, times, aggregate)
+                emit(DiagnosticLogEntry.HopEntry(aggregate))
+                if (probe.isTargetReached) {
+                    routeLength = ttl
+                    reached = true
+                    break
+                }
+            }
+            val likelyStart = stats.entries.firstOrNull { (hop, current) ->
+                current.sent >= 5 && current.received < current.sent &&
+                    stats[hop + 1]?.let { downstream -> downstream.sent >= 5 && downstream.received < downstream.sent } == true
+            }?.key
+            if (likelyStart != reportedLossHop) {
+                reportedLossHop = likelyStart
+                if (likelyStart != null) {
+                    emit(DiagnosticLogEntry.Output("Первые устойчивые потери наблюдаются начиная с хопа $likelyStart. Это ориентир: промежуточные маршрутизаторы могут ограничивать ICMP, проверьте потери до конечного узла."))
+                }
+            }
+            emit(DiagnosticLogEntry.Output("Цикл $cycle завершён${if (reached) " • цель достигнута на хопе $routeLength" else ""}"))
+            kotlinx.coroutines.delay(1000)
+        }
+    }.flowOn(Dispatchers.IO)
+
     /**
      * Probes a single hop with TTL flag
      */

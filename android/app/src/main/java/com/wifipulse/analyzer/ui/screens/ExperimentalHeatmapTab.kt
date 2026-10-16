@@ -2,14 +2,24 @@ package com.wifipulse.analyzer.ui.screens
 
 import android.content.Context
 import android.graphics.Paint as AndroidPaint
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.RectF
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,29 +29,82 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wifipulse.analyzer.data.model.WifiConnectionDetails
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 
 private data class CoverageSample(val x: Float, val y: Float, val rssi: Int, val bssid: String, val time: Long)
 private val HeatCyan = Color(0xFF55F4FF)
 private const val HEAT_PREFS = "wifi_pulse_experimental_coverage"
 private const val HEAT_KEY = "samples"
+private const val PLAN_KEY = "plan_uri"
 
 @Composable
 fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences(HEAT_PREFS, Context.MODE_PRIVATE) }
     var samples by remember { mutableStateOf(readSamples(preferences.getString(HEAT_KEY, null))) }
+    var planUriString by remember { mutableStateOf(preferences.getString(PLAN_KEY, null)) }
+    var pendingCameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val planBitmap by produceState<Bitmap?>(null, planUriString) {
+        value = withContext(Dispatchers.IO) {
+            planUriString?.let { uri -> runCatching { decodePlanBitmap(context, android.net.Uri.parse(uri)) }.getOrNull() }
+        }
+    }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            planUriString = uri.toString()
+            preferences.edit().putString(PLAN_KEY, planUriString).apply()
+            samples = emptyList()
+            preferences.edit().remove(HEAT_KEY).apply()
+        }
+    }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        val uri = pendingCameraUri
+        if (saved && uri != null) {
+            planUriString = uri.toString()
+            preferences.edit().putString(PLAN_KEY, planUriString).apply()
+            samples = emptyList()
+            preferences.edit().remove(HEAT_KEY).apply()
+        }
+    }
     val interpolationSamples = remember(samples) { samples.takeLast(60) }
     val visibleSamples = remember(samples) { samples.takeLast(40) }
     val currentRssi = connectionDetails.rssi.takeIf { connectionDetails.isConnected && it in -100..0 }
     val currentBssid = connectionDetails.bssid.takeIf { it.isNotBlank() && it != "BSSID недоступен" } ?: "BSSID недоступен"
 
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.Image, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Загрузить план")
+            }
+            OutlinedButton(onClick = {
+                val dir = File(context.filesDir, "experimental").apply { mkdirs() }
+                val photo = File(dir, "coverage-plan-${System.currentTimeMillis()}.jpg")
+                val outputUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photo)
+                pendingCameraUri = outputUri
+                camera.launch(outputUri)
+            }, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.PhotoCamera, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Сделать фото")
+            }
+        }
+        if (planUriString != null) {
+            TextButton(onClick = {
+                planUriString?.let { uri -> runCatching { context.contentResolver.releasePersistableUriPermission(android.net.Uri.parse(uri), android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
+                planUriString = null
+                preferences.edit().remove(PLAN_KEY).apply()
+                samples = emptyList()
+                preferences.edit().remove(HEAT_KEY).apply()
+            }) { Text("Убрать изображение и начать заново") }
+        }
         Surface(color = Color(0xFF11162A), shape = RoundedCornerShape(16.dp), border = androidx.compose.foundation.BorderStroke(1.dp, HeatCyan.copy(alpha = 0.55f))) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("ЭКСПЕРИМЕНТАЛЬНОЕ · КАРТА ПОКРЫТИЯ", color = HeatCyan, style = MaterialTheme.typography.labelLarge, letterSpacing = 0.8.sp)
@@ -78,6 +141,12 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     val width = (size.width - margin * 2).coerceAtLeast(1f)
                     val height = (size.height - margin * 2).coerceAtLeast(1f)
                     drawRect(Color(0xFF10182A), Offset(left, top), Size(width, height))
+                    planBitmap?.let { bitmap ->
+                        drawIntoCanvas { canvas ->
+                            val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG or AndroidPaint.FILTER_BITMAP_FLAG).apply { alpha = 145 }
+                            canvas.nativeCanvas.drawBitmap(bitmap, null, RectF(left, top, left + width, top + height), paint)
+                        }
+                    }
                     if (interpolationSamples.isNotEmpty()) {
                         val columns = 32
                         val rows = 20
@@ -104,7 +173,8 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             drawRect(heat.copy(alpha = 0.52f), Offset(left + col * cellW, top + row * cellH), Size(cellW + 1f, cellH + 1f))
                         }
                     }
-                    val wall = HeatCyan.copy(alpha = 0.76f)
+                    val wall = if (planBitmap == null) HeatCyan.copy(alpha = 0.76f) else Color.Transparent
+                    if (planBitmap == null) {
                     drawRect(wall, Offset(left, top), Size(width, height), style = Stroke(2.dp.toPx()))
                     drawLine(wall.copy(alpha = 0.5f), Offset(left + width * 0.34f, top), Offset(left + width * 0.34f, top + height * 0.42f), 1.5.dp.toPx())
                     drawLine(wall.copy(alpha = 0.5f), Offset(left + width * 0.34f, top + height * 0.58f), Offset(left + width * 0.34f, top + height), 1.5.dp.toPx())
@@ -112,6 +182,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     drawLine(wall.copy(alpha = 0.5f), Offset(left + width * 0.68f, top + height * 0.52f), Offset(left + width * 0.68f, top + height), 1.5.dp.toPx())
                     drawLine(wall.copy(alpha = 0.5f), Offset(left, top + height * 0.55f), Offset(left + width * 0.34f, top + height * 0.55f), 1.5.dp.toPx())
                     drawLine(wall.copy(alpha = 0.5f), Offset(left + width * 0.68f, top + height * 0.55f), Offset(left + width, top + height * 0.55f), 1.5.dp.toPx())
+                    }
 
                     val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
                         color = android.graphics.Color.argb(225, 85, 244, 255)
@@ -141,16 +212,17 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             HeatLegend(Color(0xFFFFC857), "Средний −65")
             HeatLegend(Color(0xFFFF5364), "Слабый ≤ −85")
         }
-        Text("СХЕМА УСЛОВНАЯ · точки хранятся локально. Цвет между точками — интерполяция измеренного RSSI, не прогноз радиопокрытия.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (planBitmap == null) "СХЕМА УСЛОВНАЯ · точки хранятся локально. Цвет между точками — интерполяция измеренного RSSI, не прогноз радиопокрытия." else "ПЛАН/ФОТО · точки привязаны к изображению и хранятся локально. Интерполяция показывает RSSI между реальными замерами.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Измерений: " + samples.size, style = MaterialTheme.typography.titleSmall, color = HeatCyan)
             TextButton(onClick = {
-                samples = emptyList()
-                preferences.edit().remove(HEAT_KEY).apply()
-            }) {
-                Icon(Icons.Default.DeleteSweep, contentDescription = null)
+                samples = samples.dropLast(1)
+                if (samples.isEmpty()) preferences.edit().remove(HEAT_KEY).apply()
+                else preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
+            }, enabled = samples.isNotEmpty()) {
+                Icon(Icons.Default.Undo, contentDescription = null)
                 Spacer(Modifier.width(5.dp))
-                Text("Очистить точки")
+                Text("Удалить последнюю точку")
             }
         }
         Text(
@@ -201,3 +273,12 @@ private fun writeSamples(samples: List<CoverageSample>): String =
             })
         }
     }.toString()
+
+private fun decodePlanBitmap(context: Context, uri: android.net.Uri): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
+    var sampleSize = 1
+    while (bounds.outWidth / sampleSize > 2048 || bounds.outHeight / sampleSize > 2048) sampleSize *= 2
+    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize; inPreferredConfig = Bitmap.Config.RGB_565 }
+    return context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+}

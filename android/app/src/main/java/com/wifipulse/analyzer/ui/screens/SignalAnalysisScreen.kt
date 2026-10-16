@@ -86,7 +86,8 @@ fun SignalAnalysisScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        }
+        },
+        floatingActionButton = { StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -101,7 +102,8 @@ fun SignalAnalysisScreen(
                 isRefreshing = isRefreshingNetworks,
                 onRefreshNetworks = onRefreshNetworks,
                 lastScanTimestamp = lastScanTimestamp,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                showRefreshButton = false
             )
             BackgroundMonitoringCard(
                 isActive = isBackgroundMonitoring,

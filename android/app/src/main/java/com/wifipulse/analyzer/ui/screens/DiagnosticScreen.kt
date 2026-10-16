@@ -96,7 +96,7 @@ fun DiagnosticScreen(
                 actions = {
                     IconButton(
                         onClick = onClear,
-                        enabled = state.logs.isNotEmpty() && !isRunning
+                        enabled = state.logs.isNotEmpty()
                     ) {
                         Icon(Icons.Default.DeleteOutline, contentDescription = "Очистить логи")
                     }
@@ -105,7 +105,8 @@ fun DiagnosticScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        }
+        },
+        floatingActionButton = { StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -121,7 +122,8 @@ fun DiagnosticScreen(
                 isRefreshing = isRefreshingNetworks,
                 onRefreshNetworks = onRefreshNetworks,
                 lastScanTimestamp = lastScanTimestamp,
-                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                showRefreshButton = false
             )
             SpeedTestLinks(
                 onOpen = { url -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } },
@@ -480,7 +482,7 @@ fun DiagnosticScreen(
                     if (state.hops.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Нет данных трассировки. Нажмите «Трассировка» для запуска пошагового зондирования хопов.",
+                                text = if (isRunning) "WinMTR собирает выборку. Остановите трассировку, чтобы зафиксировать результат." else "Нет данных трассировки. Нажмите «Трассировка» для запуска WinMTR.",
                                 color = Color.Gray,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace
@@ -538,19 +540,28 @@ fun DiagnosticScreen(
 
                                         if (hop.rttMs != null) {
                                             Text(
-                                                text = "${hop.rttMs} ms",
+                                                text = "${"%.1f".format(hop.rttMs)} ms",
                                                 fontFamily = FontFamily.Monospace,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (hop.rttMs < 35) Color(0xFF22C55E) else if (hop.rttMs < 80) Color(0xFFF59E0B) else Color(0xFFEF4444)
                                             )
-                                        } else {
+                                        } else if (hop.probesSent == 0) {
                                             Text(
                                                 text = "Таймаут",
                                                 fontSize = 10.sp,
                                                 color = Color(0xFFEF4444)
                                             )
                                         }
+                                    }
+                                    if (hop.probesSent > 0) {
+                                        Text(
+                                            text = "Потери ${hop.lossPercent.toInt()}% • ${hop.probesReceived}/${hop.probesSent} ответов • RTT min/avg/max ${hop.minRttMs?.let { "%.1f".format(it) } ?: "—"}/${hop.averageRttMs?.let { "%.1f".format(it) } ?: "—"}/${hop.maxRttMs?.let { "%.1f".format(it) } ?: "—"} ms",
+                                            modifier = Modifier.fillMaxWidth().padding(start = 42.dp, end = 8.dp, bottom = 8.dp),
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 10.sp,
+                                            color = if (hop.lossPercent > 0f) Color(0xFFFFC857) else Color(0xFF69F5B5)
+                                        )
                                     }
                                 }
                             }
