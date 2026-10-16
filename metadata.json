@@ -1,6 +1,6 @@
 {
-  "name": "WiFi Pulse: Android Wi-Fi Analyzer & GitHub CI/CD",
-  "description": "Мобильное приложение для Android (API 26+) на Kotlin и Jetpack Compose для сканирования сетей, анализа сигналов и каналов в реальном времени, с готовым CI/CD GitHub Actions и экспортом репозитория.",
+  "name": "WiFi Sonar 0.9.18 — анализатор Wi-Fi для Android",
+  "description": "Сканирование Wi-Fi-сетей, анализ сигнала и каналов, диагностика соединения, трассировка с анализом потерь и карта замеров.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -430,7 +430,9 @@ fun MainAppContent(
                 )
                 is Screen.CoverageMap -> ExperimentalHeatmapTab(
                     connectionDetails = uiState.connectionDetails,
-                    onOpenAbout = { showAbout = true }
+                    onOpenAbout = { showAbout = true },
+                    isRefreshingNetworks = uiState.isScanning,
+                    onRefreshNetworks = { viewModel.triggerScan() }
                 )
             }
         }

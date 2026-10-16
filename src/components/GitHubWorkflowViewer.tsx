@@ -12,22 +12,22 @@ export const GitHubWorkflowViewer: React.FC = () => {
     'Java home: /opt/hostedtoolcache/Java_Temurin-jdk/17.0.10-7/x64',
     'Run gradle/actions/setup-gradle@v3',
     'Gradle cache hit: 84% speedup',
-    'Run ./gradlew assembleDebug --stacktrace',
-    '> Task :app:compileDebugKotlin UP-TO-DATE',
-    '> Task :app:mergeDebugResources',
-    '> Task :app:processDebugManifest',
-    '> Task :app:packageDebug',
+    'Run ./gradlew --no-daemon :app:assembleRelease',
+    '> Task :app:compileReleaseKotlin',
+    '> Task :app:mergeReleaseResources',
+    '> Task :app:processReleaseManifest',
+    '> Task :app:packageRelease',
     'BUILD SUCCESSFUL in 18s',
     'Run actions/upload-artifact@v4',
-    'Artifact "wifipulse-debug-apk" uploaded successfully! (14.2 MB)'
+    'Artifact "WiFiPulse-Android-Release-APK" uploaded successfully!'
   ]);
 
   const steps = [
     { name: 'actions/checkout@v4', desc: 'Клонирование репозитория' },
     { name: 'setup-java@v4 (JDK 17)', desc: 'Установка Eclipse Temurin 17' },
     { name: 'setup-gradle@v3', desc: 'Кэширование зависимостей Gradle' },
-    { name: './gradlew assembleDebug', desc: 'Компиляция Kotlin и сборка APK' },
-    { name: 'upload-artifact@v4', desc: 'Публикация wifipulse-debug-apk' }
+    { name: './gradlew :app:assembleRelease', desc: 'Сборка только Release APK' },
+    { name: 'upload-artifact@v4', desc: 'Публикация Release APK' }
   ];
 
   const handleSimulate = () => {
@@ -39,9 +39,9 @@ export const GitHubWorkflowViewer: React.FC = () => {
       'Cloning git repository: branch main, commit 4f9b8c2...',
       'Setting up Java Development Kit 17 (Temurin)...',
       'Configuring Gradle 8.7 daemon and build cache...',
-      'Executing: ./gradlew assembleDebug --stacktrace',
-      ':app:preBuild UP-TO-DATE\n:app:compileDebugKotlin\n:app:packageDebug\nBUILD SUCCESSFUL in 22s',
-      'Uploading artifact app/build/outputs/apk/debug/app-debug.apk as "wifipulse-debug-apk"... Done!'
+      'Executing: ./gradlew --no-daemon :app:assembleRelease',
+      ':app:preBuild UP-TO-DATE\n:app:compileReleaseKotlin\n:app:packageRelease\nBUILD SUCCESSFUL',
+      'Uploading artifact android/app/build/outputs/apk/release/app-release.apk as "WiFiPulse-Android-Release-APK"... Done!'
     ];
 
     let step = 0;
@@ -173,24 +173,24 @@ export const GitHubWorkflowViewer: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h4 className="text-xs font-bold text-slate-100">
-                wifipulse-debug-apk (Готовый артефакт сборки)
+                WiFi Sonar 0.9.18 — Release APK
               </h4>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                14.2 MB • .apk
+                Release • Android 8.0+
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              Где скачать в GitHub: <strong>Репозиторий → Actions → Последний запуск → Секция Artifacts</strong>
+              APK доступен на сайте и в последнем GitHub Release.
             </p>
           </div>
         </div>
 
-        <button
-          onClick={downloadAndroidProjectZip}
+        <a
+          href="https://github.com/mgnkick/sonar/releases/latest/download/WiFi-Sonar.apk"
           className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition"
         >
-          Скачать репозиторий
-        </button>
+          Скачать APK
+        </a>
       </div>
     </div>
   );

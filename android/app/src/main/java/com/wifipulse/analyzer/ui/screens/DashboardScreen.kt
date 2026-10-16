@@ -109,29 +109,10 @@ fun DashboardScreen(
         },
         floatingActionButtonPosition = if (isAtContentEnd) FabPosition.Start else FabPosition.End,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                modifier = Modifier.offset(y = (-24).dp),
-                onClick = onScanClick,
-                icon = {
-                    if (state.isScanning) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(Icons.Default.Refresh, contentDescription = "Сканировать")
-                    }
-                },
-                text = {
-                    if (state.scanThrottleCooldownSeconds > 0) {
-                        Text("Ждать ${state.scanThrottleCooldownSeconds} с")
-                    } else {
-                        Text(if (state.isScanning) "Сканирование..." else "Сканировать")
-                    }
-                },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+            StickyWifiRefreshButton(
+                isRefreshing = state.isScanning,
+                onRefresh = onScanClick,
+                modifier = Modifier.offset(y = (-24).dp)
             )
         }
     ) { padding ->

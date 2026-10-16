@@ -117,9 +117,9 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold tracking-tight text-white">WiFi Pulse</h1>
+                <h1 className="text-base font-bold tracking-tight text-white">WiFi Sonar</h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  Android 8.0+ (API 26–34)
+                  Android 8.0+ · версия 0.9.18
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/30 hidden sm:inline-flex">
                   Jetpack Compose &amp; CI/CD
@@ -190,6 +190,14 @@ export default function App() {
               <Download className={`w-3.5 h-3.5 ${isDownloading ? 'animate-bounce' : ''}`} />
               <span>{isDownloading ? 'Сборка архива...' : 'Скачать .ZIP'}</span>
             </button>
+            <a
+              href="https://github.com/mgnkick/sonar/releases/latest/download/WiFi-Sonar.apk"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-cyan-400/50 bg-cyan-950/60 hover:bg-cyan-900/70 text-cyan-100 text-xs font-bold transition"
+              aria-label="Скачать актуальный APK WiFi Sonar для Android"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Скачать APK</span>
+            </a>
           </div>
         </div>
       </header>

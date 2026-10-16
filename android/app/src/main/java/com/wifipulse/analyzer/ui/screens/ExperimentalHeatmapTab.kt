@@ -72,7 +72,9 @@ private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Floa
 @Composable
 fun ExperimentalHeatmapTab(
     connectionDetails: WifiConnectionDetails,
-    onOpenAbout: () -> Unit = {}
+    onOpenAbout: () -> Unit = {},
+    isRefreshingNetworks: Boolean = false,
+    onRefreshNetworks: () -> Unit = {}
 ) {
     val colors = MaterialTheme.colorScheme
     val heatAccent = colors.primary
@@ -154,10 +156,11 @@ fun ExperimentalHeatmapTab(
     val currentRssi = connectionDetails.rssi.takeIf { connectionDetails.isConnected && it in -100..0 }
     val currentBssid = connectionDetails.bssid.takeIf { it.isNotBlank() && it != "BSSID недоступен" } ?: "BSSID недоступен"
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+    Box(Modifier.fillMaxSize()) {
+      Column(
+        Modifier.fillMaxSize().padding(bottom = 84.dp).verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+      ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Карта покрытия", modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = heatAccent)
             AboutIconButton(onOpenAbout)
@@ -433,6 +436,12 @@ fun ExperimentalHeatmapTab(
             color = if (currentRssi == null) MaterialTheme.colorScheme.error else heatAccent,
             style = MaterialTheme.typography.bodySmall
         )
+      }
+      StickyWifiRefreshButton(
+          isRefreshing = isRefreshingNetworks,
+          onRefresh = onRefreshNetworks,
+          modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp)
+      )
     }
 }
 

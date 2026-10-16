@@ -248,9 +248,29 @@ fun ConnectionStatusPanel(
 }
 
 @Composable
-fun StickyWifiRefreshButton(isRefreshing: Boolean, onRefresh: () -> Unit) {
-    FloatingActionButton(onClick = onRefresh, containerColor = MaterialTheme.colorScheme.primary) {
-        if (isRefreshing) CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-        else androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Обновить статус Wi-Fi и список сетей", tint = MaterialTheme.colorScheme.onPrimary)
+fun StickyWifiRefreshButton(
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FloatingActionButton(
+        onClick = onRefresh,
+        modifier = modifier.size(56.dp),
+        shape = RoundedCornerShape(16.dp),
+        containerColor = MaterialTheme.colorScheme.primary
+    ) {
+        if (isRefreshing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        } else {
+            androidx.compose.material3.Icon(
+                Icons.Default.Refresh,
+                contentDescription = "Обновить вручную",
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+        }
     }
 }

@@ -40,21 +40,21 @@ export const GitHubGuideModal: React.FC<GitHubGuideModalProps> = ({ isOpen, onCl
     {
       num: '03',
       title: 'Автоматическая сборка в GitHub Actions',
-      desc: 'После пуша в ветку main GitHub Actions автоматически запустит воркфлоу сборки: развернет JDK 17, скачает зависимости через Gradle и соберет APK.',
+      desc: 'После публикации коммита GitHub Actions собирает только Release APK для Android.',
       commands: [
-        '# Перейдите в браузере: https://github.com/ВАШ_ЛОГИН/wifi-pulse/actions'
+        '# Репозиторий: https://github.com/mgnkick/sonar/actions'
       ]
     },
     {
       num: '04',
       title: 'Скачивание собранного APK из вкладки Actions',
-      desc: 'Откройте последний запуск воркфлоу в Actions, прокрутите страницу в самый низ до секции «Artifacts» и нажмите на wifipulse-debug-apk.',
+      desc: 'Для установки откройте последний успешный Release в GitHub Releases и скачайте WiFi-Sonar.apk. Архив CI доступен в Actions → Artifacts.',
       commands: []
     },
     {
       num: '05',
       title: 'Установка APK на смартфон',
-      desc: 'Распакуйте скачанный zip-архив и передайте app-debug.apk на Android-устройство. Разрешите установку из неизвестных источников в настройках безопасности.',
+      desc: 'Передайте WiFi-Sonar.apk на устройство Android и подтвердите установку. Если система запросит разрешение, разрешите установку приложений из выбранного источника.',
       commands: []
     }
   ];
