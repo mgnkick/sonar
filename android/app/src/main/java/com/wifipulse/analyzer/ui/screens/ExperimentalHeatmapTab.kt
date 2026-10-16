@@ -56,7 +56,7 @@ private const val HEAT_KEY = "samples"
 private const val PLAN_KEY = "plan_uri"
 private const val SHAPES_KEY = "sketch_shapes"
 
-private enum class MapTool { MEASURE, DELETE, ERASER, LINE, RECTANGLE, CIRCLE }
+private enum class MapTool { MEASURE, SELECT_OBJECT, ERASER, LINE, RECTANGLE, CIRCLE }
 private enum class SketchKind { LINE, RECTANGLE, CIRCLE }
 private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Float, val x2: Float, val y2: Float)
 
@@ -150,13 +150,13 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
             item { FilterChip(selected = currentTool == MapTool.LINE, onClick = { currentTool = MapTool.LINE; drawStart = null }, label = { Text("Линия") }) }
             item { FilterChip(selected = currentTool == MapTool.RECTANGLE, onClick = { currentTool = MapTool.RECTANGLE; drawStart = null }, label = { Text("Прямоугольник") }) }
             item { FilterChip(selected = currentTool == MapTool.CIRCLE, onClick = { currentTool = MapTool.CIRCLE; drawStart = null }, label = { Text("Круг") }) }
-            item { FilterChip(selected = currentTool == MapTool.DELETE, onClick = { currentTool = MapTool.DELETE; drawStart = null }, label = { Text("Удаление") }) }
+            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null }, label = { Text("Выбрать объект") }) }
             item { FilterChip(selected = currentTool == MapTool.ERASER, onClick = { currentTool = MapTool.ERASER; drawStart = null }, label = { Text("Ластик") }) }
         }
         Text(
             when (currentTool) {
                 MapTool.MEASURE -> "Касание добавляет замер RSSI. Сведите/разведите пальцы для масштаба, перетаскивайте план для перемещения."
-                MapTool.DELETE -> "Коснитесь метки или контура, чтобы выбрать объект; затем нажмите «Удалить выбранное»."
+                MapTool.SELECT_OBJECT -> "Коснитесь метки или контура, чтобы выбрать объект; удалите его отдельной кнопкой."
                 MapTool.ERASER -> "Коснитесь метки или контура, чтобы сразу стереть ближайший объект."
                 else -> "Коснитесь двух точек: первая задаёт начало, вторая — конец фигуры."
             },
@@ -185,7 +185,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     selectedShapeIndex = -1
                     preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
                 }
-                MapTool.DELETE, MapTool.ERASER -> {
+                MapTool.SELECT_OBJECT, MapTool.ERASER -> {
                     val sampleHit = samples.map { sample ->
                         val dx = sample.x - point.x
                         val dy = sample.y - point.y
@@ -197,7 +197,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                     }.filter { it.second < 0.0036f / (zoom * zoom) }
                         .minByOrNull { it.second }
                     val hitSampleFirst = sampleHit != null && (shapeHit == null || sampleHit.second <= shapeHit.second)
-                    if (currentTool == MapTool.DELETE) {
+                    if (currentTool == MapTool.SELECT_OBJECT) {
                         selectedPointTime = if (hitSampleFirst) sampleHit?.first?.time else null
                         selectedShapeIndex = if (!hitSampleFirst) shapeHit?.first ?: -1 else -1
                     } else if (hitSampleFirst) {
@@ -229,6 +229,17 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                         drawStart = null
                     }
                 }
+            }
+        }
+        val deleteSelectedObject: () -> Unit = {
+            if (selectedPointTime != null) {
+                samples = samples.filterNot { it.time == selectedPointTime }
+                selectedPointTime = null
+                preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
+            } else if (selectedShapeIndex in sketchShapes.indices) {
+                sketchShapes = sketchShapes.filterIndexed { index, _ -> index != selectedShapeIndex }
+                selectedShapeIndex = -1
+                preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
             }
         }
 
@@ -266,6 +277,30 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Сброс масштаба") }
                             IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Закрыть полноэкранный режим", tint = HeatCyan) }
                         }
+                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            item { FilterChip(selected = currentTool == MapTool.MEASURE, onClick = { currentTool = MapTool.MEASURE; drawStart = null }, label = { Text("Замер") }) }
+                            item { FilterChip(selected = currentTool == MapTool.LINE, onClick = { currentTool = MapTool.LINE; drawStart = null }, label = { Text("Линия") }) }
+                            item { FilterChip(selected = currentTool == MapTool.RECTANGLE, onClick = { currentTool = MapTool.RECTANGLE; drawStart = null }, label = { Text("Прямоугольник") }) }
+                            item { FilterChip(selected = currentTool == MapTool.CIRCLE, onClick = { currentTool = MapTool.CIRCLE; drawStart = null }, label = { Text("Круг") }) }
+                            item { FilterChip(selected = currentTool == MapTool.SELECT_OBJECT, onClick = { currentTool = MapTool.SELECT_OBJECT; drawStart = null }, label = { Text("Выбрать объект") }) }
+                            item { FilterChip(selected = currentTool == MapTool.ERASER, onClick = { currentTool = MapTool.ERASER; drawStart = null }, label = { Text("Ластик") }) }
+                        }
+                        Text(
+                            when (currentTool) {
+                                MapTool.MEASURE -> "Коснитесь плана, чтобы поставить точку замера."
+                                MapTool.SELECT_OBJECT -> "Коснитесь точки или фигуры, чтобы выделить её."
+                                MapTool.ERASER -> "Коснитесь объекта, чтобы сразу стереть его."
+                                else -> "Два касания задают начало и конец фигуры."
+                            },
+                            color = HeatCyan,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Объект выбран", color = Color(0xFFFFC857), modifier = Modifier.weight(1f))
+                                OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") }
+                            }
+                        }
                         CoverageMapCanvas(
                             modifier = Modifier.fillMaxWidth().weight(1f),
                             samples = samples,
@@ -294,17 +329,7 @@ fun ExperimentalHeatmapTab(connectionDetails: WifiConnectionDetails) {
                         ?: "Объект не выбран",
                     modifier = Modifier.weight(1f), color = HeatCyan, style = MaterialTheme.typography.labelMedium
                 )
-                OutlinedButton(onClick = {
-                    if (selectedPointTime != null) {
-                        samples = samples.filterNot { it.time == selectedPointTime }
-                        selectedPointTime = null
-                        preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
-                    } else if (selectedShapeIndex in sketchShapes.indices) {
-                        sketchShapes = sketchShapes.filterIndexed { index, _ -> index != selectedShapeIndex }
-                        selectedShapeIndex = -1
-                        preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
-                    }
-                }) { Text("Удалить выбранное") }
+                OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -363,7 +388,7 @@ private fun CoverageMapCanvas(
     Box(
         modifier.clip(RoundedCornerShape(14.dp))
             .transformable(transformState)
-            .pointerInput(tool, samples, zoom, pan, drawStart) {
+            .pointerInput(tool, samples, sketchShapes, zoom, pan, drawStart, planBitmap) {
                 detectTapGestures { tap ->
                     val center = Offset(size.width / 2f, size.height / 2f)
                     val untransformed = Offset(
@@ -371,10 +396,15 @@ private fun CoverageMapCanvas(
                         (tap.y - center.y - pan.y) / zoom + center.y
                     )
                     val margin = 20.dp.toPx()
-                    val width = (size.width - 2 * margin).coerceAtLeast(1f)
-                    val height = (size.height - 2 * margin).coerceAtLeast(1f)
-                    if (untransformed.x in margin..(size.width - margin) && untransformed.y in margin..(size.height - margin)) {
-                        onMapTap(Offset(((untransformed.x - margin) / width).coerceIn(0f, 1f), ((untransformed.y - margin) / height).coerceIn(0f, 1f)))
+                    val availableWidth = (size.width - 2 * margin).coerceAtLeast(1f)
+                    val availableHeight = (size.height - 2 * margin).coerceAtLeast(1f)
+                    val aspect = planBitmap?.let { it.width.toFloat() / it.height.toFloat() }
+                    val mapWidth = if (aspect == null) availableWidth else minOf(availableWidth, availableHeight * aspect)
+                    val mapHeight = if (aspect == null) availableHeight else minOf(availableHeight, availableWidth / aspect)
+                    val left = (size.width - mapWidth) / 2f
+                    val top = (size.height - mapHeight) / 2f
+                    if (untransformed.x in left..(left + mapWidth) && untransformed.y in top..(top + mapHeight)) {
+                        onMapTap(Offset(((untransformed.x - left) / mapWidth).coerceIn(0f, 1f), ((untransformed.y - top) / mapHeight).coerceIn(0f, 1f)))
                     }
                 }
             }
@@ -387,10 +417,14 @@ private fun CoverageMapCanvas(
             transformOrigin = TransformOrigin.Center
         }) {
             val margin = 20.dp.toPx()
-            val left = margin
-            val top = margin
-            val width = (size.width - 2 * margin).coerceAtLeast(1f)
-            val height = (size.height - 2 * margin).coerceAtLeast(1f)
+            val availableWidth = (size.width - 2 * margin).coerceAtLeast(1f)
+            val availableHeight = (size.height - 2 * margin).coerceAtLeast(1f)
+            val aspect = planBitmap?.let { it.width.toFloat() / it.height.toFloat() }
+            val width = if (aspect == null) availableWidth else minOf(availableWidth, availableHeight * aspect)
+            val height = if (aspect == null) availableHeight else minOf(availableHeight, availableWidth / aspect)
+            val left = (size.width - width) / 2f
+            val top = (size.height - height) / 2f
+            drawRect(Color(0xFF090D19), Offset.Zero, Size(size.width, size.height))
             drawRect(Color(0xFF10182A), Offset(left, top), Size(width, height))
             planBitmap?.let { bitmap ->
                 drawIntoCanvas { canvas ->
