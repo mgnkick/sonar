@@ -84,7 +84,7 @@ jobs:
           RELEASE_TAG: wifi-sonar-build-${{ github.run_id }}-${{ github.run_attempt }}
           RELEASE_TITLE: WiFi Sonar APK build ${{ github.run_number }}
         run: |
-          gh release create "$RELEASE_TAG" "$APK_PATH" \
+          gh release create "$RELEASE_TAG" "$APK_PATH" --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$RELEASE_TITLE" \
             --notes "Automatically built from commit $GITHUB_SHA."
