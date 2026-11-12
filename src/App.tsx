@@ -191,7 +191,7 @@ export default function App() {
               <span>{isDownloading ? 'Сборка архива...' : 'Скачать .ZIP'}</span>
             </button>
             <a
-              href="https://github.com/mgnkick/sonar/releases/latest/download/WiFi-Sonar.apk"
+              href="https://github.com/mgnkick/sonar/releases/latest/download/app-release.apk"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-cyan-400/50 bg-cyan-950/60 hover:bg-cyan-900/70 text-cyan-100 text-xs font-bold transition"
               aria-label="Скачать актуальный APK WiFi Sonar для Android"
             >

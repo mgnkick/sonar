@@ -186,7 +186,7 @@ export const GitHubWorkflowViewer: React.FC = () => {
         </div>
 
         <a
-          href="https://github.com/mgnkick/sonar/releases/latest/download/WiFi-Sonar.apk"
+          href="https://github.com/mgnkick/sonar/releases/latest/download/app-release.apk"
           className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition"
         >
           Скачать APK
