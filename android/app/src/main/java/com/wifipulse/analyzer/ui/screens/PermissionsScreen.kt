@@ -1,11 +1,14 @@
 package com.wifipulse.analyzer.ui.screens
 
 import com.wifipulse.analyzer.ui.components.Text
+import com.wifipulse.analyzer.ui.components.AppLanguage
 
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -20,6 +23,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun PermissionsScreen(
+    appLanguage: AppLanguage,
+    onToggleLanguage: () -> Unit,
     onRequestPermissions: () -> Unit
 ) {
     val context = LocalContext.current
@@ -27,10 +32,16 @@ fun PermissionsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onToggleLanguage) {
+                Text(if (appLanguage == AppLanguage.RU) "EN" else "RU")
+            }
+        }
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
@@ -58,7 +69,7 @@ fun PermissionsScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Для чтения SSID/BSSID и результатов Wi-Fi сканирования требуется точное местоположение и доступ к устройствам поблизости. В системном запросе выберите «Точная», а не «Приблизительная» геолокация; также включите системную настройку «Местоположение».",
+            text = "Точное местоположение нужно Android, чтобы разрешить сканирование Wi-Fi и чтение SSID/BSSID. На Android 13 и новее также требуется доступ к устройствам поблизости. Уведомления нужны для показа фонового мониторинга в системной шторке. Мониторинг запускается пользователем и не отслеживает физическое местоположение. Включите системную настройку «Местоположение».",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
@@ -68,8 +79,8 @@ fun PermissionsScreen(
 
         PermissionItem(
             icon = Icons.Default.LocationOn,
-            title = "Точная геолокация (ACCESS_FINE_LOCATION), не приблизительная",
-            subtitle = "Нужно Android для доступа приложения к SSID/BSSID текущей сети и результатам сканирования Wi-Fi."
+            title = "Точное местоположение (ACCESS_FINE_LOCATION)",
+            subtitle = "Требуется Android для сканирования сетей и чтения SSID/BSSID. Выберите точный доступ, если система предложит выбор."
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -77,7 +88,15 @@ fun PermissionsScreen(
         PermissionItem(
             icon = Icons.Default.DevicesOther,
             title = "Устройства поблизости (NEARBY_WIFI_DEVICES)",
-            subtitle = "Для устройств на базе Android 13 (API 33) и новее."
+            subtitle = "Нужно на Android 13 и новее для работы с Wi-Fi устройствами поблизости."
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        PermissionItem(
+            icon = Icons.Default.Notifications,
+            title = "Уведомления (POST_NOTIFICATIONS)",
+            subtitle = "Нужны на Android 13 и новее, чтобы показывать состояние мониторинга при работе приложения в фоне."
         )
 
         Spacer(modifier = Modifier.height(32.dp))

@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
+import com.wifipulse.analyzer.ui.components.AppLanguage
+import com.wifipulse.analyzer.ui.components.appUiText
 import android.content.Intent
 import android.net.wifi.WifiManager
 import android.net.TrafficStats
@@ -140,6 +142,9 @@ class WifiMonitorService : Service() {
         txRate: Long?,
         isWifiInterfaceRate: Boolean = false
     ): Notification {
+        val language = if (getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE)
+                .getString("app_language", "ru") == "en") AppLanguage.EN else AppLanguage.RU
+        fun ui(value: String) = appUiText(value, language)
         val stopIntent = Intent(this, WifiMonitorService::class.java).setAction(ACTION_STOP)
         val stopPendingIntent = PendingIntent.getService(
             this,
@@ -147,22 +152,22 @@ class WifiMonitorService : Service() {
             stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val signal = rssi?.let { "$it dBm" } ?: "уровень недоступен"
+        val signal = rssi?.let { "$it dBm" } ?: ui("уровень недоступен")
         val rates = if (rxRate != null && txRate != null) {
-            "${if (isWifiInterfaceRate) "Wi-Fi" else "Трафик устройства"}: ↓ ${formatRate(rxRate)} • ↑ ${formatRate(txRate)}"
+            "${if (isWifiInterfaceRate) "Wi-Fi" else ui("Трафик устройства")}: ↓ ${formatRate(rxRate)} • ↑ ${formatRate(txRate)}"
         } else {
-            "Сбор скорости передачи данных…"
+            ui("Сбор скорости передачи данных…")
         }
         val sourceNote = if (isWifiInterfaceRate) {
-            "Скорость передачи по Wi-Fi-интерфейсу; это не отдельный тест LAN."
+            ui("Скорость передачи по Wi-Fi-интерфейсу; это не отдельный тест LAN.")
         } else {
-            "Нет счётчика Wi-Fi-интерфейса: показан общий трафик устройства, это не тест LAN."
+            ui("Нет счётчика Wi-Fi-интерфейса: показан общий трафик устройства, это не тест LAN.")
         }
         val expandedText = "$ssid • $signal\n$rates\n$sourceNote"
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
-            .setContentTitle("WiFi Pulse • Фоновый мониторинг")
+            .setContentTitle("WiFi Sonar • ${ui("Фоновый мониторинг Wi-Fi")}")
             .setContentText("$ssid • $signal")
             .setSubText(rates)
             .setStyle(NotificationCompat.BigTextStyle().bigText(expandedText))
@@ -171,7 +176,7 @@ class WifiMonitorService : Service() {
             .setShowWhen(false)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stopPendingIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, ui("Остановить"), stopPendingIntent)
             .setContentIntent(
                 PendingIntent.getActivity(
                     this,
@@ -199,10 +204,10 @@ class WifiMonitorService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Фоновый мониторинг Wi-Fi",
+                if (getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).getString("app_language", "ru") == "en") "Wi-Fi background monitoring" else "Фоновый мониторинг Wi-Fi",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Текущее имя сети, уровень сигнала и скорость трафика устройства"
+                description = if (getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).getString("app_language", "ru") == "en") "Current network name, signal strength and device traffic rate" else "Текущее имя сети, уровень сигнала и скорость трафика устройства"
                 setShowBadge(false)
             }
             notificationManager.createNotificationChannel(channel)

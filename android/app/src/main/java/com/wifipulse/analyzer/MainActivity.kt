@@ -48,6 +48,7 @@ import com.wifipulse.analyzer.ui.theme.WiFiPulseTheme
 import com.wifipulse.analyzer.ui.viewmodel.WifiViewModel
 import com.wifipulse.analyzer.ui.components.AppLanguage
 import com.wifipulse.analyzer.ui.components.LocalAppLanguage
+import com.wifipulse.analyzer.ui.components.appUiText
 
 @Composable
 fun AboutIconButton(onClick: () -> Unit) {
@@ -70,10 +71,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var connectionHistoryRepository: ConnectionHistoryRepository
     private var hasPermissionsState by mutableStateOf(false)
     private var isBackgroundMonitoringState by mutableStateOf(false)
+    private var initialPermissionFlowActive = false
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
+        if (initialPermissionFlowActive) initialPermissionFlowActive = false
         if (isBackgroundMonitorStartPending()) {
             if (granted) {
                 completePendingBackgroundMonitorStart()
@@ -81,7 +84,7 @@ class MainActivity : ComponentActivity() {
                 setBackgroundMonitorStartPending(false)
                 Toast.makeText(
                     this,
-                    "Для отображения мониторинга в системной шторке разрешите уведомления WiFi Pulse.",
+                    localized("Для отображения мониторинга в системной шторке разрешите уведомления WiFi Pulse."),
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -97,7 +100,8 @@ class MainActivity : ComponentActivity() {
             permissions[Manifest.permission.NEARBY_WIFI_DEVICES] ?: true
         } else true
 
-        hasPermissionsState = (fineLocationGranted || coarseLocationGranted) && nearbyGranted
+        hasPermissionsState = fineLocationGranted && nearbyGranted
+        if (initialPermissionFlowActive) requestInitialNotificationPermission()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -133,6 +137,8 @@ class MainActivity : ComponentActivity() {
 
                     val uiState by viewModel.uiState.collectAsState()
 
+                    LaunchedEffect(Unit) { requestInitialPermissionsIfNeeded() }
+
                     LaunchedEffect(hasPermissionsState) {
                         if (hasPermissionsState) {
                             viewModel.onPermissionsGranted()
@@ -141,6 +147,12 @@ class MainActivity : ComponentActivity() {
 
                     if (!hasPermissionsState) {
                         PermissionsScreen(
+                            appLanguage = appLanguage,
+                            onToggleLanguage = {
+                                appLanguage = if (appLanguage == AppLanguage.RU) AppLanguage.EN else AppLanguage.RU
+                                getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).edit()
+                                    .putString("app_language", if (appLanguage == AppLanguage.EN) "en" else "ru").apply()
+                            },
                             onRequestPermissions = { requestPermissions() }
                         )
                     } else {
@@ -226,7 +238,7 @@ class MainActivity : ComponentActivity() {
             isBackgroundMonitoringState = false
             Toast.makeText(
                 this,
-                "Не удалось запустить фоновый мониторинг: ${e.message ?: "ошибка запуска"}",
+                localized("Не удалось запустить фоновый мониторинг: ${e.message ?: "ошибка запуска"}"),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -239,7 +251,13 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED
         } else true
 
-        hasPermissionsState = (fineLocation || coarseLocation) && nearby
+        hasPermissionsState = fineLocation && nearby
+    }
+
+    private fun localized(value: String): String {
+        val lang = if (getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE)
+                .getString("app_language", "ru") == "en") AppLanguage.EN else AppLanguage.RU
+        return appUiText(value, lang)
     }
 
     private fun requestPermissions() {
@@ -253,8 +271,35 @@ class MainActivity : ComponentActivity() {
         permissionLauncher.launch(permissions.toTypedArray())
     }
 
+    private fun requestInitialPermissionsIfNeeded() {
+        val settings = getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE)
+        if (settings.getBoolean(KEY_INITIAL_PERMISSION_REQUESTED, false)) return
+        settings.edit().putBoolean(KEY_INITIAL_PERMISSION_REQUESTED, true).apply()
+        initialPermissionFlowActive = true
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val nearby = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED
+        if (!fine || !nearby) {
+            requestPermissions()
+        } else {
+            requestInitialNotificationPermission()
+        }
+    }
+
+    private fun requestInitialNotificationPermission() {
+        if (!initialPermissionFlowActive) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            initialPermissionFlowActive = false
+        }
+    }
+
     private companion object {
         const val KEY_PENDING_BACKGROUND_MONITOR_START = "background_monitor_start_pending"
+        const val KEY_INITIAL_PERMISSION_REQUESTED = "initial_runtime_permission_requested"
     }
 }
 
