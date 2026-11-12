@@ -37,7 +37,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wifipulse.analyzer.data.repository.WifiRepository
 import com.wifipulse.analyzer.data.repository.ConnectionHistoryRepository
-import com.wifipulse.analyzer.ui.screens.ConnectionHistoryDialog
+import com.wifipulse.analyzer.data.repository.OpenNetworkLogRepository
+import com.wifipulse.analyzer.ui.screens.ConnectionHistoryScreen
 import com.wifipulse.analyzer.ui.screens.SmartAuditScreen
 import com.wifipulse.analyzer.ui.screens.ConnectionInfoScreen
 import com.wifipulse.analyzer.ui.screens.DashboardScreen
@@ -75,12 +76,14 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     object Diagnostics : Screen("diagnostics", "Диагностика", Icons.Default.Speed)
     object SignalAnalysis : Screen("signal", "Спектр/Инфо", Icons.Default.Assessment)
     object CoverageMap : Screen("coverage-map", "Карта", Icons.Default.Map)
+    object History : Screen("history", "История", Icons.Default.History)
 }
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var repository: WifiRepository
     private lateinit var connectionHistoryRepository: ConnectionHistoryRepository
+    private lateinit var openNetworkLogRepository: OpenNetworkLogRepository
     private var hasPermissionsState by mutableStateOf(false)
     private var isBackgroundMonitoringState by mutableStateOf(false)
     private var initialPermissionFlowActive = false
@@ -120,6 +123,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         repository = WifiRepository(this)
         connectionHistoryRepository = ConnectionHistoryRepository(this)
+        openNetworkLogRepository = OpenNetworkLogRepository(this)
         checkPermissions()
         isBackgroundMonitoringState = getSharedPreferences(
             WifiMonitorService.PREFERENCES, MODE_PRIVATE
@@ -172,6 +176,7 @@ class MainActivity : ComponentActivity() {
                             viewModel = viewModel,
                             uiState = uiState,
                             connectionHistoryRepository = connectionHistoryRepository,
+                            openNetworkLogRepository = openNetworkLogRepository,
                             darkTheme = darkTheme,
                             appLanguage = appLanguage,
                             onToggleLanguage = {
@@ -320,6 +325,7 @@ fun MainAppContent(
     viewModel: WifiViewModel,
     uiState: com.wifipulse.analyzer.ui.viewmodel.WifiUiState,
     connectionHistoryRepository: ConnectionHistoryRepository,
+    openNetworkLogRepository: OpenNetworkLogRepository,
     darkTheme: Boolean,
     appLanguage: AppLanguage,
     onToggleLanguage: () -> Unit,
@@ -328,9 +334,10 @@ fun MainAppContent(
     onToggleBackgroundMonitoring: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
-    var showConnectionHistory by remember { mutableStateOf(false) }
     var showAbout by remember { mutableStateOf(false) }
+    var showQuickSettings by remember { mutableStateOf(false) }
     val connectionHistory by connectionHistoryRepository.entries.collectAsState()
+    val openNetworkHistory by openNetworkLogRepository.entries.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     var helpMode by remember { mutableStateOf(false) }
 
@@ -360,8 +367,12 @@ fun MainAppContent(
         viewModel.refreshAudit()
     }
 
+    val locationForHistory = remember(uiState.connectionDetails, uiState.networks) {
+        recentLocationForHistory(context)
+    }
     LaunchedEffect(uiState.connectionDetails, uiState.networks) {
-        connectionHistoryRepository.observeConnection(uiState.connectionDetails, uiState.networks)
+        connectionHistoryRepository.observeConnection(uiState.connectionDetails, uiState.networks, locationForHistory)
+        openNetworkLogRepository.observeScan(uiState.networks)
     }
 
     val diagnosticViewModel: com.wifipulse.analyzer.ui.viewmodel.DiagnosticViewModel = viewModel()
@@ -372,22 +383,9 @@ fun MainAppContent(
         Screen.SmartAudit,
         Screen.Diagnostics,
         Screen.SignalAnalysis,
-        Screen.CoverageMap
+        Screen.CoverageMap,
+        Screen.History
     )
-
-    if (showConnectionHistory) {
-        ConnectionHistoryDialog(
-            entries = connectionHistory,
-            onDelete = { connectionHistoryRepository.deleteEntry(it) },
-            onClear = { connectionHistoryRepository.clearHistory() },
-            onGetPassword = { connectionHistoryRepository.getWifiPassword(it) },
-            onSavePassword = { id, password ->
-                runCatching { connectionHistoryRepository.saveWifiPassword(id, password) }
-                    .onFailure { Toast.makeText(context, "Не удалось сохранить пароль: ${it.message ?: "ошибка"}", Toast.LENGTH_LONG).show() }
-            },
-            onDismiss = { showConnectionHistory = false }
-        )
-    }
 
     if (showAbout) {
         AboutProgramDialog(onDismiss = { showAbout = false })
@@ -424,45 +422,22 @@ fun MainAppContent(
                         )
                     )
                 }
-                androidx.compose.material3.Surface(
-                    onClick = onToggleLanguage,
-                    modifier = Modifier
-                        .padding(end = 2.dp)
-                        .size(width = 34.dp, height = 32.dp)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                            shape = RoundedCornerShape(9.dp)
-                        ),
-                    shape = RoundedCornerShape(9.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            if (appLanguage == AppLanguage.RU) "RU" else "EN",
-                            fontSize = 11.sp,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                Box {
+                    IconButton(onClick = { showQuickSettings = true }, modifier = Modifier.size(42.dp)) {
+                        Icon(Icons.Default.MoreVert, contentDescription = appUiText("Язык и тема", appLanguage), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    DropdownMenu(expanded = showQuickSettings, onDismissRequest = { showQuickSettings = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Язык: ${if (appLanguage == AppLanguage.RU) "Русский" else "English"}") },
+                            leadingIcon = { Icon(Icons.Default.Language, contentDescription = null) },
+                            onClick = { showQuickSettings = false; onToggleLanguage() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (darkTheme) "Светлая тема" else "Тёмная тема") },
+                            leadingIcon = { Icon(if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode, contentDescription = null) },
+                            onClick = { showQuickSettings = false; onToggleTheme() }
                         )
                     }
-                }
-                IconButton(
-                    onClick = onToggleTheme,
-                    modifier = Modifier
-                        .padding(end = 3.dp)
-                        .size(34.dp)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                ) {
-                    Icon(
-                        imageVector = if (darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                        contentDescription = if (darkTheme) "Switch to light theme" else "Switch to dark theme",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
                 }
             }
         }
@@ -532,8 +507,20 @@ fun MainAppContent(
                     lastScanTimestamp = uiState.lastScanTimestamp,
                     isBackgroundMonitoring = isBackgroundMonitoring,
                     onToggleBackgroundMonitoring = onToggleBackgroundMonitoring,
-                    onOpenConnectionHistory = { showConnectionHistory = true },
                     onSelectSignalTrackingBssid = { viewModel.selectSignalTrackingBssid(it) },
+                    onOpenAbout = { showAbout = true }
+                )
+                is Screen.History -> ConnectionHistoryScreen(
+                    entries = connectionHistory,
+                    openNetworks = openNetworkHistory,
+                    onDeleteConnection = { connectionHistoryRepository.deleteEntry(it) },
+                    onClearConnections = { connectionHistoryRepository.clearHistory() },
+                    onClearOpenNetworks = { openNetworkLogRepository.clear() },
+                    onGetPassword = { connectionHistoryRepository.getWifiPassword(it) },
+                    onSavePassword = { id, password ->
+                        runCatching { connectionHistoryRepository.saveWifiPassword(id, password) }
+                            .onFailure { Toast.makeText(context, "Не удалось сохранить пароль: ${it.message ?: "ошибка"}", Toast.LENGTH_LONG).show() }
+                    },
                     onOpenAbout = { showAbout = true }
                 )
                 is Screen.CoverageMap -> ExperimentalHeatmapTab(
@@ -547,3 +534,24 @@ fun MainAppContent(
     }
     }
 }
+
+/** Returns only a recent, already-known fix; the app does not start location updates or track in the background. */
+private fun recentLocationForHistory(context: android.content.Context): android.location.Location? {
+    val fineGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val coarseGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    if (!fineGranted && !coarseGranted) return null
+    val manager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return null
+    val now = System.currentTimeMillis()
+    return listOf(
+        android.location.LocationManager.GPS_PROVIDER,
+        android.location.LocationManager.NETWORK_PROVIDER,
+        android.location.LocationManager.PASSIVE_PROVIDER
+    ).mapNotNull { provider ->
+        runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
+    }.filter { location ->
+        val age = now - location.time
+        age in 0..15.minutesInMillis
+    }.maxByOrNull { it.time }
+}
+
+private val Int.minutesInMillis: Long get() = this * 60_000L

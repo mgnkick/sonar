@@ -27,6 +27,10 @@ fun appUiText(source: String, language: AppLanguage): String {
     Regex("^Канал CH (\\d+) чист от помех$").matchEntire(source)?.let { match ->
         return "Channel CH ${match.groupValues[1]} is clear of interference"
     }
+    Regex("^Рядом обнаружено открытых точек доступа: (\\d+)$").matchEntire(source)?.let { return "Open access points nearby: ${it.groupValues[1]}" }
+    Regex("^Соседние каналы 2,4 ГГц перекрываются с CH (\\d+)$").matchEntire(source)?.let { return "Nearby 2.4 GHz channels overlap with CH ${it.groupValues[1]}" }
+    Regex("^Подключение использует DFS-канал CH (\\d+)$").matchEntire(source)?.let { return "Connection uses DFS channel CH ${it.groupValues[1]}" }
+    Regex("^Канал CH (\\d+) может быть недоступен части клиентов$").matchEntire(source)?.let { return "Channel CH ${it.groupValues[1]} may be unavailable to some clients" }
 
     var result = source
     orderedPhraseTranslations.forEach { (ru, en) ->
@@ -94,6 +98,36 @@ fun Text(
 private val translations = mapOf(
     "Сканер (Mesh)" to "Scanner (Mesh)", "Смарт-Аудит" to "Smart Audit",
     "Диагностика" to "Diagnostics", "Спектр/Инфо" to "Spectrum / Info", "Карта" to "Map",
+    "История" to "History", "Язык и тема" to "Language and theme", "Русский" to "Russian",
+    "Язык: Русский" to "Language: Russian", "Язык: English" to "Language: English",
+    "Светлая тема" to "Light theme", "Тёмная тема" to "Dark theme",
+    "История сетей" to "Network history", "Подключения" to "Connections",
+    "Сети без пароля" to "Open networks", "БЕЗ ПАРОЛЯ" to "OPEN NETWORK",
+    "Без пароля" to "Open network", "СЕТЬ БЕЗ ПАРОЛЯ" to "OPEN NETWORK",
+    "Открытые точки доступа пока не обнаружены. Выполните сканирование на вкладке «Сканер»." to "No open access points found yet. Run a scan on the Scanner tab.",
+    "История подключений и открытых Wi-Fi-сетей, сохранённая локально на этом устройстве." to "Connection and open Wi-Fi network history stored locally on this device.",
+    "ХРОНОЛОГИЯ · СТАРЫЕ СОБЫТИЯ СВЕРХУ" to "TIMELINE · OLDEST EVENTS FIRST",
+    "Приложение фиксирует подключения и смену BSSID, замеченные во время его работы. Координаты берутся из последнего известного местоположения Android и могут отсутствовать, если геолокация выключена или данные устарели." to "The app records connections and BSSID changes detected while it is open. Coordinates use Android's last known location and may be missing if location is disabled or the fix is stale.",
+    "Пока нет подключений. История начнёт заполняться, когда приложение обнаружит подключение или смену точки доступа." to "No connections yet. History starts when the app detects a connection or access point change.",
+    "ПРИВАТНОСТЬ И ПАРОЛИ" to "PRIVACY AND PASSWORDS",
+    "Сетевые имена, BSSID, координаты и журнал открытых сетей остаются на устройстве. Пароль сети приложение не извлекает из Android: его можно внести вручную, он шифруется AES-GCM ключом Android Keystore и показывается только по нажатию." to "Network names, BSSIDs, coordinates and open-network logs stay on this device. The app cannot retrieve Wi-Fi passwords from Android. You can enter a password manually; it is encrypted with Android Keystore AES-GCM and revealed only on request.",
+    "ОТКРЫТЫЕ СЕТИ · ЛОКАЛЬНЫЙ ЖУРНАЛ" to "OPEN NETWORKS · LOCAL LOG",
+    "Список пополняется по результатам сканирования Wi-Fi, пока приложение открыто. Точки доступа объединяются по BSSID; сохраняются первое и последнее обнаружение, сигнал, диапазон и канал." to "This list is updated from Wi-Fi scans while the app is open. Access points are grouped by BSSID; first and last seen time, signal, band and channel are saved.",
+    "Первый раз: " to "First seen: ", "Последний раз: " to "Last seen: ",
+    "Очистить журнал" to "Clear log", "СЕТЬ БЕЗ ПАРОЛЯ" to "OPEN NETWORK",
+    "Ширина 40 МГц в перегруженном диапазоне 2,4 ГГц" to "40 MHz width in a crowded 2.4 GHz band",
+    "Широкий канал захватывает больше соседних частот. Это может уменьшить доступное эфирное время для собственной и соседних сетей." to "A wide channel occupies more nearby frequencies. This can reduce available airtime for your network and nearby networks.",
+    "Если рядом много точек доступа, установите ширину 20 МГц. Оставляйте 40 МГц только после замеров, если эфир действительно свободен и клиентам нужна дополнительная скорость." to "If many access points are nearby, use 20 MHz width. Keep 40 MHz only after measurements confirm a clear band and clients need the extra speed.",
+    "Большая разница сигнала между узлами одной сети" to "Large signal difference between nodes of one network",
+    "Открытая сеть не требует пароля и обычно не шифрует радиоканал между устройством и точкой доступа. Наличие такой сети рядом само по себе не означает, что телефон подключён к ней." to "An open network needs no password and usually does not encrypt the radio link between the device and access point. Its presence nearby does not mean the phone is connected to it.",
+    "Не подключайтесь к неизвестным открытым точкам автоматически. Для своей сети включите WPA2-Personal (AES) или WPA3-Personal и отключите WPS, если он не нужен." to "Avoid automatically connecting to unknown open access points. Use WPA2-Personal (AES) or WPA3-Personal for your network, and disable WPS if you do not need it.",
+    "Обнаружено \$overlap точек на близких каналах. В диапазоне 2,4 ГГц соседние частоты могут занимать одну и ту же полосу и ухудшать эфир даже при разном номере канала." to "Nearby frequencies can overlap in 2.4 GHz and reduce airtime even when channel numbers differ.",
+    "В панели роутера проверьте канал 1, 6 или 11 и ширину 20 МГц. После изменения повторите сканирование в том же месте." to "Check channels 1, 6 or 11 and 20 MHz width in the router settings. Scan again from the same location after changing them.",
+    "На DFS-частотах роутер обязан проверять наличие радаров и при их обнаружении менять канал. Это может вызвать краткую паузу или неожиданную смену канала." to "On DFS frequencies, the router must check for radar and change channels when radar is detected. This may cause a brief pause or an unexpected channel change.",
+    "Если замечаете периодические паузы, сравните работу с разрешёнными для вашей страны не-DFS каналами роутера. Не выбирайте частоты, запрещённые местными правилами." to "If you notice periodic pauses, compare performance with non-DFS channels permitted in your country. Do not select frequencies prohibited by local regulations.",
+    "Поддержка каналов 12 и 13 зависит от региона и настроек страны на клиентских устройствах." to "Support for channels 12 and 13 depends on region and country settings on client devices.",
+    "Если отдельные устройства не видят сеть, проверьте регион роутера и попробуйте один из каналов 1, 6 или 11." to "If some devices cannot see the network, check the router region and try channel 1, 6 or 11.",
+    "Сравните уровни в нескольких точках помещения. Проверьте размещение узлов, мощность передачи и поддержку 802.11k/v; решение о переходе всё равно принимает клиентское устройство." to "Compare signal levels at several locations. Check node placement, transmit power and 802.11k/v support; the client device still decides when to roam.",
     "О программе" to "About", "Страница проекта ↗" to "Project page ↗", "Понятно" to "Got it",
     "Анализ сигнала и спектра" to "Signal and spectrum analysis", "Диагностика сети" to "Network diagnostics",
     "Карта покрытия" to "Coverage map", "История подключений" to "Connection history",
@@ -219,9 +253,9 @@ private val translations = mapOf(
     "На весь экран · альбомно" to "Full screen · landscape", "КАРТА ПОКРЫТИЯ · ТСАП" to "COVERAGE MAP · LAT",
     "Сброс масштаба" to "Reset zoom", "Выйти" to "Exit", "Удалить" to "Delete", "Измерений: " to "Measurements: ",
     "Удалить последнюю точку" to "Delete last point", "Требуются разрешения" to "Permissions required",
-    "Точное местоположение нужно Android, чтобы разрешить сканирование Wi-Fi и чтение SSID/BSSID. На Android 13 и новее также требуется доступ к устройствам поблизости. Уведомления нужны для показа фонового мониторинга в системной шторке. Мониторинг запускается пользователем и не отслеживает физическое местоположение. Включите системную настройку «Местоположение»." to "Android requires precise location permission for Wi-Fi scanning and reading SSID/BSSID. Android 13 and later also require Nearby devices access. Notifications show background monitoring in the notification shade. Monitoring is started by you and does not track your physical location. Turn on the system Location setting.",
+    "Точное местоположение нужно Android, чтобы разрешить сканирование Wi-Fi и чтение SSID/BSSID. На Android 13 и новее также требуется доступ к устройствам поблизости. Уведомления нужны для показа фонового мониторинга в системной шторке. Во время работы приложения свежее последнее местоположение Android может быть сохранено локально вместе с событием подключения или смены точки доступа. Постоянного фонового отслеживания геолокации нет. Включите системную настройку «Местоположение»." to "Android requires precise location permission for Wi-Fi scanning and reading SSID/BSSID. Android 13 and later also require Nearby devices access. Notifications show background monitoring. While the app is open, Android's recent last-known location may be stored locally with a connection or access point change event. The app does not track location continuously in the background. Turn on the system Location setting.",
     "Точное местоположение (ACCESS_FINE_LOCATION)" to "Precise location (ACCESS_FINE_LOCATION)",
-    "Требуется Android для сканирования сетей и чтения SSID/BSSID. Выберите точный доступ, если система предложит выбор." to "Required by Android to scan networks and read SSID/BSSID. Choose precise access if Android offers a choice.",
+    "Требуется Android для сканирования сетей и чтения SSID/BSSID. Выберите точный доступ, если система предложит выбор. Свежее последнее местоположение может добавляться к локальной истории подключений, пока приложение открыто." to "Required by Android to scan networks and read SSID/BSSID. Choose precise access if Android offers a choice. A recent last-known location may be added to local connection history while the app is open.",
     "Устройства поблизости (NEARBY_WIFI_DEVICES)" to "Nearby devices (NEARBY_WIFI_DEVICES)",
     "Нужно на Android 13 и новее для работы с Wi-Fi устройствами поблизости." to "Required on Android 13 and later to work with nearby Wi-Fi devices.",
     "Уведомления (POST_NOTIFICATIONS)" to "Notifications (POST_NOTIFICATIONS)",

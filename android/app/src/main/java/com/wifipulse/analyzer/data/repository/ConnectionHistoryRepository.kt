@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.data.repository
 
 import android.content.Context
+import android.location.Location
 import com.wifipulse.analyzer.data.model.WifiConnectionDetails
 import com.wifipulse.analyzer.data.model.WifiNetwork
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,10 @@ data class ConnectionHistoryEntry(
     val gateway: String?,
     val dns1: String?,
     val dns2: String?,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val locationAccuracyMeters: Float? = null,
+    val locationCapturedAt: Long? = null,
     /** AES-GCM ciphertext only; the plaintext password is never persisted. */
     val wifiPasswordCiphertext: String? = null
 )
@@ -51,10 +56,13 @@ class ConnectionHistoryRepository(context: Context) {
     private val _entries = MutableStateFlow(loadEntries())
     val entries: StateFlow<List<ConnectionHistoryEntry>> = _entries.asStateFlow()
 
-    private var lastObservedKey: String? = prefs.getString(KEY_LAST_OBSERVED, null)
+    // Treat the first observation in each app session as a fresh history event. This captures
+    // the currently connected network when the technician opens the app, even if it was
+    // connected before the previous session ended.
+    private var lastObservedKey: String? = null
 
     @Synchronized
-    fun observeConnection(details: WifiConnectionDetails, networks: List<WifiNetwork>) {
+    fun observeConnection(details: WifiConnectionDetails, networks: List<WifiNetwork>, location: Location? = null) {
         val currentBssid = details.bssid.takeIf {
             details.isConnected && it.isNotBlank() && it != "BSSID недоступен" &&
                 it != "02:00:00:00:00:00"
@@ -121,6 +129,10 @@ class ConnectionHistoryRepository(context: Context) {
                 gateway = details.gateway.takeIf { it != "0.0.0.0" },
                 dns1 = details.dns1.takeIf { it != "0.0.0.0" },
                 dns2 = details.dns2.takeIf { it != "0.0.0.0" },
+                latitude = location?.latitude,
+                longitude = location?.longitude,
+                locationAccuracyMeters = location?.accuracy?.takeIf { it > 0f },
+                locationCapturedAt = location?.time,
             )
             _entries.value = (listOf(entry) + _entries.value).take(MAX_ENTRIES)
             persistEntries()
@@ -215,6 +227,10 @@ class ConnectionHistoryRepository(context: Context) {
                 putNullable("gateway", entry.gateway)
                 putNullable("dns1", entry.dns1)
                 putNullable("dns2", entry.dns2)
+                putNullable("latitude", entry.latitude)
+                putNullable("longitude", entry.longitude)
+                putNullable("locationAccuracyMeters", entry.locationAccuracyMeters)
+                putNullable("locationCapturedAt", entry.locationCapturedAt)
                 putNullable("wifiPasswordCiphertext", entry.wifiPasswordCiphertext)
             })
         }
@@ -251,6 +267,10 @@ class ConnectionHistoryRepository(context: Context) {
                         gateway = item.optNullableString("gateway"),
                         dns1 = item.optNullableString("dns1"),
                         dns2 = item.optNullableString("dns2"),
+                        latitude = item.optNullableDouble("latitude"),
+                        longitude = item.optNullableDouble("longitude"),
+                        locationAccuracyMeters = item.optNullableFloat("locationAccuracyMeters"),
+                        locationCapturedAt = item.optNullableLong("locationCapturedAt"),
                         wifiPasswordCiphertext = item.optNullableString("wifiPasswordCiphertext")
                     ))
                 }
@@ -265,6 +285,15 @@ class ConnectionHistoryRepository(context: Context) {
 
     private fun JSONObject.optNullableString(key: String): String? =
         if (isNull(key) || !has(key)) null else optString(key).takeIf { it.isNotBlank() }
+
+    private fun JSONObject.optNullableDouble(key: String): Double? =
+        if (isNull(key) || !has(key)) null else optDouble(key)
+
+    private fun JSONObject.optNullableFloat(key: String): Float? =
+        if (isNull(key) || !has(key)) null else optDouble(key).toFloat()
+
+    private fun JSONObject.optNullableLong(key: String): Long? =
+        if (isNull(key) || !has(key)) null else optLong(key)
 
     companion object {
         private const val PREFS_NAME = "wifi_pulse_connection_history"

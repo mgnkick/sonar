@@ -1,8 +1,32 @@
 package com.wifipulse.analyzer.data.repository
 
 import com.wifipulse.analyzer.data.model.*
+import java.io.BufferedReader
+import java.io.InputStream
+import java.io.InputStreamReader
 
 object WifiTopologyAnalyzer {
+
+    @Volatile
+    private var ieeeAssignments: Map<String, String> = emptyMap()
+
+    /** Load the bundled offline IEEE MA-L/MA-M/MA-S registry once at app startup. */
+    fun loadVendorDatabase(input: InputStream?) {
+        if (input == null || ieeeAssignments.isNotEmpty()) return
+        val loaded = HashMap<String, String>(55_000)
+        runCatching {
+            BufferedReader(InputStreamReader(input, Charsets.UTF_8)).useLines { lines ->
+                lines.forEach { line ->
+                    val separator = line.indexOf('\t')
+                    if (separator <= 0 || separator == line.lastIndex) return@forEach
+                    val prefix = line.substring(0, separator).uppercase()
+                    val vendor = line.substring(separator + 1).trim()
+                    if (prefix.length in setOf(6, 7, 9) && vendor.isNotBlank()) loaded[prefix] = vendor
+                }
+            }
+        }
+        if (loaded.isNotEmpty()) ieeeAssignments = loaded
+    }
 
     // Common OUI (Organizationally Unique Identifier) prefixes for Wi-Fi vendors
     private val OUI_DATABASE: Map<String, String> = mapOf(
@@ -196,16 +220,23 @@ object WifiTopologyAnalyzer {
     )
 
     fun resolveVendor(bssid: String): String {
-        val clean = bssid.uppercase().replace("-", ":")
-        if (clean.length >= 8) {
-            val prefix = clean.substring(0, 8)
-            OUI_DATABASE[prefix]?.let { return it }
-            val firstOctet = clean.take(2).toIntOrNull(16)
-            if (firstOctet != null && (firstOctet and 0x02) != 0) {
-                return "Локальный / рандомизированный MAC"
-            }
+        val clean = bssid.uppercase().filter { it in '0'..'9' || it in 'A'..'F' }
+        if (clean.length < 12) return "Неизвестный вендор (${bssid.take(8)})"
+        val firstOctet = clean.take(2).toIntOrNull(16)
+        if (firstOctet != null && (firstOctet and 0x02) != 0) {
+            return "Локальный / рандомизированный MAC"
         }
-        return "Неизвестный вендор (${clean.take(8)})"
+
+        // MA-S (36-bit) and MA-M (28-bit) are more specific than the 24-bit OUI.
+        for (length in listOf(9, 7)) {
+            ieeeAssignments[clean.take(length)]?.let { if (!it.equals("Private", true)) return it }
+        }
+
+        val oui = clean.take(6)
+        val formattedOui = oui.chunked(2).joinToString(":")
+        OUI_DATABASE[formattedOui]?.let { return it }
+        ieeeAssignments[oui]?.let { if (!it.equals("Private", true)) return it }
+        return "Неизвестный вендор (${formattedOui})"
     }
 
     /**

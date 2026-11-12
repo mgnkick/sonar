@@ -1,0 +1,3 @@
+IEEE Registration Authority public MA-L, MA-M and MA-S assignments.
+Source: https://standards.ieee.org/products-programs/regauth/
+Downloaded: 2026-11-13. The offline database identifies registered hardware address blocks; locally administered/randomized MAC addresses cannot be reliably attributed.

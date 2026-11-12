@@ -36,26 +36,40 @@ class SmartAuditEngine {
         } else {
             recommendations.add(evaluateBandUtilization(activeGroup))
         }
+        recommendations.addAll(evaluateAdditionalGuidance(networkGroups, activeGroup, connectionDetails))
+        val orderedRecommendations = recommendations.sortedBy {
+            when (it.severity) {
+                AuditSeverity.CRITICAL -> 0
+                AuditSeverity.WARNING -> 1
+                AuditSeverity.OPTIMAL -> 2
+            }
+        }
 
-        // Calculate score
+        // Several useful tips may share one category. Score each category once so a richer
+        // report does not make a healthy network look worse merely because it has more advice.
         var totalScore = 100
         var criticals = 0
         var warnings = 0
         var optimals = 0
 
-        for (rec in recommendations) {
+        for (rec in orderedRecommendations) {
             when (rec.severity) {
                 AuditSeverity.CRITICAL -> {
-                    totalScore -= 25
                     criticals++
                 }
                 AuditSeverity.WARNING -> {
-                    totalScore -= 12
                     warnings++
                 }
                 AuditSeverity.OPTIMAL -> {
                     optimals++
                 }
+            }
+        }
+        orderedRecommendations.groupBy { it.category }.values.forEach { categoryRecommendations ->
+            when (categoryRecommendations.maxByOrNull { severityRank(it.severity) }?.severity) {
+                AuditSeverity.CRITICAL -> totalScore -= 25
+                AuditSeverity.WARNING -> totalScore -= 12
+                else -> Unit
             }
         }
         totalScore = totalScore.coerceIn(10, 100)
@@ -70,12 +84,113 @@ class SmartAuditEngine {
             overallScore = totalScore,
             statusTitle = statusTitle,
             statusDescription = statusDesc,
-            recommendations = recommendations.take(4),
+            recommendations = orderedRecommendations.take(10),
             scannedNetworksCount = networkGroups.size,
             optimalCount = optimals,
             warningCount = warnings,
             criticalCount = criticals
         )
+    }
+
+    private fun severityRank(severity: AuditSeverity): Int = when (severity) {
+        AuditSeverity.OPTIMAL -> 0
+        AuditSeverity.WARNING -> 1
+        AuditSeverity.CRITICAL -> 2
+    }
+
+    private fun evaluateAdditionalGuidance(
+        allGroups: List<WifiNetworkGroup>,
+        targetGroup: WifiNetworkGroup?,
+        details: WifiConnectionDetails
+    ): List<AuditRecommendation> = buildList {
+        val allNodes = allGroups.flatMap { it.nodes }
+        val openCount = allNodes.count { it.securityType == SecurityType.OPEN }
+        if (openCount > 0 && targetGroup?.bestSecurity != SecurityType.OPEN) {
+            add(AuditRecommendation(
+                id = "rec_open_nearby",
+                category = AuditCategory.SECURITY_PROTOCOL,
+                severity = AuditSeverity.WARNING,
+                title = "Рядом обнаружено открытых точек доступа: $openCount",
+                summary = "Открытая сеть не требует пароля и обычно не шифрует радиоканал между устройством и точкой доступа. Наличие такой сети рядом само по себе не означает, что телефон подключён к ней.",
+                actionGuide = "Не подключайтесь к неизвестным открытым точкам автоматически. Для своей сети включите WPA2-Personal (AES) или WPA3-Personal и отключите WPS, если он не нужен.",
+                metricBadge = "$openCount без защиты"
+            ))
+        }
+
+        val targetBand = when (details.frequency) {
+            in 2400..2500 -> WifiBand.BAND_2_4_GHZ
+            in 4900..5924 -> WifiBand.BAND_5_GHZ
+            in 5925..7125 -> WifiBand.BAND_6_GHZ
+            else -> targetGroup?.bestBand ?: WifiBand.UNKNOWN
+        }
+        val targetChannel = if (details.isConnected && details.frequency > 0)
+            WifiRepository.frequencyToChannel(details.frequency) else targetGroup?.bestNode?.channel ?: 0
+        val targetNode = targetGroup?.bestNode
+
+        if (targetBand == WifiBand.BAND_2_4_GHZ && targetChannel > 0) {
+            val overlap = allNodes.count {
+                it.band == WifiBand.BAND_2_4_GHZ && it.channel != targetChannel && kotlin.math.abs(it.channel - targetChannel) <= 4
+            }
+            if (overlap >= 4) add(AuditRecommendation(
+                id = "rec_channel_adjacent",
+                category = AuditCategory.CHANNEL_CONGESTION,
+                severity = AuditSeverity.WARNING,
+                title = "Соседние каналы 2,4 ГГц перекрываются с CH $targetChannel",
+                summary = "Обнаружено $overlap точек на близких каналах. В диапазоне 2,4 ГГц соседние частоты могут занимать одну и ту же полосу и ухудшать эфир даже при разном номере канала.",
+                actionGuide = "В панели роутера проверьте канал 1, 6 или 11 и ширину 20 МГц. После изменения повторите сканирование в том же месте.",
+                metricBadge = "$overlap соседних каналов"
+            ))
+        }
+
+        if (targetBand == WifiBand.BAND_2_4_GHZ && (targetNode?.channelWidth ?: 0) >= 40) {
+            add(AuditRecommendation(
+                id = "rec_width_24",
+                category = AuditCategory.CHANNEL_CONGESTION,
+                severity = AuditSeverity.WARNING,
+                title = "Ширина 40 МГц в перегруженном диапазоне 2,4 ГГц",
+                summary = "Широкий канал захватывает больше соседних частот. Это может уменьшить доступное эфирное время для собственной и соседних сетей.",
+                actionGuide = "Если рядом много точек доступа, установите ширину 20 МГц. Оставляйте 40 МГц только после замеров, если эфир действительно свободен и клиентам нужна дополнительная скорость.",
+                metricBadge = "${targetNode?.channelWidth ?: 40} МГц"
+            ))
+        }
+
+        if (targetBand == WifiBand.BAND_5_GHZ && targetChannel in 52..144) {
+            add(AuditRecommendation(
+                id = "rec_dfs_channel",
+                category = AuditCategory.CHANNEL_CONGESTION,
+                severity = AuditSeverity.WARNING,
+                title = "Подключение использует DFS-канал CH $targetChannel",
+                summary = "На DFS-частотах роутер обязан проверять наличие радаров и при их обнаружении менять канал. Это может вызвать краткую паузу или неожиданную смену канала.",
+                actionGuide = "Если замечаете периодические паузы, сравните работу с разрешёнными для вашей страны не-DFS каналами роутера. Не выбирайте частоты, запрещённые местными правилами.",
+                metricBadge = "DFS · CH $targetChannel"
+            ))
+        }
+
+        if (targetBand == WifiBand.BAND_2_4_GHZ && targetChannel in 12..13) {
+            add(AuditRecommendation(
+                id = "rec_channel_compat",
+                category = AuditCategory.TOPOLOGY_EFFICIENCY,
+                severity = AuditSeverity.WARNING,
+                title = "Канал CH $targetChannel может быть недоступен части клиентов",
+                summary = "Поддержка каналов 12 и 13 зависит от региона и настроек страны на клиентских устройствах.",
+                actionGuide = "Если отдельные устройства не видят сеть, проверьте регион роутера и попробуйте один из каналов 1, 6 или 11.",
+                metricBadge = "Совместимость клиентов"
+            ))
+        }
+
+        if (targetGroup != null && targetGroup.nodes.size > 1) {
+            val levels = targetGroup.nodes.map { it.rssi }
+            val spread = (levels.maxOrNull() ?: 0) - (levels.minOrNull() ?: 0)
+            if (spread >= 20) add(AuditRecommendation(
+                id = "rec_roaming_imbalance",
+                category = AuditCategory.TOPOLOGY_EFFICIENCY,
+                severity = AuditSeverity.WARNING,
+                title = "Большая разница сигнала между узлами одной сети",
+                summary = "Уровни сигнала BSSID одной сети отличаются на $spread дБ. Это может затруднять выбор точки роуминга на телефоне или ноутбуке.",
+                actionGuide = "Сравните уровни в нескольких точках помещения. Проверьте размещение узлов, мощность передачи и поддержку 802.11k/v; решение о переходе всё равно принимает клиентское устройство.",
+                metricBadge = "Разброс $spread дБ"
+            ))
+        }
     }
 
     private fun evaluateChannelCongestion(

@@ -55,7 +55,6 @@ fun SignalAnalysisScreen(
     lastScanTimestamp: Long = 0L,
     isBackgroundMonitoring: Boolean = false,
     onToggleBackgroundMonitoring: () -> Unit = {},
-    onOpenConnectionHistory: () -> Unit = {},
     onSelectSignalTrackingBssid: (String?) -> Unit = {},
     onOpenAbout: () -> Unit = {}
 ) {
@@ -83,10 +82,6 @@ fun SignalAnalysisScreen(
             TopAppBar(
                 title = { Text("Анализ сигнала и спектра", fontWeight = FontWeight.Bold) },
                 actions = {
-                    IconButton(onClick = onOpenConnectionHistory) {
-                        Icon(Icons.Default.History, contentDescription = "История подключений")
-                    }
-                    HelpHint("Открыть хронологию подключений и переходов между точками доступа.")
                     AboutIconButton(onOpenAbout)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -646,7 +641,12 @@ fun ChannelSpectrumTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(network.ssid.ifBlank { "[Скрытая сеть]" }, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(network.ssid.ifBlank { "[Скрытая сеть]" }, modifier = Modifier.weight(1f, fill = false), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            if (network.securityType == com.wifipulse.analyzer.data.model.SecurityType.OPEN) {
+                                BadgeChip(label = "БЕЗ ПАРОЛЯ", color = Color(0xFFFF8A4C))
+                            }
+                        }
                         Text("${network.bssid} • ${network.frequency} МГц", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Surface(shape = RoundedCornerShape(8.dp), color = Color(network.signalQuality.hexColor).copy(alpha = 0.12f)) {
@@ -724,6 +724,12 @@ fun SpectrumCanvas(
             textSize = 10.dp.toPx()
             textAlign = AndroidPaint.Align.CENTER
         }
+        val signalPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.rgb((gridAccent.red * 255).toInt(), (gridAccent.green * 255).toInt(), (gridAccent.blue * 255).toInt())
+            textSize = 9.dp.toPx()
+            textAlign = AndroidPaint.Align.RIGHT
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+        }
         val minChannel = if (band == WifiBand.BAND_2_4_GHZ) 1 else 36
         val maxChannel = if (band == WifiBand.BAND_2_4_GHZ) 14 else 165
         val channelSpan = (maxChannel - minChannel).coerceAtLeast(1).toFloat()
@@ -732,10 +738,18 @@ fun SpectrumCanvas(
         val center = (0.5f + panFraction).coerceIn(0.5f / scale, 1f - 0.5f / scale)
         val viewMin = minChannel + center * channelSpan - visibleSpan / 2f
         val viewMax = viewMin + visibleSpan
-        fun channelX(channel: Float): Float = ((channel - viewMin) / visibleSpan * width).coerceIn(-width, width * 2f)
+        val plotLeft = 36.dp.toPx()
+        val plotWidth = (width - plotLeft).coerceAtLeast(1f)
+        fun channelX(channel: Float): Float = (plotLeft + (channel - viewMin) / visibleSpan * plotWidth).coerceIn(plotLeft - width, width * 2f)
 
         val axisY = height - 22.dp.toPx()
-        drawLine(Color.Gray.copy(alpha = 0.35f), Offset(0f, axisY), Offset(width, axisY), 2.dp.toPx())
+        drawLine(Color.Gray.copy(alpha = 0.35f), Offset(plotLeft, axisY), Offset(width, axisY), 2.dp.toPx())
+        nativeCanvas.drawText("dBm", plotLeft - 5.dp.toPx(), 13.dp.toPx(), signalPaint)
+        listOf(-90, -80, -70, -60, -50, -40).forEach { dbm ->
+            val y = axisY - (((dbm + 100) / 70f).coerceIn(0f, 1f) * (height - 50.dp.toPx()))
+            drawLine(gridAccent.copy(alpha = 0.20f), Offset(plotLeft, y), Offset(width, y), 1.dp.toPx())
+            nativeCanvas.drawText(dbm.toString(), plotLeft - 5.dp.toPx(), y + 3.dp.toPx(), signalPaint)
+        }
         val desiredTickCount = (width / (if (scale > 3f) 38.dp.toPx() else 64.dp.toPx())).toInt().coerceAtLeast(2)
         val rawStep = visibleSpan / desiredTickCount
         val niceSteps = if (band == WifiBand.BAND_2_4_GHZ) listOf(1f, 2f, 3f, 4f, 5f) else listOf(1f, 2f, 4f, 5f, 10f, 20f)
@@ -744,7 +758,7 @@ fun SpectrumCanvas(
         while (tick <= viewMax + 0.001f) {
             val x = channelX(tick)
             if (x in 0f..width) {
-                drawLine(gridAccent.copy(alpha = 0.12f), Offset(x, 8.dp.toPx()), Offset(x, axisY), 1.dp.toPx())
+                drawLine(gridAccent.copy(alpha = 0.18f), Offset(x, 8.dp.toPx()), Offset(x, axisY), 1.dp.toPx())
                 drawLine(gridAccent.copy(alpha = 0.6f), Offset(x, axisY - 8.dp.toPx()), Offset(x, axisY), 1.dp.toPx())
                 nativeCanvas.drawText(tick.toInt().toString(), x.coerceIn(12.dp.toPx(), width - 12.dp.toPx()), height - 5.dp.toPx(), channelPaint)
             }
@@ -792,8 +806,8 @@ fun SpectrumCanvas(
 
         visible.forEach { net ->
             val centerX = channelX(net.channel.toFloat())
-            val curveWidth = (width / visibleSpan) * (if (band == WifiBand.BAND_2_4_GHZ) 4.5f else 3.5f) * (net.channelWidth / 20f).coerceIn(1f, 8f)
-            val peakY = height - 25.dp.toPx() - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 50.dp.toPx()))
+            val curveWidth = (plotWidth / visibleSpan) * (if (band == WifiBand.BAND_2_4_GHZ) 4.5f else 3.5f) * (net.channelWidth / 20f).coerceIn(1f, 8f)
+            val peakY = axisY - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 50.dp.toPx()))
             val path = Path()
             path.moveTo(centerX - curveWidth / 2f, axisY)
             path.cubicTo(centerX - curveWidth / 4f, peakY, centerX + curveWidth / 4f, peakY, centerX + curveWidth / 2f, axisY)

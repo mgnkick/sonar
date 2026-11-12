@@ -25,6 +25,12 @@ import java.nio.ByteOrder
 
 class WifiRepository(private val context: Context) {
 
+    init {
+        runCatching { context.applicationContext.assets.open("oui-vendors.tsv") }
+            .getOrNull()
+            ?.let(WifiTopologyAnalyzer::loadVendorDatabase)
+    }
+
     private val wifiManager: WifiManager =
         context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
 

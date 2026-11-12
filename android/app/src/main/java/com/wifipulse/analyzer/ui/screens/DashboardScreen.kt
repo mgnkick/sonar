@@ -313,6 +313,10 @@ fun ExpandableWifiGroupCard(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false)
                             )
+                            if (group.bestSecurity == SecurityType.OPEN) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                BadgeChip(label = "БЕЗ ПАРОЛЯ", color = Color(0xFFFF8A4C))
+                            }
                             if (connectedSsid != null && group.ssid == connectedSsid) {
                                 Spacer(modifier = Modifier.width(6.dp))
                                 BadgeChip(label = "ПОДКЛЮЧЕНО", color = Color(0xFF22C55E))

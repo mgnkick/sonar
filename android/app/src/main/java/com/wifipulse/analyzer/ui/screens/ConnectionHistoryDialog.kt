@@ -141,13 +141,14 @@ fun ConnectionHistoryDialog(
 }
 
 @Composable
-private fun HistoryEntryCard(
+fun HistoryEntryCard(
     entry: ConnectionHistoryEntry,
     accent: Color,
     onDelete: () -> Unit,
     passwordRevealed: String?,
     onTogglePassword: () -> Unit,
-    onSetPassword: () -> Unit
+    onSetPassword: () -> Unit,
+    dateLocale: Locale = Locale.getDefault()
 ) {
     val colors = MaterialTheme.colorScheme
     Card(
@@ -160,8 +161,8 @@ private fun HistoryEntryCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("ВРЕМЯ СОБЫТИЯ", color = accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
-                    Text(formatDate(entry.firstSeenAt), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
-                    Text(formatTime(entry.firstSeenAt), color = accent, fontFamily = FontFamily.Monospace, fontSize = 23.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                    Text(formatDate(entry.firstSeenAt, dateLocale), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+                    Text(formatTime(entry.firstSeenAt, dateLocale), color = accent, fontFamily = FontFamily.Monospace, fontSize = 23.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                 }
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, contentDescription = "Удалить запись", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -179,6 +180,16 @@ private fun HistoryEntryCard(
             if (tech.isNotBlank()) HistoryValue("ПОДКЛЮЧЕНИЕ", tech, MaterialTheme.colorScheme.onSurfaceVariant)
             val networkDetails = listOfNotNull(entry.ipAddress?.let { "IP $it" }, entry.gateway?.let { "шлюз $it" }, entry.dns1?.let { "DNS $it" }, entry.dns2?.let { "DNS2 $it" }).joinToString(" · ")
             if (networkDetails.isNotBlank()) HistoryValue("СЕТЕВЫЕ ДАННЫЕ", networkDetails, MaterialTheme.colorScheme.onSurfaceVariant)
+            if (entry.latitude != null && entry.longitude != null) {
+                val location = "%.5f, %.5f".format(Locale.US, entry.latitude, entry.longitude) +
+                    (entry.locationAccuracyMeters?.let { " · ±${it.toInt()} м" } ?: "")
+                HistoryValue("МЕСТО ПОДКЛЮЧЕНИЯ", location, colors.tertiary)
+                entry.locationCapturedAt?.let { capturedAt ->
+                    HistoryValue("ВРЕМЯ ЗАМЕРА ГЕОПОЗИЦИИ", formatDateTime(capturedAt, dateLocale), colors.onSurfaceVariant)
+                }
+            } else {
+                HistoryValue("МЕСТО ПОДКЛЮЧЕНИЯ", "Координаты недоступны — проверьте разрешение и включение геолокации Android.", colors.onSurfaceVariant)
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = onSetPassword) {
                     Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.primary)
@@ -212,6 +223,7 @@ private fun eventTitle(event: String): String = when {
     else -> event.uppercase(Locale.getDefault())
 }
 
-private fun formatDate(timestamp: Long): String = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault()).format(Date(timestamp))
-private fun formatTime(timestamp: Long): String = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
+private fun formatDate(timestamp: Long, locale: Locale = Locale.getDefault()): String = SimpleDateFormat("EEEE, dd MMMM yyyy", locale).format(Date(timestamp))
+private fun formatTime(timestamp: Long, locale: Locale = Locale.getDefault()): String = SimpleDateFormat("HH:mm:ss", locale).format(Date(timestamp))
+private fun formatDateTime(timestamp: Long, locale: Locale): String = SimpleDateFormat("dd MMM yyyy · HH:mm:ss", locale).format(Date(timestamp))
 
