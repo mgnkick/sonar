@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.CompositionLocalProvider
@@ -49,11 +50,22 @@ import com.wifipulse.analyzer.ui.viewmodel.WifiViewModel
 import com.wifipulse.analyzer.ui.components.AppLanguage
 import com.wifipulse.analyzer.ui.components.LocalAppLanguage
 import com.wifipulse.analyzer.ui.components.appUiText
+import com.wifipulse.analyzer.ui.components.LocalHelpMode
+import com.wifipulse.analyzer.ui.components.LocalHelpToggle
 
 @Composable
 fun AboutIconButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(Icons.Default.QuestionMark, contentDescription = "О программе")
+    androidx.compose.foundation.layout.Row {
+        IconButton(onClick = LocalHelpToggle.current, modifier = Modifier.size(34.dp)) {
+            Icon(
+                Icons.Default.QuestionMark,
+                contentDescription = appUiText("Режим подсказок", LocalAppLanguage.current),
+                tint = if (LocalHelpMode.current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(onClick = onClick, modifier = Modifier.size(34.dp)) {
+            Icon(Icons.Outlined.Info, contentDescription = appUiText("О программе", LocalAppLanguage.current))
+        }
     }
 }
 
@@ -320,6 +332,7 @@ fun MainAppContent(
     var showAbout by remember { mutableStateOf(false) }
     val connectionHistory by connectionHistoryRepository.entries.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
+    var helpMode by remember { mutableStateOf(false) }
 
     // Keep automatic scans active only while the app is visible. The periodic scan runs
     // independently of Compose rendering and never changes focus or the manual scan state.
@@ -380,6 +393,10 @@ fun MainAppContent(
         AboutProgramDialog(onDismiss = { showAbout = false })
     }
 
+    CompositionLocalProvider(
+        LocalHelpMode provides helpMode,
+        LocalHelpToggle provides { helpMode = !helpMode }
+    ) {
     Scaffold(
         bottomBar = {
             NavigationBar(
@@ -527,5 +544,6 @@ fun MainAppContent(
                 )
             }
         }
+    }
     }
 }

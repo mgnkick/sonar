@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
 import com.wifipulse.analyzer.ui.components.Text
+import com.wifipulse.analyzer.ui.components.HelpHint
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -104,6 +105,7 @@ fun DiagnosticScreen(
                     ) {
                         Icon(Icons.Default.DeleteOutline, contentDescription = "Очистить логи")
                     }
+                    HelpHint("Очистить сохранённый вывод консоли диагностики.")
                     AboutIconButton(onOpenAbout)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -139,15 +141,18 @@ fun DiagnosticScreen(
                 gateway = connectionDetails.gateway
             )
 
-            Button(
-                onClick = onStartGuidedDiagnostics,
-                enabled = !isRunning,
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Проверить шлюз, DNS и интернет")
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onStartGuidedDiagnostics,
+                    enabled = !isRunning,
+                    modifier = Modifier.weight(1f).padding(top = 6.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.FactCheck, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Проверить шлюз, DNS и интернет")
+                }
+                HelpHint("Последовательно проверить связь с маршрутизатором, DNS-серверами и интернетом.")
             }
             // Expandable field troubleshooting guide
             Card(
@@ -319,6 +324,7 @@ fun DiagnosticScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Пинг")
                 }
+                HelpHint("Измерить время отклика и потери пакетов до указанного узла.")
 
                 Button(
                     onClick = onStartTraceroute,
@@ -331,6 +337,7 @@ fun DiagnosticScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Трассировка\nс анализом потерь (ТСАП)", fontSize = 11.sp, lineHeight = 13.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
+                HelpHint("Отследить путь до узла и оценить потери на каждом промежуточном участке.")
 
                 if (isRunning) {
                     Button(
@@ -343,6 +350,7 @@ fun DiagnosticScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Стоп")
                     }
+                    HelpHint("Остановить текущую проверку или трассировку.")
                 }
             }
 

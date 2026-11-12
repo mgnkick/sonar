@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
 import com.wifipulse.analyzer.ui.components.Text
+import com.wifipulse.analyzer.ui.components.HelpHint
 
 import android.content.Context
 import android.graphics.Paint as AndroidPaint
@@ -67,9 +68,9 @@ private const val HEAT_KEY = "samples"
 private const val PLAN_KEY = "plan_uri"
 private const val SHAPES_KEY = "sketch_shapes"
 
-private enum class MapTool { MEASURE, SELECT_OBJECT, ERASER, LINE, RECTANGLE, CIRCLE }
-private enum class SketchKind { LINE, RECTANGLE, CIRCLE }
-private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Float, val x2: Float, val y2: Float)
+private enum class MapTool { SELECT_OBJECT, ERASER, MEASURE, LINE, RECTANGLE, CIRCLE, TEXT }
+private enum class SketchKind { LINE, RECTANGLE, CIRCLE, TEXT }
+private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Float, val x2: Float, val y2: Float, val text: String = "")
 
 @Composable
 fun ExperimentalHeatmapTab(
@@ -88,6 +89,9 @@ fun ExperimentalHeatmapTab(
     var sketchShapes by remember { mutableStateOf(readShapes(preferences.getString(SHAPES_KEY, null))) }
     var selectedPointTime by remember { mutableStateOf<Long?>(null) }
     var selectedShapeIndex by remember { mutableIntStateOf(-1) }
+    var textAnchor by remember { mutableStateOf<Offset?>(null) }
+    var textDraft by remember { mutableStateOf("") }
+    var editingTextIndex by remember { mutableIntStateOf(-1) }
     var currentTool by remember { mutableStateOf(MapTool.MEASURE) }
     var drawStart by remember { mutableStateOf<Offset?>(null) }
     var drawPreviewEnd by remember { mutableStateOf<Offset?>(null) }
@@ -171,6 +175,7 @@ fun ExperimentalHeatmapTab(
             OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Image, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Загрузить план")
             }
+            HelpHint("Выбери план помещения или фотографию из галереи.")
             OutlinedButton(onClick = {
                 val dir = File(context.filesDir, "experimental").apply { mkdirs() }
                 val photo = File(dir, "coverage-plan-${System.currentTimeMillis()}.jpg")
@@ -180,6 +185,7 @@ fun ExperimentalHeatmapTab(
             }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.PhotoCamera, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Сделать фото")
             }
+            HelpHint("Сфотографируй план или помещение и используй снимок как подложку карты.")
         }
         Text("Поддерживаются JPG/JPEG, PNG, BMP, GIF и WebP (у анимации берётся первый кадр). HEIC/HEIF — Android 9+, AVIF — Android 12+ при поддержке устройством. PDF и SVG не поддерживаются.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (planLoadFailed) {
@@ -197,6 +203,7 @@ fun ExperimentalHeatmapTab(
                 preferences.edit().remove(HEAT_KEY).apply()
                 preferences.edit().remove(SHAPES_KEY).apply()
             }) { Text("Убрать изображение и начать заново") }
+            HelpHint("Удалить изображение плана и начать новую схему без замеров и фигур.")
         }
         Text("РИСОВАНИЕ И ЗАМЕРЫ", color = heatAccent, style = MaterialTheme.typography.labelLarge)
         Text(
@@ -204,6 +211,7 @@ fun ExperimentalHeatmapTab(
                 MapTool.MEASURE -> "Коснитесь плана, чтобы поставить замер; двумя пальцами можно менять масштаб и перемещать план."
                 MapTool.SELECT_OBJECT -> "Коснитесь метки или контура, чтобы выбрать объект; удалите его отдельной кнопкой."
                 MapTool.ERASER -> "Коснитесь метки или контура, чтобы сразу стереть ближайший объект."
+                MapTool.TEXT -> "Коснитесь места на плане, введите подпись, и она появится на холсте."
                 MapTool.LINE -> "Проведите пальцем от начала линии до её конца."
                 MapTool.RECTANGLE -> "Проведите пальцем от одного угла прямоугольника к противоположному."
                 MapTool.CIRCLE -> "Проведите пальцем от одного края круга к противоположному."
@@ -219,6 +227,7 @@ fun ExperimentalHeatmapTab(
         )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }, enabled = zoom > 1f || pan != Offset.Zero) { Text("Сбросить масштаб") }
+            HelpHint("Вернуть исходный масштаб и положение плана.")
             Spacer(Modifier.weight(1f))
             TextButton(onClick = {
                 fullscreenToolsExpanded = true
@@ -230,6 +239,7 @@ fun ExperimentalHeatmapTab(
                 Spacer(Modifier.width(4.dp))
                 Text("На весь экран · альбомно")
             }
+            HelpHint("Открыть план на весь экран в альбомной ориентации.")
         }
 
         val onMapTap: (Offset) -> Unit = { point ->
@@ -240,6 +250,11 @@ fun ExperimentalHeatmapTab(
                     selectedPointTime = timestamp
                     selectedShapeIndex = -1
                     preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
+                }
+                MapTool.TEXT -> {
+                    textAnchor = point
+                    textDraft = ""
+                    editingTextIndex = -1
                 }
                 MapTool.SELECT_OBJECT, MapTool.ERASER -> {
                     val sampleHit = samples.map { sample ->
@@ -276,12 +291,15 @@ fun ExperimentalHeatmapTab(
             val kind = when (currentTool) {
                 MapTool.LINE -> SketchKind.LINE
                 MapTool.RECTANGLE -> SketchKind.RECTANGLE
-                else -> SketchKind.CIRCLE
+                MapTool.CIRCLE -> SketchKind.CIRCLE
+                else -> null
             }
-            sketchShapes = sketchShapes + SketchShape(kind, start.x, start.y, end.x, end.y)
-            selectedPointTime = null
-            selectedShapeIndex = sketchShapes.lastIndex
-            preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
+            if (kind != null) {
+                sketchShapes = sketchShapes + SketchShape(kind, start.x, start.y, end.x, end.y)
+                selectedPointTime = null
+                selectedShapeIndex = sketchShapes.lastIndex
+                preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
+            }
         }
         val onShapeDragPreview: (Offset?, Offset?) -> Unit = { start, end ->
             drawStart = start
@@ -306,7 +324,7 @@ fun ExperimentalHeatmapTab(
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column {
                 CoverageMapCanvas(
-                    modifier = Modifier.fillMaxWidth().height(420.dp),
+                    modifier = Modifier.fillMaxWidth().height(460.dp),
                     samples = samples,
                     sketchShapes = sketchShapes,
                     planBitmap = planBitmap,
@@ -332,11 +350,19 @@ fun ExperimentalHeatmapTab(
                 val selectedShape = sketchShapes.getOrNull(selectedShapeIndex)
                 Text(
                     selected?.let { "Выбрана точка замера · ${it.rssi} дБм · ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.time))}" }
-                        ?: selectedShape?.let { "Выбрана фигура: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг" }}" }
+                        ?: selectedShape?.let { "Выбран объект: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг"; SketchKind.TEXT -> "текст" }}" }
                         ?: "Объект не выбран",
                     modifier = Modifier.weight(1f), color = heatAccent, style = MaterialTheme.typography.labelMedium
                 )
+                if (selectedShape?.kind == SketchKind.TEXT) {
+                    OutlinedButton(onClick = {
+                        editingTextIndex = selectedShapeIndex
+                        textDraft = selectedShape.text
+                        textAnchor = null
+                    }) { Text("Изменить текст") }
+                }
                 OutlinedButton(onClick = deleteSelectedObject) { Text("Удалить выбранное") }
+                HelpHint("Удалить выбранную точку замера или объект с плана.")
             }
         }
         if (showFullscreen) {
@@ -368,11 +394,13 @@ fun ExperimentalHeatmapTab(
                         Column(Modifier.align(Alignment.TopStart).width(150.dp)) {
                             Text("КАРТА ПОКРЫТИЯ · ТСАП", color = heatAccent, style = MaterialTheme.typography.labelLarge)
                             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Сброс масштаба") }
+                            HelpHint("Вернуть исходный масштаб и положение плана.")
                             TextButton(onClick = { showFullscreen = false }) {
                                 Icon(Icons.Default.FullscreenExit, contentDescription = null, tint = heatAccent)
                                 Spacer(Modifier.width(4.dp))
                                 Text("Выйти")
                             }
+                            HelpHint("Закрыть полноэкранный редактор.")
                         }
                         Surface(
                             modifier = Modifier.align(Alignment.CenterEnd),
@@ -388,15 +416,27 @@ fun ExperimentalHeatmapTab(
                                     IconButton(onClick = { fullscreenToolsExpanded = false }) {
                                         Text("›", color = heatAccent, style = MaterialTheme.typography.titleLarge)
                                     }
+                                    HelpHint("Свернуть панель инструментов рисования.")
                                     MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = true)
                                     if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
+                                        val selectedText = sketchShapes.getOrNull(selectedShapeIndex)?.takeIf { it.kind == SketchKind.TEXT }
+                                        if (selectedText != null) {
+                                            TextButton(onClick = {
+                                                editingTextIndex = selectedShapeIndex
+                                                textDraft = selectedText.text
+                                                textAnchor = null
+                                            }) { Text("Изменить") }
+                                            HelpHint("Изменить текст выбранной подписи.")
+                                        }
                                         TextButton(onClick = deleteSelectedObject) { Text("Удалить") }
+                                        HelpHint("Удалить выбранный объект или точку замера.")
                                     }
                                 }
                             } else {
                                 IconButton(onClick = { fullscreenToolsExpanded = true }) {
                                     Text("‹", color = heatAccent, style = MaterialTheme.typography.titleLarge)
                                 }
+                                HelpHint("Развернуть панель инструментов рисования.")
                             }
                         }
                     }
@@ -423,6 +463,7 @@ fun ExperimentalHeatmapTab(
                 Spacer(Modifier.width(5.dp))
                 Text("Удалить последнюю точку")
             }
+            HelpHint("Удалить только последнюю добавленную точку замера.")
         }
         if (sketchShapes.isNotEmpty()) {
             TextButton(onClick = {
@@ -431,6 +472,7 @@ fun ExperimentalHeatmapTab(
                 if (selectedShapeIndex == removedIndex) selectedShapeIndex = -1
                 preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
             }) { Text("Отменить последнюю фигуру") }
+            HelpHint("Удалить последнюю нарисованную фигуру или подпись.")
         }
         Text(
             if (currentRssi == null) "Подключите Wi-Fi, чтобы записывать реальные точки уровня сигнала."
@@ -444,34 +486,84 @@ fun ExperimentalHeatmapTab(
           onRefresh = onRefreshNetworks,
           modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp)
       )
+      if (textAnchor != null || editingTextIndex >= 0) {
+          val editing = editingTextIndex >= 0
+          AlertDialog(
+              onDismissRequest = { textAnchor = null; editingTextIndex = -1 },
+              title = { Text(if (editing) "Изменить текст на плане" else "Добавить текст на план") },
+              text = {
+                  OutlinedTextField(
+                      value = textDraft,
+                      onValueChange = { textDraft = it },
+                      label = { Text("Текст") },
+                      placeholder = { Text("Например: кухня") },
+                      minLines = 2,
+                      maxLines = 4
+                  )
+              },
+              confirmButton = {
+                  TextButton(onClick = {
+                      val cleanText = textDraft.trim()
+                      if (cleanText.isNotEmpty()) {
+                          if (editing && editingTextIndex in sketchShapes.indices) {
+                              sketchShapes = sketchShapes.mapIndexed { index, shape ->
+                                  if (index == editingTextIndex) shape.copy(text = cleanText) else shape
+                              }
+                              selectedShapeIndex = editingTextIndex
+                          } else {
+                              val anchor = textAnchor
+                              if (anchor != null) {
+                                  sketchShapes = sketchShapes + SketchShape(SketchKind.TEXT, anchor.x, anchor.y, anchor.x, anchor.y, cleanText)
+                                  selectedShapeIndex = sketchShapes.lastIndex
+                                  selectedPointTime = null
+                              }
+                          }
+                          preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
+                          textAnchor = null
+                          editingTextIndex = -1
+                      }
+                  }) { Text(if (editing) "Сохранить" else "Добавить") }
+              },
+              dismissButton = {
+                  TextButton(onClick = { textAnchor = null; editingTextIndex = -1 }) { Text("Отмена") }
+              }
+          )
+      }
     }
 }
 
 @Composable
 private fun MapToolSelector(selected: MapTool, onSelect: (MapTool) -> Unit, vertical: Boolean) {
     val tools = listOf(
-        MapTool.SELECT_OBJECT to "Выбрать объект",
-        MapTool.ERASER to "Ластик",
-        MapTool.MEASURE to "Замер",
-        MapTool.LINE to "Линия",
-        MapTool.RECTANGLE to "Прямоугольник",
-        MapTool.CIRCLE to "Круг"
+        Triple(MapTool.SELECT_OBJECT, "Выбрать объект", "Коснитесь фигуры, текста или точки, чтобы выбрать её."),
+        Triple(MapTool.ERASER, "Ластик", "Коснитесь объекта или точки, чтобы сразу удалить её."),
+        Triple(MapTool.MEASURE, "Замер", "Коснитесь плана, чтобы сохранить текущий уровень сигнала."),
+        Triple(MapTool.LINE, "Линия", "Проведите пальцем от начала линии до её конца."),
+        Triple(MapTool.RECTANGLE, "Прямоугольник", "Проведите пальцем от одного угла до противоположного."),
+        Triple(MapTool.CIRCLE, "Круг", "Проведите пальцем от одного края круга до другого."),
+        Triple(MapTool.TEXT, "Текст", "Коснитесь места на плане, введите подпись и добавьте её на холст.")
     )
     if (vertical) {
-        Column(Modifier.width(88.dp).padding(4.dp), verticalArrangement = Arrangement.spacedBy(2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            tools.forEach { (tool, label) ->
-                FilterChip(
-                    selected = selected == tool,
-                    onClick = { onSelect(tool) },
-                    label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 2) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+        Column(Modifier.width(108.dp).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            tools.forEach { (tool, label, description) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    FilterChip(
+                        selected = selected == tool,
+                        onClick = { onSelect(tool) },
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 2) },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    )
+                    HelpHint(description)
+                }
             }
         }
     } else {
-        androidx.compose.foundation.lazy.LazyRow(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(tools) { (tool, label) ->
-                FilterChip(selected = selected == tool, onClick = { onSelect(tool) }, label = { Text(label) })
+        androidx.compose.foundation.lazy.LazyRow(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(tools) { (tool, label, description) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    FilterChip(selected = selected == tool, onClick = { onSelect(tool) }, label = { Text(label) }, modifier = Modifier.heightIn(min = 48.dp))
+                    HelpHint(description)
+                }
             }
         }
     }
@@ -602,6 +694,11 @@ private fun CoverageMapCanvas(
                     drawRect(heat.copy(alpha = 0.48f), Offset(left + col * cellW, top + row * cellH), Size(cellW + 1f, cellH + 1f))
                 }
             }
+            val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                color = colors.onSurface.toArgb()
+                textSize = 10.dp.toPx()
+                typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+            }
             val wall = heatAccent.copy(alpha = 0.8f)
             sketchShapes.forEachIndexed { index, shape ->
                 val p1 = Offset(left + width * shape.x1, top + height * shape.y1)
@@ -615,12 +712,21 @@ private fun CoverageMapCanvas(
                         val center = Offset((p1.x + p2.x) / 2f, (p1.y + p2.y) / 2f)
                         drawCircle(shapeColor, radius = sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)) / 2f, center = center, style = Stroke(shapeStroke))
                     }
+                    SketchKind.TEXT -> if (shape.text.isNotBlank()) {
+                        labelPaint.textSize = 16.dp.toPx()
+                        val textWidth = labelPaint.measureText(shape.text)
+                        val baseline = p1.y.coerceIn(top + labelPaint.textSize + 5.dp.toPx(), top + height - 5.dp.toPx())
+                        val textX = p1.x.coerceIn(left + 6.dp.toPx(), (left + width - textWidth - 6.dp.toPx()).coerceAtLeast(left + 6.dp.toPx()))
+                        val bounds = RectF(textX - 6.dp.toPx(), baseline - labelPaint.textSize - 5.dp.toPx(), textX + textWidth + 6.dp.toPx(), baseline + 5.dp.toPx())
+                        val background = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+                            color = if (index == selectedShapeIndex) Color(0xEE513B08).toArgb() else Color(0xEE071018).toArgb()
+                        }
+                        drawContext.canvas.nativeCanvas.drawRoundRect(bounds, 7.dp.toPx(), 7.dp.toPx(), background)
+                        labelPaint.color = android.graphics.Color.WHITE
+                        drawContext.canvas.nativeCanvas.drawText(shape.text, textX, baseline, labelPaint)
+                        labelPaint.color = colors.onSurface.toArgb()
+                    }
                 }
-            }
-            val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
-                color = colors.onSurface.toArgb()
-                textSize = 10.dp.toPx()
-                typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
             }
             samples.forEach { sample ->
                 val center = Offset(left + width * sample.x, top + height * sample.y)
@@ -689,6 +795,13 @@ private fun distanceToShapeSquared(point: Offset, shape: SketchShape): Float {
             val radialDifference = (sqrt(distanceToSegmentSquared(point, center, center)) - radius).coerceAtLeast(0f)
             radialDifference * radialDifference
         }
+        SketchKind.TEXT -> {
+            val halfWidth = (shape.text.length * 0.009f).coerceIn(0.035f, 0.8f)
+            val halfHeight = 0.045f
+            val dx = (point.x - start.x).let { if (it < -halfWidth) it + halfWidth else if (it > halfWidth) it - halfWidth else 0f }
+            val dy = (point.y - start.y).let { if (it < -halfHeight) it + halfHeight else if (it > halfHeight) it - halfHeight else 0f }
+            dx * dx + dy * dy
+        }
     }
 }
 
@@ -754,7 +867,7 @@ private fun readShapes(serialized: String?): List<SketchShape> {
             for (i in 0 until array.length()) {
                 val item = array.getJSONObject(i)
                 val kind = runCatching { SketchKind.valueOf(item.getString("kind")) }.getOrNull() ?: continue
-                add(SketchShape(kind, item.getDouble("x1").toFloat(), item.getDouble("y1").toFloat(), item.getDouble("x2").toFloat(), item.getDouble("y2").toFloat()))
+                add(SketchShape(kind, item.getDouble("x1").toFloat(), item.getDouble("y1").toFloat(), item.getDouble("x2").toFloat(), item.getDouble("y2").toFloat(), item.optString("text", "")))
             }
         }
     }.getOrDefault(emptyList())
@@ -765,6 +878,7 @@ private fun writeShapes(shapes: List<SketchShape>): String = JSONArray().apply {
         put(JSONObject().apply {
             put("kind", shape.kind.name)
             put("x1", shape.x1); put("y1", shape.y1); put("x2", shape.x2); put("y2", shape.y2)
+            put("text", shape.text)
         })
     }
 }.toString()

@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
 import com.wifipulse.analyzer.ui.components.Text
+import com.wifipulse.analyzer.ui.components.HelpHint
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -98,10 +99,10 @@ fun SmartAuditScreen(
 
                 // 2. Recommendations Section Header
                 item {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalAlignment = Alignment.Start
                     ) {
                         Text(
                             text = "Экспертные рекомендации (${report.recommendations.size})",
@@ -112,7 +113,8 @@ fun SmartAuditScreen(
                         Text(
                             text = "Сетей в анализе: ${report.scannedNetworksCount}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF94A3B8)
+                            color = Color(0xFF94A3B8),
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -297,10 +299,10 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
                 .padding(16.dp)
         ) {
             // Category + Severity Badge
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+                horizontalAlignment = Alignment.Start
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -339,20 +341,19 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
             Spacer(modifier = Modifier.height(10.dp))
 
             // Title + Metric Badge
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalAlignment = Alignment.Start
             ) {
                 Text(
                     text = recommendation.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
                 if (recommendation.metricBadge.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant
@@ -461,13 +462,16 @@ fun EmptyAuditPlaceholder(onScanClick: () -> Unit) {
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onScanClick,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(imageVector = Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Запустить аудит эфира")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = onScanClick,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Запустить аудит эфира")
+                }
+                HelpHint("Просканировать радиоэфир и обновить рекомендации по каналам, сигналу и безопасности.")
             }
         }
     }

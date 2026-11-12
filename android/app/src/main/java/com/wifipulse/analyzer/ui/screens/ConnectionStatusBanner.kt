@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
 import com.wifipulse.analyzer.ui.components.Text
+import com.wifipulse.analyzer.ui.components.HelpHint
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -10,9 +11,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -178,6 +181,7 @@ private fun WarningLine(
         ) {
             Text(buttonText, style = MaterialTheme.typography.labelMedium)
         }
+        HelpHint("Открыть системные настройки Android, чтобы изменить это подключение.", Modifier.align(Alignment.End))
     }
 }
 
@@ -216,6 +220,7 @@ fun ConnectionStatusPanel(
                 ConnectionStatusBanner(details = details)
             }
             MiniSonarControl(rssi = if (details.isConnected) details.rssi else -65)
+            HelpHint("Включить звуковые сигналы, частота которых меняется вместе с уровнем Wi-Fi.")
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 2.dp, bottom = 4.dp),
@@ -255,24 +260,27 @@ fun StickyWifiRefreshButton(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FloatingActionButton(
-        onClick = onRefresh,
-        modifier = modifier.size(56.dp),
-        shape = RoundedCornerShape(16.dp),
-        containerColor = MaterialTheme.colorScheme.primary
-    ) {
-        if (isRefreshing) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(22.dp),
-                strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-        } else {
-            androidx.compose.material3.Icon(
-                Icons.Default.Refresh,
-                contentDescription = "Обновить вручную",
-                tint = MaterialTheme.colorScheme.onPrimary
-            )
+    Box(modifier.size(56.dp)) {
+        FloatingActionButton(
+            onClick = onRefresh,
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.primary
+        ) {
+            if (isRefreshing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                androidx.compose.material3.Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "Обновить вручную",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
+        HelpHint("Обновить список сетей и статус подключения.", Modifier.align(Alignment.TopStart).offset(x = (-12).dp, y = (-12).dp))
     }
 }

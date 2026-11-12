@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
 import com.wifipulse.analyzer.ui.components.Text
+import com.wifipulse.analyzer.ui.components.HelpHint
 
 import android.app.Activity
 import android.content.Context
@@ -85,6 +86,7 @@ fun SignalAnalysisScreen(
                     IconButton(onClick = onOpenConnectionHistory) {
                         Icon(Icons.Default.History, contentDescription = "История подключений")
                     }
+                    HelpHint("Открыть хронологию подключений и переходов между точками доступа.")
                     AboutIconButton(onOpenAbout)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -114,6 +116,7 @@ fun SignalAnalysisScreen(
                 isActive = isBackgroundMonitoring,
                 onToggle = onToggleBackgroundMonitoring
             )
+            HelpHint("Запустить или остановить постоянное системное уведомление с данными Wi-Fi-подключения.")
             // Signal target selector: auto-follow the connected BSSID by default,
             // or pin another AP of the same SSID for a placement survey.
             if (trackedBssid != null || meshCandidates.isNotEmpty()) {
@@ -184,6 +187,7 @@ fun SignalAnalysisScreen(
                                 }
                             }
                             Icon(Icons.Default.ExpandMore, contentDescription = "Выбрать сателлит")
+                            HelpHint("Выбрать точку доступа для графика или включить автоматическое отслеживание.")
                         }
                     }
                     DropdownMenu(
@@ -251,7 +255,12 @@ fun SignalAnalysisScreen(
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title, fontSize = 13.sp) }
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(title, fontSize = 13.sp)
+                                HelpHint(listOf("График изменения уровня сигнала во времени.", "Спектр найденных сетей и ширины каналов.", "Сравнение качества каналов и рекомендации.")[index])
+                            }
+                        }
                     )
                 }
             }
@@ -544,11 +553,13 @@ fun ChannelSpectrumTab(
                 onClick = { selectedBand = WifiBand.BAND_2_4_GHZ },
                 label = { Text("Диапазон 2.4 ГГц") }
             )
+            HelpHint("Показать сети и спектр в диапазоне 2,4 ГГц.")
             FilterChip(
                 selected = selectedBand == WifiBand.BAND_5_GHZ,
                 onClick = { selectedBand = WifiBand.BAND_5_GHZ },
                 label = { Text("Диапазон 5 ГГц") }
             )
+            HelpHint("Показать сети и спектр в диапазоне 5 ГГц.")
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -557,6 +568,7 @@ fun ChannelSpectrumTab(
                 Spacer(Modifier.width(6.dp))
                 Text("На весь экран")
             }
+            HelpHint("Открыть спектр на весь экран в альбомной ориентации.")
         }
 
         if (showFullscreen && activity != null) {
@@ -572,7 +584,9 @@ fun ChannelSpectrumTab(
                             Text("Спектр Wi-Fi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1)
                             Text((zoomScale * 100).toInt().toString() + "%", style = MaterialTheme.typography.labelMedium)
                             TextButton(onClick = { zoomScale = 1f; panFraction = 0f }) { Text("Сбросить") }
+                            HelpHint("Вернуть исходное увеличение и положение спектра.")
                             IconButton(onClick = { showFullscreen = false }) { Icon(Icons.Default.FullscreenExit, contentDescription = "Свернуть спектр") }
+                            HelpHint("Закрыть полноэкранный режим спектра.")
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilterChip(selected = selectedBand == WifiBand.BAND_2_4_GHZ, onClick = { selectedBand = WifiBand.BAND_2_4_GHZ; zoomScale = 1f; panFraction = 0f }, label = { Text("2,4 ГГц") })
@@ -693,8 +707,17 @@ fun SpectrumCanvas(
         val nativeCanvas = drawContext.canvas.nativeCanvas
         val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.rgb((labelColor.red * 255).toInt(), (labelColor.green * 255).toInt(), (labelColor.blue * 255).toInt())
-            textSize = 10.dp.toPx()
+            textSize = 12.dp.toPx()
             textAlign = AndroidPaint.Align.CENTER
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+        }
+        val labelBackgroundPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.rgb(13, 18, 31)
+            style = AndroidPaint.Style.FILL
+        }
+        val labelBorderPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            style = AndroidPaint.Style.STROKE
+            strokeWidth = 1.5.dp.toPx()
         }
         val channelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.GRAY
@@ -730,9 +753,9 @@ fun SpectrumCanvas(
 
         val visible = networks.filter { it.channel.toFloat() in viewMin..viewMax }.sortedByDescending { it.rssi }
         // Draw one readable label per channel. The network list below keeps the individual AP details.
-        val labelLaneRightEdges = FloatArray(4) { Float.NEGATIVE_INFINITY }
-        val labelLineHeight = 14.dp.toPx()
-        val labelGap = 6.dp.toPx()
+        val labelLaneRightEdges = FloatArray(5) { Float.NEGATIVE_INFINITY }
+        val labelLineHeight = 20.dp.toPx()
+        val labelGap = 8.dp.toPx()
         visible.groupBy { it.channel }.toSortedMap().forEach { (channel, channelNetworks) ->
             val strongest = channelNetworks.maxByOrNull { it.rssi } ?: return@forEach
             val label = if (channelNetworks.size == 1) {
@@ -752,6 +775,17 @@ fun SpectrumCanvas(
             if (lane >= 0) {
                 labelLaneRightEdges[lane] = labelCenter + halfTextWidth
                 val labelY = 14.dp.toPx() + (lane + 1) * labelLineHeight
+                val paddingX = 6.dp.toPx()
+                val paddingY = 3.dp.toPx()
+                val pill = android.graphics.RectF(
+                    labelCenter - halfTextWidth - paddingX,
+                    labelY - labelPaint.textSize - paddingY,
+                    labelCenter + halfTextWidth + paddingX,
+                    labelY + paddingY
+                )
+                labelBorderPaint.color = strongest.signalQuality.hexColor.toInt()
+                nativeCanvas.drawRoundRect(pill, 7.dp.toPx(), 7.dp.toPx(), labelBackgroundPaint)
+                nativeCanvas.drawRoundRect(pill, 7.dp.toPx(), 7.dp.toPx(), labelBorderPaint)
                 nativeCanvas.drawText(label, labelCenter, labelY, labelPaint)
             }
         }

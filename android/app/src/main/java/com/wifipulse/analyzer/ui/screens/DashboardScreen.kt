@@ -1,6 +1,7 @@
 package com.wifipulse.analyzer.ui.screens
 
 import com.wifipulse.analyzer.ui.components.Text
+import com.wifipulse.analyzer.ui.components.HelpHint
 
 
 import androidx.compose.animation.AnimatedVisibility
@@ -81,9 +82,11 @@ fun DashboardScreen(
                     IconButton(onClick = { showSurveyDialog = true }) {
                         Icon(Icons.Default.Place, contentDescription = "Обследование квартиры")
                     }
+                    HelpHint("Открыть журнал замеров по комнатам и сравнить результаты обследования.")
                     IconButton(onClick = { showSortMenu = true }) {
                         Icon(Icons.Default.Sort, contentDescription = "Сортировка")
                     }
+                    HelpHint("Изменить порядок отображения найденных сетей.")
                     DropdownMenu(
                         expanded = showSortMenu,
                         onDismissRequest = { showSortMenu = false }
@@ -146,8 +149,11 @@ fun DashboardScreen(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (state.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchChange("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Очистить")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { onSearchChange("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Очистить")
+                            }
+                            HelpHint("Очистить текст поиска.")
                         }
                     }
                 },
@@ -163,32 +169,28 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    FilterChip(
-                        selected = state.selectedBand == null,
-                        onClick = { onBandSelected(null) },
-                        label = { Text("Все диапазоны") }
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilterChip(selected = state.selectedBand == null, onClick = { onBandSelected(null) }, label = { Text("Все диапазоны") })
+                        HelpHint("Показывать найденные сети всех диапазонов.")
+                    }
                 }
                 item {
-                    FilterChip(
-                        selected = state.selectedBand == WifiBand.BAND_2_4_GHZ,
-                        onClick = { onBandSelected(WifiBand.BAND_2_4_GHZ) },
-                        label = { Text("2.4 ГГц") }
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilterChip(selected = state.selectedBand == WifiBand.BAND_2_4_GHZ, onClick = { onBandSelected(WifiBand.BAND_2_4_GHZ) }, label = { Text("2.4 ГГц") })
+                        HelpHint("Показывать только сети диапазона 2,4 ГГц.")
+                    }
                 }
                 item {
-                    FilterChip(
-                        selected = state.selectedBand == WifiBand.BAND_5_GHZ,
-                        onClick = { onBandSelected(WifiBand.BAND_5_GHZ) },
-                        label = { Text("5 ГГц") }
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilterChip(selected = state.selectedBand == WifiBand.BAND_5_GHZ, onClick = { onBandSelected(WifiBand.BAND_5_GHZ) }, label = { Text("5 ГГц") })
+                        HelpHint("Показывать только сети диапазона 5 ГГц.")
+                    }
                 }
                 item {
-                    FilterChip(
-                        selected = state.selectedBand == WifiBand.BAND_6_GHZ,
-                        onClick = { onBandSelected(WifiBand.BAND_6_GHZ) },
-                        label = { Text("6 ГГц (Wi-Fi 6E)") }
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilterChip(selected = state.selectedBand == WifiBand.BAND_6_GHZ, onClick = { onBandSelected(WifiBand.BAND_6_GHZ) }, label = { Text("6 ГГц (Wi-Fi 6E)") })
+                        HelpHint("Показывать только сети диапазона 6 ГГц (Wi-Fi 6E).")
+                    }
                 }
             }
 
@@ -375,6 +377,7 @@ fun ExpandableWifiGroupCard(
                                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
+                        HelpHint(if (group.isExpanded) "Свернуть список точек доступа этой сети." else "Показать отдельные точки доступа и BSSID этой сети.")
                     }
                 }
 
