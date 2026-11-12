@@ -267,16 +267,15 @@ private val translations = mapOf(
     "Ручное отслеживание включено: график показывает выбранный BSSID независимо от текущего подключения." to "Manual tracking is on: the chart shows the selected BSSID regardless of the current connection.",
     "Введите целевой адрес для пинга" to "Enter a target address to ping",
     "Операция остановлена." to "Operation stopped.",
-    "Ошибка выполнения: \${e.message ?: "неизвестная ошибка"}" to "Operation failed: \${e.message ?: "unknown error"}",
     "Введите целевой адрес для трассировки" to "Enter a target address to trace",
     "Трассировка остановлена." to "Trace stopped.",
-    "Ошибка трассировки: \${e.message ?: "неизвестная ошибка"}" to "Trace failed: \${e.message ?: "unknown error"}",
     "Подготовка пошаговой диагностики…" to "Preparing step-by-step diagnostics…",
-    "Диагностика завершилась с ошибкой: \${e.message ?: "неизвестная ошибка"}" to "Diagnostics failed: \${e.message ?: "unknown error"}",
     "Операция остановлена пользователем." to "Operation stopped by user."
 )
 
 private val phraseTranslations = mapOf(
+    "Ошибка выполнения: " to "Operation failed: ", "Ошибка трассировки: " to "Trace failed: ",
+    "Диагностика завершилась с ошибкой: " to "Diagnostics failed: ", "неизвестная ошибка" to "unknown error",
     "Подключено" to "Connected", "подключён" to "not connected", "Подключитесь" to "Connect",
     "Сканирование" to "Scanning", "Сети не обнаружены" to "No networks found",
     "сети не обнаружены" to "no networks found", "Выберите сеть" to "Select a network",
