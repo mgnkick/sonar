@@ -5,15 +5,15 @@ plugins {
 }
 
 android {
-    namespace = "com.wifipulse.analyzer"
+    namespace = "com.mgnkick.wifisonar"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.wifipulse.analyzer"
+        applicationId = "com.mgnkick.wifisonar"
         minSdk = 26 // Android 8.0 Oreo
         targetSdk = 34
-        versionCode = 112
-        versionName = "0.9.22"
+        versionCode = 113
+        versionName = "0.9.23"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
