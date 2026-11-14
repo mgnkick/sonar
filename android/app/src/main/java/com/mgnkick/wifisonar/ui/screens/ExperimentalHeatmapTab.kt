@@ -2,8 +2,14 @@ package com.mgnkick.wifisonar.ui.screens
 
 import com.mgnkick.wifisonar.ui.components.Text
 import com.mgnkick.wifisonar.ui.components.HelpHint
+import com.mgnkick.wifisonar.ui.components.LocalAppLanguage
+import com.mgnkick.wifisonar.ui.components.appUiText
 
 import android.content.Context
+import android.content.ContentValues
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.Toast
 import android.graphics.Paint as AndroidPaint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -33,6 +39,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.produceState
@@ -83,6 +90,7 @@ fun ExperimentalHeatmapTab(
     val heatAccent = colors.primary
     val context = androidx.compose.ui.platform.LocalContext.current
     val configuration = LocalConfiguration.current
+    val language = LocalAppLanguage.current
     val activity = context.findActivity()
     val preferences = remember(context) { context.getSharedPreferences(HEAT_PREFS, Context.MODE_PRIVATE) }
     var samples by remember { mutableStateOf(readSamples(preferences.getString(HEAT_KEY, null))) }
@@ -321,7 +329,7 @@ fun ExperimentalHeatmapTab(
             }
         }
 
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
+        Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column {
                 CoverageMapCanvas(
                     modifier = Modifier.fillMaxWidth().height(460.dp),
@@ -343,6 +351,20 @@ fun ExperimentalHeatmapTab(
                 )
                 MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
             }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(
+                onClick = {
+                    val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes)
+                    Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
+                },
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+            ) {
+                Icon(Icons.Default.SaveAlt, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Сохранить рисунок PNG")
+            }
+            HelpHint("Сохранить изображение плана вместе с подписями, фигурами и замерами в PNG.")
         }
         if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -401,6 +423,14 @@ fun ExperimentalHeatmapTab(
                                 Text("Выйти")
                             }
                             HelpHint("Закрыть полноэкранный редактор.")
+                            TextButton(onClick = {
+                                val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes)
+                                Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
+                            }) {
+                                Icon(Icons.Default.SaveAlt, contentDescription = null, tint = heatAccent)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Сохранить PNG")
+                            }
                         }
                         Surface(
                             modifier = Modifier.align(Alignment.CenterEnd),
@@ -531,6 +561,118 @@ fun ExperimentalHeatmapTab(
       }
     }
 }
+
+private fun saveCoverageDrawing(
+    context: Context,
+    plan: Bitmap?,
+    samples: List<CoverageSample>,
+    shapes: List<SketchShape>
+): String? = runCatching {
+    val outputWidth = 1600
+    val aspect = plan?.let { it.width.toFloat() / it.height.coerceAtLeast(1) } ?: (4f / 3f)
+    val outputHeight = (outputWidth / aspect).toInt().coerceIn(900, 1600)
+    val image = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(image)
+    canvas.drawColor(android.graphics.Color.rgb(16, 22, 34))
+    val fitScale = plan?.let { minOf(outputWidth.toFloat() / it.width, outputHeight.toFloat() / it.height) } ?: 1f
+    val mapWidth = (plan?.width?.times(fitScale) ?: outputWidth.toFloat())
+    val mapHeight = (plan?.height?.times(fitScale) ?: outputHeight.toFloat())
+    val left = (outputWidth - mapWidth) / 2f
+    val top = (outputHeight - mapHeight) / 2f
+    plan?.let { bitmap ->
+        val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG or AndroidPaint.FILTER_BITMAP_FLAG)
+        canvas.drawBitmap(bitmap, null, RectF(left, top, left + mapWidth, top + mapHeight), paint)
+    }
+    if (samples.isNotEmpty()) {
+        val columns = 32
+        val rows = 20
+        val cellW = mapWidth / columns
+        val cellH = mapHeight / rows
+        val heatPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply { alpha = 86 }
+        for (row in 0 until rows) for (column in 0 until columns) {
+            val px = (column + 0.5f) / columns
+            val py = (row + 0.5f) / rows
+            var weighted = 0f
+            var totalWeight = 0f
+            samples.takeLast(60).forEach { sample ->
+                val dx = px - sample.x
+                val dy = py - sample.y
+                val weight = 1f / (dx * dx + dy * dy + 0.012f)
+                weighted += sample.rssi * weight
+                totalWeight += weight
+            }
+            val rssi = weighted / totalWeight
+            heatPaint.color = when {
+                rssi >= -50f -> android.graphics.Color.rgb(85, 244, 255)
+                rssi >= -65f -> android.graphics.Color.rgb(105, 245, 181)
+                rssi >= -75f -> android.graphics.Color.rgb(255, 200, 87)
+                else -> android.graphics.Color.rgb(255, 83, 100)
+            }
+            canvas.drawRect(left + column * cellW, top + row * cellH, left + (column + 1) * cellW + 1, top + (row + 1) * cellH + 1, heatPaint)
+        }
+    }
+    val scale = minOf(mapWidth, mapHeight)
+    val stroke = (scale * 0.003f).coerceAtLeast(3f)
+    val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.rgb(85, 244, 255)
+        style = AndroidPaint.Style.STROKE
+        strokeWidth = stroke
+    }
+    shapes.forEach { shape ->
+        val x1 = left + mapWidth * shape.x1
+        val y1 = top + mapHeight * shape.y1
+        val x2 = left + mapWidth * shape.x2
+        val y2 = top + mapHeight * shape.y2
+        when (shape.kind) {
+            SketchKind.LINE -> canvas.drawLine(x1, y1, x2, y2, paint)
+            SketchKind.RECTANGLE -> canvas.drawRect(minOf(x1, x2), minOf(y1, y2), maxOf(x1, x2), maxOf(y1, y2), paint)
+            SketchKind.CIRCLE -> {
+                val dx = x2 - x1
+                val dy = y2 - y1
+                canvas.drawCircle((x1 + x2) / 2f, (y1 + y2) / 2f, sqrt(dx * dx + dy * dy) / 2f, paint)
+            }
+            SketchKind.TEXT -> if (shape.text.isNotBlank()) {
+                paint.style = AndroidPaint.Style.FILL
+                paint.textSize = (scale * 0.025f).coerceIn(20f, 48f)
+                paint.typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+                val baseline = y1.coerceIn(top + paint.textSize, top + mapHeight - 8f)
+                val textX = x1.coerceIn(left + 8f, left + mapWidth - paint.measureText(shape.text) - 8f)
+                paint.color = android.graphics.Color.rgb(7, 16, 24)
+                canvas.drawRoundRect(textX - 8f, baseline - paint.textSize - 7f, textX + paint.measureText(shape.text) + 8f, baseline + 7f, 9f, 9f, paint)
+                paint.color = android.graphics.Color.WHITE
+                canvas.drawText(shape.text, textX, baseline, paint)
+                paint.style = AndroidPaint.Style.STROKE
+                paint.color = android.graphics.Color.rgb(85, 244, 255)
+            }
+        }
+    }
+    samples.forEach { sample ->
+        val x = left + mapWidth * sample.x
+        val y = top + mapHeight * sample.y
+        paint.style = AndroidPaint.Style.FILL
+        paint.color = android.graphics.Color.rgb(85, 244, 255)
+        canvas.drawCircle(x, y, (scale * 0.009f).coerceAtLeast(9f), paint)
+        paint.textSize = (scale * 0.022f).coerceIn(18f, 42f)
+        paint.typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
+        val label = "${sample.rssi} dBm"
+        val labelX = (x + scale * 0.012f).coerceAtMost(left + mapWidth - paint.measureText(label) - 20f)
+        val baseline = (y - scale * 0.012f).coerceAtLeast(top + paint.textSize + 10f)
+        paint.color = android.graphics.Color.rgb(7, 16, 24)
+        canvas.drawRoundRect(labelX - 7f, baseline - paint.textSize - 6f, labelX + paint.measureText(label) + 7f, baseline + 6f, 8f, 8f, paint)
+        paint.color = android.graphics.Color.WHITE
+        canvas.drawText(label, labelX, baseline, paint)
+    }
+    val name = "WiFiSonar-map-${System.currentTimeMillis()}.png"
+    val values = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/WiFiPulse")
+    }
+    val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: error("Не удалось создать PNG")
+    context.contentResolver.openOutputStream(uri)?.use { image.compress(Bitmap.CompressFormat.PNG, 100, it) } ?: error("Не удалось записать PNG")
+    image.recycle()
+    uri.toString()
+}.getOrNull()
 
 @Composable
 private fun MapToolSelector(selected: MapTool, onSelect: (MapTool) -> Unit, vertical: Boolean) {

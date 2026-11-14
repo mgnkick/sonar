@@ -173,7 +173,7 @@ fun HistoryEntryCard(
             }
             HorizontalDivider(color = accent.copy(alpha = 0.2f))
             HistoryValue("СЕТЬ (SSID)", entry.ssid, accent)
-            HistoryValue(if (entry.bssid == "BSSID недоступен") "ТОЧКА ДОСТУПА" else "BSSID САТЕЛЛИТА", entry.bssid, accent)
+            HistoryValue(if (entry.bssid == "BSSID недоступен") "ТОЧКА ДОСТУПА" else "BSSID ТОЧКИ ДОСТУПА", entry.bssid, accent)
             val radio = listOfNotNull(entry.band, entry.channel?.let { "канал $it" }, entry.frequencyMhz?.let { "$it МГц" }, entry.rssiDbm?.let { "$it дБм" }).joinToString(" · ")
             if (radio.isNotBlank()) HistoryValue("РАДИОПАРАМЕТРЫ", radio, colors.tertiary)
             val tech = listOfNotNull(entry.security, entry.channelWidthMhz?.let { "ширина $it МГц" }, entry.standard, entry.linkSpeedMbps?.let { "линк $it Мбит/с" }).joinToString(" · ")

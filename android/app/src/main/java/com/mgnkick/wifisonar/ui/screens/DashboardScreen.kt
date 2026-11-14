@@ -34,6 +34,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.mgnkick.wifisonar.ui.components.LocalAppLanguage
+import com.mgnkick.wifisonar.ui.components.appUiText
 import com.mgnkick.wifisonar.data.model.*
 import com.mgnkick.wifisonar.AboutIconButton
 import com.mgnkick.wifisonar.ui.viewmodel.SortOption
@@ -55,6 +62,39 @@ fun DashboardScreen(
 ) {
     var showSortMenu by remember { mutableStateOf(false) }
     var showSurveyDialog by remember { mutableStateOf(false) }
+    var networkSelectionMode by remember { mutableStateOf(false) }
+    val selectedSsids = remember { mutableStateListOf<String>() }
+    val context = LocalContext.current
+    val language = LocalAppLanguage.current
+    val exportingSelection = networkSelectionMode && selectedSsids.isNotEmpty()
+    val reportGroups = if (networkSelectionMode && selectedSsids.isNotEmpty()) state.filteredGroups.filter { it.ssid in selectedSsids } else state.filteredGroups
+    val networkReport = remember(state.connectionDetails, reportGroups, exportingSelection) {
+        buildString {
+            appendLine("WiFi Sonar — ${appUiText(if (exportingSelection) "Выбранные сети" else "Комплексный отчёт Wi-Fi", language)}")
+            appendLine("${appUiText("Создано: ", language)}${java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale("ru", "RU")).format(java.util.Date())}")
+            appendLine()
+            if (!exportingSelection) {
+                val connection = state.connectionDetails
+                appendLine(appUiText("ТЕКУЩЕЕ ПОДКЛЮЧЕНИЕ", language))
+                appendLine("${appUiText("Статус: ", language)}${appUiText(if (connection.isConnected) "Подключено" else "Нет подключения", language)}")
+                appendLine("SSID: ${connection.ssid}")
+                appendLine("BSSID: ${connection.bssid}")
+                appendLine("${appUiText("Сигнал: ", language)}${connection.rssi} ${appUiText("дБм", language)}")
+                appendLine("${appUiText("Частота: ", language)}${connection.frequency} ${appUiText("МГц", language)} · ${appUiText("Скорость: ", language)}${connection.linkSpeedMbps} ${appUiText("Мбит/с", language)} (TX ${connection.txLinkSpeedMbps} / RX ${connection.rxLinkSpeedMbps})")
+                appendLine("IP: ${connection.ipAddress} · ${appUiText("Шлюз", language)}: ${connection.gateway} · ${appUiText("Маска", language)}: ${connection.subnetMask}")
+                appendLine("DNS: ${connection.dns1}, ${connection.dns2} · ${appUiText("Стандарт", language)}: ${appUiText(connection.standard, language)}")
+                appendLine()
+            }
+            appendLine("${appUiText("ВИДИМЫЕ СЕТИ", language)} (${reportGroups.size})")
+            reportGroups.forEach { group ->
+                appendLine("\n${group.ssid} · ${group.primaryVendor} · ${appUiText(group.topologyType.displayName, language)}")
+                appendLine("${appUiText("Защита: ", language)}${appUiText(group.bestSecurity.displayName, language)} · ${appUiText("Точек доступа: ", language)}${group.totalNodesCount}")
+                group.nodes.forEach { node ->
+                    appendLine("  ${node.bssid} · ${appUiText(node.band.displayName, language)} · ${appUiText("Канал", language)} ${node.channel} · ${node.frequency} ${appUiText("МГц", language)} · ${node.rssi} ${appUiText("дБм", language)} · ${node.channelWidth} ${appUiText("МГц", language)}")
+                }
+            }
+        }.trimEnd()
+    }
     val scrollState = rememberScrollState()
     val isAtContentEnd = scrollState.maxValue > 0 && scrollState.value >= scrollState.maxValue
     val totalNodesCount = state.networkGroups.sumOf { it.totalNodesCount }
@@ -78,6 +118,31 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        networkSelectionMode = !networkSelectionMode
+                        if (!networkSelectionMode) selectedSsids.clear()
+                    }) {
+                        Icon(if (networkSelectionMode) Icons.Default.Close else Icons.Default.Checklist, contentDescription = appUiText("Выбрать сети", language))
+                    }
+                    HelpHint("Включить режим выбора плиток сетей, чтобы скопировать или сохранить только отмеченные сети.")
+                    if (networkSelectionMode && selectedSsids.isNotEmpty()) {
+                        IconButton(onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Wi-Fi сети", networkReport))
+                            Toast.makeText(context, appUiText("Выбранные сети скопированы", language), Toast.LENGTH_SHORT).show()
+                        }) { Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать сети", language)) }
+                    } else {
+                        IconButton(onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Wi-Fi отчёт", networkReport))
+                            Toast.makeText(context, appUiText("Отчёт скопирован", language), Toast.LENGTH_SHORT).show()
+                        }) { Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать отчёт", language)) }
+                    }
+                    IconButton(onClick = {
+                        val saved = exportTextFile(context, if (networkSelectionMode && selectedSsids.isNotEmpty()) "WiFiPulse-selected-networks" else "WiFiPulse-wifi-report", networkReport)
+                        Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFiPulse" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
+                    }) { Icon(Icons.Default.SaveAlt, contentDescription = appUiText("Сохранить отчёт", language)) }
+                    HelpHint("Сохранить TXT-отчёт по текущему подключению и видимым сетям либо выбранным сетям.")
                     AboutIconButton(onOpenAbout)
                     IconButton(onClick = { showSurveyDialog = true }) {
                         Icon(Icons.Default.Place, contentDescription = "Обследование квартиры")
@@ -233,7 +298,13 @@ fun DashboardScreen(
                             group = group,
                             connectedSsid = state.connectionDetails.ssid.takeIf { state.connectionDetails.isConnected },
                             selectedBssid = state.selectedNetworkBssid,
-                            onToggle = { onToggleGroup(group.ssid) },
+                            onToggle = {
+                                if (networkSelectionMode) {
+                                    if (group.ssid in selectedSsids) selectedSsids.remove(group.ssid) else selectedSsids.add(group.ssid)
+                                } else onToggleGroup(group.ssid)
+                            },
+                            isSelectedForExport = group.ssid in selectedSsids,
+                            selectionMode = networkSelectionMode,
                             onSelectNode = { bssid ->
                                 onNetworkSelected(bssid)
                                 onNavigateToAnalysis()
@@ -259,7 +330,9 @@ fun ExpandableWifiGroupCard(
     connectedSsid: String?,
     selectedBssid: String?,
     onToggle: () -> Unit,
-    onSelectNode: (String) -> Unit
+    onSelectNode: (String) -> Unit,
+    isSelectedForExport: Boolean = false,
+    selectionMode: Boolean = false
 ) {
     val bestNode = group.bestNode
     val qualityColor = bestNode?.let { Color(it.signalQuality.hexColor) } ?: MaterialTheme.colorScheme.primary
@@ -275,7 +348,7 @@ fun ExpandableWifiGroupCard(
         ),
         border = androidx.compose.foundation.BorderStroke(
             if (group.isExpanded) 1.5.dp else 1.dp,
-            qualityColor.copy(alpha = if (group.isExpanded) 0.72f else 0.30f)
+            (if (isSelectedForExport) MaterialTheme.colorScheme.tertiary else qualityColor).copy(alpha = if (group.isExpanded || isSelectedForExport) 0.85f else 0.30f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -376,12 +449,14 @@ fun ExpandableWifiGroupCard(
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
-                                if (group.isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                contentDescription = if (group.isExpanded) "Свернуть" else "Развернуть",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                if (selectionMode) {
+                                    if (isSelectedForExport) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked
+                                } else if (group.isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (selectionMode) "Выбрать сеть" else if (group.isExpanded) "Свернуть" else "Развернуть",
+                                tint = if (isSelectedForExport) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
-                        HelpHint(if (group.isExpanded) "Свернуть список точек доступа этой сети." else "Показать отдельные точки доступа и BSSID этой сети.")
+                        HelpHint(if (selectionMode) "Отметить эту сеть для копирования или сохранения." else if (group.isExpanded) "Свернуть список точек доступа этой сети." else "Показать отдельные точки доступа и BSSID этой сети.")
                     }
                 }
 

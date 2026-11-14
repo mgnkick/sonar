@@ -6,6 +6,7 @@ import com.mgnkick.wifisonar.data.repository.OpenNetworkLogEntry
 import com.mgnkick.wifisonar.ui.components.HelpHint
 import com.mgnkick.wifisonar.ui.components.LocalAppLanguage
 import com.mgnkick.wifisonar.ui.components.AppLanguage
+import com.mgnkick.wifisonar.ui.components.appUiText
 import com.mgnkick.wifisonar.ui.components.Text
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +29,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,13 +56,43 @@ fun ConnectionHistoryScreen(
     val revealedPasswords = remember { mutableStateMapOf<String, String>() }
     val chronologicalEntries = remember(entries) { entries.sortedBy { it.firstSeenAt } }
     val language = LocalAppLanguage.current
-    val dateLocale = if (language == AppLanguage.EN) Locale.US else Locale("ru")
+    val dateLocale = if (language == AppLanguage.EN) Locale.US else Locale("ru", "RU")
+    val context = LocalContext.current
+    val visibleHistoryText = remember(selectedTab, chronologicalEntries, openNetworks, dateLocale, language) {
+        if (selectedTab == 0) chronologicalEntries.joinToString("\n\n") { entry ->
+            buildString {
+                appendLine("${appUiText(entry.event, language)} · ${entry.ssid}")
+                appendLine("BSSID: ${entry.bssid}")
+                appendLine("${appUiText("Подключение: ", language)}${dateTime(entry.firstSeenAt, dateLocale)}")
+                if (entry.lastSeenAt != entry.firstSeenAt) appendLine("${appUiText("Последнее наблюдение: ", language)}${dateTime(entry.lastSeenAt, dateLocale)}")
+                entry.rssiDbm?.let { appendLine("${appUiText("Сигнал: ", language)}$it ${appUiText("дБм", language)}") }
+                entry.band?.let { appendLine("${appUiText("Диапазон: ", language)}${appUiText(it, language)}") }
+                entry.channel?.let { appendLine("${appUiText("Канал: ", language)}$it") }
+                entry.frequencyMhz?.let { appendLine("${appUiText("Частота: ", language)}$it ${appUiText("МГц", language)}") }
+                entry.linkSpeedMbps?.let { appendLine("${appUiText("Скорость: ", language)}$it ${appUiText("Мбит/с", language)}") }
+                entry.latitude?.let { lat -> entry.longitude?.let { lon -> appendLine("${appUiText("Координаты: ", language)}$lat, $lon") } }
+            }.trimEnd()
+        }.ifBlank { "История подключений пуста." } else openNetworks.sortedByDescending { it.lastSeenAt }.joinToString("\n\n") { network ->
+            "${network.ssid}\nBSSID: ${network.bssid}\n${appUiText("Без пароля", language)}\n${appUiText(network.band, language)} · ${appUiText("Канал", language)} ${network.channel} · ${network.frequencyMhz} ${appUiText("МГц", language)} · ${network.rssiDbm} ${appUiText("дБм", language)}\n${appUiText("Первое обнаружение: ", language)}${dateTime(network.firstSeenAt, dateLocale)}\n${appUiText("Последнее обнаружение: ", language)}${dateTime(network.lastSeenAt, dateLocale)}"
+        }.ifBlank { "Журнал открытых сетей пуст." }
+    }
 
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("История сетей", fontWeight = FontWeight.Bold) },
             navigationIcon = { Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 14.dp)) },
             actions = {
+                IconButton(onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("История Wi-Fi", visibleHistoryText))
+                    Toast.makeText(context, appUiText("Данные скопированы", language), Toast.LENGTH_SHORT).show()
+                }) { Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать историю", language)) }
+                IconButton(onClick = {
+                    val fileName = if (selectedTab == 0) "WiFiPulse-history" else "WiFiPulse-open-networks"
+                    val section = appUiText(if (selectedTab == 0) "История подключений" else "Журнал открытых сетей", language)
+                    val saved = exportTextFile(context, fileName, "WiFi Sonar — $section\n${appUiText("Экспортировано: ", language)}${dateTime(System.currentTimeMillis(), dateLocale)}\n\n$visibleHistoryText")
+                    Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFiPulse" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
+                }) { Icon(Icons.Default.SaveAlt, contentDescription = appUiText("Сохранить историю", language)) }
                 IconButton(onClick = { if (selectedTab == 0) { onClearConnections(); revealedPasswords.clear() } else onClearOpenNetworks() }) {
                     Icon(Icons.Default.DeleteSweep, contentDescription = "Очистить журнал", tint = MaterialTheme.colorScheme.error)
                 }
@@ -194,7 +232,7 @@ private fun OpenNetworkHistoryCard(entry: OpenNetworkLogEntry, dateLocale: Local
                 }
             }
             Text("BSSID  ${entry.bssid}", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("${entry.band} · CH ${entry.channel} · ${entry.frequencyMhz} МГц · ${entry.rssiDbm} дБм", color = alert, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text("${entry.band} · Канал ${entry.channel} · ${entry.frequencyMhz} МГц · ${entry.rssiDbm} дБм", color = alert, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             HorizontalDivider(color = alert.copy(alpha = 0.2f))
             Text("Первый раз: ${dateTime(entry.firstSeenAt, dateLocale)}", style = MaterialTheme.typography.bodySmall)
             Text("Последний раз: ${dateTime(entry.lastSeenAt, dateLocale)}", style = MaterialTheme.typography.bodySmall)

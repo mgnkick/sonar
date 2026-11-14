@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.border
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -456,6 +457,7 @@ fun MainAppContent(
                 )
                 .padding(padding)
         ) {
+            SelectionContainer {
             when (currentScreen) {
                 is Screen.Dashboard -> DashboardScreen(
                     state = uiState,
@@ -529,6 +531,7 @@ fun MainAppContent(
                     isRefreshingNetworks = uiState.isScanning,
                     onRefreshNetworks = { viewModel.triggerScan() }
                 )
+            }
             }
         }
     }

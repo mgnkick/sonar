@@ -2,10 +2,16 @@ package com.mgnkick.wifisonar.ui.screens
 
 import com.mgnkick.wifisonar.ui.components.Text
 import com.mgnkick.wifisonar.ui.components.HelpHint
+import com.mgnkick.wifisonar.ui.components.LocalAppLanguage
+import com.mgnkick.wifisonar.ui.components.appUiText
 
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,6 +28,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.FloatingActionButton
@@ -51,6 +58,10 @@ fun ConnectionStatusBanner(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val language = LocalAppLanguage.current
+    val connectionReport = remember(details) {
+        "Текущее подключение Wi-Fi\nSSID: ${details.ssid}\nBSSID: ${details.bssid}\nСигнал: ${details.rssi} дБм\nЧастота: ${details.frequency} МГц\nСкорость: ${details.linkSpeedMbps} Мбит/с (TX ${details.txLinkSpeedMbps} / RX ${details.rxLinkSpeedMbps})\nСтандарт: ${details.standard}\nIP: ${details.ipAddress}\nШлюз: ${details.gateway}\nМаска: ${details.subnetMask}\nDNS: ${details.dns1}, ${details.dns2}"
+    }
     val is24Ghz = details.isConnected && details.frequency in 2400..2500
     val hasWarning = !details.isConnected || details.isVpnActive ||
         details.isMobileDataActive || is24Ghz
@@ -121,6 +132,13 @@ fun ConnectionStatusBanner(
                             color = if (hasWarning) MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                         )
                     }
+                }
+                IconButton(onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Параметры подключения", connectionReport))
+                    Toast.makeText(context, appUiText("Параметры подключения скопированы", language), Toast.LENGTH_SHORT).show()
+                }) {
+                    androidx.compose.material3.Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать параметры подключения", language), tint = MaterialTheme.colorScheme.primary)
                 }
             }
             if (!details.isConnected) {
