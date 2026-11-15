@@ -180,14 +180,29 @@ fun HistoryEntryCard(
             if (tech.isNotBlank()) HistoryValue("ПОДКЛЮЧЕНИЕ", tech, MaterialTheme.colorScheme.onSurfaceVariant)
             val networkDetails = listOfNotNull(entry.ipAddress?.let { "IP $it" }, entry.gateway?.let { "шлюз $it" }, entry.dns1?.let { "DNS $it" }, entry.dns2?.let { "DNS2 $it" }).joinToString(" · ")
             if (networkDetails.isNotBlank()) HistoryValue("СЕТЕВЫЕ ДАННЫЕ", networkDetails, MaterialTheme.colorScheme.onSurfaceVariant)
+            val hasConnectionLocation = entry.latitude != null && entry.longitude != null
+            val hasObservedLocation = entry.lastObservedLatitude != null && entry.lastObservedLongitude != null
             if (entry.latitude != null && entry.longitude != null) {
-                val location = "%.5f, %.5f".format(Locale.US, entry.latitude, entry.longitude) +
-                    (entry.locationAccuracyMeters?.let { " · ±${it.toInt()} м" } ?: "")
-                HistoryValue("МЕСТО ПОДКЛЮЧЕНИЯ", location, colors.tertiary)
+                CoordinateMapLink("МЕСТО ПОДКЛЮЧЕНИЯ", entry.latitude, entry.longitude, entry.locationAccuracyMeters)
                 entry.locationCapturedAt?.let { capturedAt ->
                     HistoryValue("ВРЕМЯ ЗАМЕРА ГЕОПОЗИЦИИ", formatDateTime(capturedAt, dateLocale), colors.onSurfaceVariant)
                 }
-            } else {
+            }
+            if (entry.lastObservedLatitude != null && entry.lastObservedLongitude != null) {
+                CoordinateMapLink(
+                    "ПОСЛЕДНЕЕ МЕСТО ОБНАРУЖЕНИЯ",
+                    entry.lastObservedLatitude,
+                    entry.lastObservedLongitude,
+                    entry.lastObservedAccuracyMeters
+                )
+                entry.lastObservedAt?.let { observedAt ->
+                    HistoryValue("ВРЕМЯ ПОСЛЕДНЕГО ОБНАРУЖЕНИЯ", formatDateTime(observedAt, dateLocale), colors.onSurfaceVariant)
+                }
+                entry.lastObservedLocationCapturedAt?.let { capturedAt ->
+                    HistoryValue("ВРЕМЯ МЕСТОПОЛОЖЕНИЯ ANDROID", formatDateTime(capturedAt, dateLocale), colors.onSurfaceVariant)
+                }
+            }
+            if (!hasConnectionLocation && !hasObservedLocation) {
                 HistoryValue("МЕСТО ПОДКЛЮЧЕНИЯ", "Координаты недоступны — проверьте разрешение и включение геолокации Android.", colors.onSurfaceVariant)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

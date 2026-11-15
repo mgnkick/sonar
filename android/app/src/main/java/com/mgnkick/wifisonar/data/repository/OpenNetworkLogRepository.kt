@@ -1,6 +1,7 @@
 package com.mgnkick.wifisonar.data.repository
 
 import android.content.Context
+import android.location.Location
 import com.mgnkick.wifisonar.data.model.SecurityType
 import com.mgnkick.wifisonar.data.model.WifiNetwork
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,15 @@ data class OpenNetworkLogEntry(
     val rssiDbm: Int,
     val frequencyMhz: Int,
     val channel: Int,
-    val band: String
+    val band: String,
+    val firstLatitude: Double? = null,
+    val firstLongitude: Double? = null,
+    val firstLocationAccuracyMeters: Float? = null,
+    val firstLocationCapturedAt: Long? = null,
+    val lastLatitude: Double? = null,
+    val lastLongitude: Double? = null,
+    val lastLocationAccuracyMeters: Float? = null,
+    val lastLocationCapturedAt: Long? = null
 )
 
 class OpenNetworkLogRepository(context: Context) {
@@ -28,7 +37,7 @@ class OpenNetworkLogRepository(context: Context) {
     private val lastPersistedAt = _entries.value.associate { it.bssid.lowercase() to it.lastSeenAt }.toMutableMap()
 
     @Synchronized
-    fun observeScan(networks: List<WifiNetwork>) {
+    fun observeScan(networks: List<WifiNetwork>, location: Location? = null) {
         val openNetworks = networks.filter { it.securityType == SecurityType.OPEN }
         if (openNetworks.isEmpty()) return
         val now = System.currentTimeMillis()
@@ -46,12 +55,23 @@ class OpenNetworkLogRepository(context: Context) {
                 rssiDbm = network.rssi,
                 frequencyMhz = network.frequency,
                 channel = network.channel,
-                band = network.band.displayName
+                band = network.band.displayName,
+                firstLatitude = if (previous == null) location?.latitude else previous.firstLatitude,
+                firstLongitude = if (previous == null) location?.longitude else previous.firstLongitude,
+                firstLocationAccuracyMeters = if (previous == null) location?.accuracy?.takeIf { it > 0f } else previous.firstLocationAccuracyMeters,
+                firstLocationCapturedAt = if (previous == null) location?.time else previous.firstLocationCapturedAt,
+                lastLatitude = location?.latitude ?: previous?.lastLatitude,
+                lastLongitude = location?.longitude ?: previous?.lastLongitude,
+                lastLocationAccuracyMeters = location?.accuracy?.takeIf { it > 0f } ?: previous?.lastLocationAccuracyMeters,
+                lastLocationCapturedAt = location?.time ?: previous?.lastLocationCapturedAt
             )
             byBssid[key] = fresh
             if (previous == null || now - (lastPersistedAt[key] ?: previous.firstSeenAt) >= PERSIST_INTERVAL_MS ||
                 previous.channel != fresh.channel || previous.frequencyMhz != fresh.frequencyMhz ||
-                previous.band != fresh.band || previous.ssid != fresh.ssid
+                previous.band != fresh.band || previous.ssid != fresh.ssid ||
+                (location != null && now - (lastPersistedAt[key] ?: 0L) >= PERSIST_INTERVAL_MS &&
+                    (previous.lastLatitude != fresh.lastLatitude || previous.lastLongitude != fresh.lastLongitude ||
+                        previous.lastLocationCapturedAt != fresh.lastLocationCapturedAt))
             ) changed = true
         }
         _entries.value = byBssid.values.sortedByDescending { it.lastSeenAt }.take(MAX_ENTRIES)
@@ -76,6 +96,14 @@ class OpenNetworkLogRepository(context: Context) {
                 put("frequencyMhz", entry.frequencyMhz)
                 put("channel", entry.channel)
                 put("band", entry.band)
+                putNullable("firstLatitude", entry.firstLatitude)
+                putNullable("firstLongitude", entry.firstLongitude)
+                putNullable("firstLocationAccuracyMeters", entry.firstLocationAccuracyMeters)
+                putNullable("firstLocationCapturedAt", entry.firstLocationCapturedAt)
+                putNullable("lastLatitude", entry.lastLatitude)
+                putNullable("lastLongitude", entry.lastLongitude)
+                putNullable("lastLocationAccuracyMeters", entry.lastLocationAccuracyMeters)
+                putNullable("lastLocationCapturedAt", entry.lastLocationCapturedAt)
             })
         }
         prefs.edit().putString(KEY_ENTRIES, array.toString()).apply()
@@ -95,11 +123,32 @@ class OpenNetworkLogRepository(context: Context) {
                     rssiDbm = item.optInt("rssiDbm"),
                     frequencyMhz = item.optInt("frequencyMhz"),
                     channel = item.optInt("channel"),
-                    band = item.optString("band")
+                    band = item.optString("band"),
+                    firstLatitude = item.optNullableDouble("firstLatitude"),
+                    firstLongitude = item.optNullableDouble("firstLongitude"),
+                    firstLocationAccuracyMeters = item.optNullableFloat("firstLocationAccuracyMeters"),
+                    firstLocationCapturedAt = item.optNullableLong("firstLocationCapturedAt"),
+                    lastLatitude = item.optNullableDouble("lastLatitude"),
+                    lastLongitude = item.optNullableDouble("lastLongitude"),
+                    lastLocationAccuracyMeters = item.optNullableFloat("lastLocationAccuracyMeters"),
+                    lastLocationCapturedAt = item.optNullableLong("lastLocationCapturedAt")
                 ))
             }
         }.sortedByDescending { it.lastSeenAt }.take(MAX_ENTRIES)
     }.getOrDefault(emptyList())
+
+    private fun JSONObject.putNullable(key: String, value: Any?) {
+        put(key, value ?: JSONObject.NULL)
+    }
+
+    private fun JSONObject.optNullableDouble(key: String): Double? =
+        if (isNull(key) || !has(key)) null else optDouble(key)
+
+    private fun JSONObject.optNullableFloat(key: String): Float? =
+        if (isNull(key) || !has(key)) null else optDouble(key).toFloat()
+
+    private fun JSONObject.optNullableLong(key: String): Long? =
+        if (isNull(key) || !has(key)) null else optLong(key)
 
     companion object {
         private const val PREFS_NAME = "wifi_pulse_open_network_log"

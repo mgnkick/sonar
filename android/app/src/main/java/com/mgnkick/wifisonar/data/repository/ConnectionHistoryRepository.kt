@@ -47,6 +47,11 @@ data class ConnectionHistoryEntry(
     val longitude: Double? = null,
     val locationAccuracyMeters: Float? = null,
     val locationCapturedAt: Long? = null,
+    val lastObservedAt: Long? = null,
+    val lastObservedLatitude: Double? = null,
+    val lastObservedLongitude: Double? = null,
+    val lastObservedAccuracyMeters: Float? = null,
+    val lastObservedLocationCapturedAt: Long? = null,
     /** AES-GCM ciphertext only; the plaintext password is never persisted. */
     val wifiPasswordCiphertext: String? = null
 )
@@ -141,6 +146,34 @@ class ConnectionHistoryRepository(context: Context) {
         prefs.edit().putString(KEY_LAST_OBSERVED, key).apply()
     }
 
+    /** Adds the latest scan location to the most recent connection record for a matching BSSID. */
+    @Synchronized
+    fun observeScannedNetworks(networks: List<WifiNetwork>, location: Location?) {
+        if (location == null || networks.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val latestEntryByBssid = _entries.value
+            .filter { it.bssid.isNotBlank() && it.bssid != "BSSID недоступен" }
+            .groupBy { it.bssid.lowercase() }
+            .mapValues { (_, entries) -> entries.maxByOrNull { it.lastSeenAt }?.id }
+        val scannedBssids = networks.map { it.bssid.lowercase() }.toSet()
+        var changed = false
+        _entries.value = _entries.value.map { entry ->
+            val isLatestForBssid = latestEntryByBssid[entry.bssid.lowercase()] == entry.id
+            if (!isLatestForBssid || entry.bssid.lowercase() !in scannedBssids ||
+                (entry.lastObservedAt != null && now - entry.lastObservedAt < OBSERVATION_LOCATION_INTERVAL_MS)
+            ) return@map entry
+            changed = true
+            entry.copy(
+                lastObservedAt = now,
+                lastObservedLatitude = location.latitude,
+                lastObservedLongitude = location.longitude,
+                lastObservedAccuracyMeters = location.accuracy.takeIf { it > 0f },
+                lastObservedLocationCapturedAt = location.time
+            )
+        }
+        if (changed) persistEntries()
+    }
+
     /** Save a password explicitly entered by the technician. Never reads Android-saved credentials. */
     @Synchronized
     fun saveWifiPassword(id: String, password: String) {
@@ -231,6 +264,11 @@ class ConnectionHistoryRepository(context: Context) {
                 putNullable("longitude", entry.longitude)
                 putNullable("locationAccuracyMeters", entry.locationAccuracyMeters)
                 putNullable("locationCapturedAt", entry.locationCapturedAt)
+                putNullable("lastObservedAt", entry.lastObservedAt)
+                putNullable("lastObservedLatitude", entry.lastObservedLatitude)
+                putNullable("lastObservedLongitude", entry.lastObservedLongitude)
+                putNullable("lastObservedAccuracyMeters", entry.lastObservedAccuracyMeters)
+                putNullable("lastObservedLocationCapturedAt", entry.lastObservedLocationCapturedAt)
                 putNullable("wifiPasswordCiphertext", entry.wifiPasswordCiphertext)
             })
         }
@@ -271,6 +309,11 @@ class ConnectionHistoryRepository(context: Context) {
                         longitude = item.optNullableDouble("longitude"),
                         locationAccuracyMeters = item.optNullableFloat("locationAccuracyMeters"),
                         locationCapturedAt = item.optNullableLong("locationCapturedAt"),
+                        lastObservedAt = item.optNullableLong("lastObservedAt"),
+                        lastObservedLatitude = item.optNullableDouble("lastObservedLatitude"),
+                        lastObservedLongitude = item.optNullableDouble("lastObservedLongitude"),
+                        lastObservedAccuracyMeters = item.optNullableFloat("lastObservedAccuracyMeters"),
+                        lastObservedLocationCapturedAt = item.optNullableLong("lastObservedLocationCapturedAt"),
                         wifiPasswordCiphertext = item.optNullableString("wifiPasswordCiphertext")
                     ))
                 }
@@ -301,5 +344,6 @@ class ConnectionHistoryRepository(context: Context) {
         private const val KEY_LAST_OBSERVED = "last_observed_connection"
         private const val MAX_ENTRIES = 500
         private const val PASSWORD_KEY_ALIAS = "wifi_pulse_history_password_key"
+        private const val OBSERVATION_LOCATION_INTERVAL_MS = 60_000L
     }
 }

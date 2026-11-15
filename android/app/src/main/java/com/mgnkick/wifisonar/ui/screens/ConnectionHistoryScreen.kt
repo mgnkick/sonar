@@ -71,9 +71,18 @@ fun ConnectionHistoryScreen(
                 entry.frequencyMhz?.let { appendLine("${appUiText("Частота: ", language)}$it ${appUiText("МГц", language)}") }
                 entry.linkSpeedMbps?.let { appendLine("${appUiText("Скорость: ", language)}$it ${appUiText("Мбит/с", language)}") }
                 entry.latitude?.let { lat -> entry.longitude?.let { lon -> appendLine("${appUiText("Координаты: ", language)}$lat, $lon") } }
+                if (entry.lastObservedLatitude != null && entry.lastObservedLongitude != null) {
+                    appendLine("${appUiText("Последнее место обнаружения: ", language)}${entry.lastObservedLatitude}, ${entry.lastObservedLongitude}")
+                }
             }.trimEnd()
         }.ifBlank { "История подключений пуста." } else openNetworks.sortedByDescending { it.lastSeenAt }.joinToString("\n\n") { network ->
-            "${network.ssid}\nBSSID: ${network.bssid}\n${appUiText("Без пароля", language)}\n${appUiText(network.band, language)} · ${appUiText("Канал", language)} ${network.channel} · ${network.frequencyMhz} ${appUiText("МГц", language)} · ${network.rssiDbm} ${appUiText("дБм", language)}\n${appUiText("Первое обнаружение: ", language)}${dateTime(network.firstSeenAt, dateLocale)}\n${appUiText("Последнее обнаружение: ", language)}${dateTime(network.lastSeenAt, dateLocale)}"
+            buildString {
+                appendLine("${network.ssid}\nBSSID: ${network.bssid}\n${appUiText("Без пароля", language)}\n${appUiText(network.band, language)} · ${appUiText("Канал", language)} ${network.channel} · ${network.frequencyMhz} ${appUiText("МГц", language)} · ${network.rssiDbm} ${appUiText("дБм", language)}")
+                appendLine("${appUiText("Первое обнаружение: ", language)}${dateTime(network.firstSeenAt, dateLocale)}")
+                appendLine("${appUiText("Последнее обнаружение: ", language)}${dateTime(network.lastSeenAt, dateLocale)}")
+                if (network.firstLatitude != null && network.firstLongitude != null) appendLine("${appUiText("Первое место обнаружения: ", language)}${network.firstLatitude}, ${network.firstLongitude}")
+                if (network.lastLatitude != null && network.lastLongitude != null) appendLine("${appUiText("Последнее место обнаружения: ", language)}${network.lastLatitude}, ${network.lastLongitude}")
+            }.trimEnd()
         }.ifBlank { "Журнал открытых сетей пуст." }
     }
 
@@ -140,7 +149,7 @@ fun ConnectionHistoryScreen(
                 item {
                     HistoryNotice(
                         title = "ПРИВАТНОСТЬ И ПАРОЛИ",
-                        body = "Сетевые имена, BSSID, координаты и журнал открытых сетей остаются на устройстве. Пароль сети приложение не извлекает из Android: его можно внести вручную, он шифруется AES-GCM ключом Android Keystore и показывается только по нажатию."
+                        body = "Сетевые имена, BSSID, координаты и журнал открытых сетей хранятся на устройстве. Если нажать на координаты, они передаются Google Картам для показа места. Пароль сети приложение не извлекает из Android: его можно внести вручную, он шифруется AES-GCM ключом Android Keystore и показывается только по нажатию."
                     )
                 }
             }
@@ -236,6 +245,20 @@ private fun OpenNetworkHistoryCard(entry: OpenNetworkLogEntry, dateLocale: Local
             HorizontalDivider(color = alert.copy(alpha = 0.2f))
             Text("Первый раз: ${dateTime(entry.firstSeenAt, dateLocale)}", style = MaterialTheme.typography.bodySmall)
             Text("Последний раз: ${dateTime(entry.lastSeenAt, dateLocale)}", style = MaterialTheme.typography.bodySmall)
+            if (entry.firstLatitude != null && entry.firstLongitude != null) {
+                CoordinateMapLink("ПЕРВОЕ МЕСТО ОБНАРУЖЕНИЯ", entry.firstLatitude, entry.firstLongitude, entry.firstLocationAccuracyMeters)
+                entry.firstLocationCapturedAt?.let {
+                    Text("Время местоположения Android: ${dateTime(it, dateLocale)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (entry.lastLatitude != null && entry.lastLongitude != null) {
+                CoordinateMapLink("ПОСЛЕДНЕЕ МЕСТО ОБНАРУЖЕНИЯ", entry.lastLatitude, entry.lastLongitude, entry.lastLocationAccuracyMeters)
+                entry.lastLocationCapturedAt?.let {
+                    Text("Время местоположения Android: ${dateTime(it, dateLocale)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else if (entry.firstLatitude == null || entry.firstLongitude == null) {
+                Text("Координаты появятся, когда Android предоставит свежее местоположение во время сканирования.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

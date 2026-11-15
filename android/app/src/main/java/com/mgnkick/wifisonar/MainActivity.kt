@@ -373,7 +373,8 @@ fun MainAppContent(
     }
     LaunchedEffect(uiState.connectionDetails, uiState.networks) {
         connectionHistoryRepository.observeConnection(uiState.connectionDetails, uiState.networks, locationForHistory)
-        openNetworkLogRepository.observeScan(uiState.networks)
+        connectionHistoryRepository.observeScannedNetworks(uiState.networks, locationForHistory)
+        openNetworkLogRepository.observeScan(uiState.networks, locationForHistory)
     }
 
     val diagnosticViewModel: com.mgnkick.wifisonar.ui.viewmodel.DiagnosticViewModel = viewModel()
