@@ -2,7 +2,9 @@ package com.mgnkick.wifisonar.data.model
 
 enum class DiagnosticMode {
     PING,
-    TRACEROUTE
+    TRACEROUTE,
+    ECHO,
+    PORT_SCAN
 }
 
 enum class DiagnosticStatus {

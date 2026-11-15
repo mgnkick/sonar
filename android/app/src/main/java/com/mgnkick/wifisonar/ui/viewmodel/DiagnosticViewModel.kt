@@ -232,6 +232,43 @@ class DiagnosticViewModel(
         }
     }
 
+    fun startEchoScan(localIp: String, subnetMask: String, gateway: String) {
+        startConsoleScan(DiagnosticMode.ECHO, "Запуск ЭХО-запроса по текущей локальной сети…") {
+            repository.scanLocalNetwork(localIp, subnetMask, gateway)
+        }
+    }
+
+    fun startPortScan(targetIp: String, portRange: String, localIp: String, subnetMask: String) {
+        startConsoleScan(DiagnosticMode.PORT_SCAN, "Запуск сканера TCP-портов…") {
+            repository.scanTcpPorts(targetIp, portRange, localIp, subnetMask)
+        }
+    }
+
+    private fun startConsoleScan(mode: DiagnosticMode, title: String, operation: suspend () -> List<String>) {
+        stopDiagnostic()
+        append(DiagnosticLogEntry.Output(title, isHighlight = true))
+        _uiState.update { it.copy(mode = mode, status = DiagnosticStatus.RUNNING, errorMessage = null, pingPackets = emptyList(), pingSummary = null, hops = emptyList()) }
+        activeJob = viewModelScope.launch {
+            try {
+                val lines = operation()
+                lines.forEach { append(DiagnosticLogEntry.Output(it)) }
+                val failed = lines.firstOrNull()?.let {
+                    it.startsWith("Не удалось") || it.startsWith("Введите") || it.startsWith("Диапазон") || it.startsWith("IP-адрес должен")
+                } == true
+                _uiState.update { it.copy(status = if (failed) DiagnosticStatus.ERROR else DiagnosticStatus.COMPLETED) }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) {
+                    append(DiagnosticLogEntry.Output("Сканирование остановлено пользователем."))
+                    _uiState.update { it.copy(status = DiagnosticStatus.CANCELLED) }
+                } else {
+                    val message = "Ошибка сканирования: ${e.message ?: "неизвестная ошибка"}"
+                    append(DiagnosticLogEntry.Error(message))
+                    _uiState.update { it.copy(status = DiagnosticStatus.ERROR, errorMessage = message) }
+                }
+            }
+        }
+    }
+
     fun stopDiagnostic() {
         activeJob?.cancel()
         activeJob = null

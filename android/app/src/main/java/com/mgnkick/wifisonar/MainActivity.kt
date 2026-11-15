@@ -493,6 +493,8 @@ fun MainAppContent(
                     onPacketSizeChange = { diagnosticViewModel.setPacketSizeBytes(it) },
                     onStartPing = { diagnosticViewModel.startPing() },
                     onStartTraceroute = { diagnosticViewModel.startTraceroute() },
+                    onStartEchoScan = { ip, mask, gateway -> diagnosticViewModel.startEchoScan(ip, mask, gateway) },
+                    onStartPortScan = { target, ports -> diagnosticViewModel.startPortScan(target, ports, uiState.connectionDetails.ipAddress, uiState.connectionDetails.subnetMask) },
                     onStartGuidedDiagnostics = { diagnosticViewModel.startGuidedDiagnostics(uiState.connectionDetails.gateway, uiState.connectionDetails.dns1, uiState.connectionDetails.dns2) },
                     onStop = { diagnosticViewModel.stopDiagnostic() },
                     onClear = { diagnosticViewModel.clearLogs() },

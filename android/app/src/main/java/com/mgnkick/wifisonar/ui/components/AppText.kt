@@ -27,6 +27,26 @@ fun appUiText(source: String, language: AppLanguage): String {
     Regex("^Восстановятся подключения \\((\\d+)\\), открытые сети \\((\\d+)\\), настройки и данные карты( с планом помещения)?\\. Текущие данные будут заменены\\. Ранее внесённые пароли Wi-Fi в копию не входят\\.$").matchEntire(source)?.let { match ->
         return "This will restore ${match.groupValues[1]} connections, ${match.groupValues[2]} open networks, settings and map data${if (match.groupValues[3].isNotEmpty()) " with the floor plan" else ""}. Current data will be replaced. Previously entered Wi-Fi passwords are not included."
     }
+    Regex("^ЭХО-запрос по локальной подсети ((?:\\d{1,3}\\.){3}\\d{1,3})/(\\d+) · телефон ((?:\\d{1,3}\\.){3}\\d{1,3}) · шлюз (.+)$").matchEntire(source)?.let { m ->
+        return "ECHO request on local subnet ${m.groupValues[1]}/${m.groupValues[2]} · phone ${m.groupValues[3]} · gateway ${m.groupValues[4]}"
+    }
+    Regex("^Подсеть содержит более (\\d+) адресов; проверен ближайший к телефону диапазон из (\\d+) адресов\\.$").matchEntire(source)?.let { m ->
+        return "The subnet has more than ${m.groupValues[1]} addresses; the ${m.groupValues[2]} addresses nearest to this phone were checked."
+    }
+    Regex("^Устройство: ((?:\\d{1,3}\\.){3}\\d{1,3}) \\(этот телефон\\)$").matchEntire(source)?.let { return "Device: ${it.groupValues[1]} (this phone)" }
+    Regex("^Узел: ((?:\\d{1,3}\\.){3}\\d{1,3}) · (.+)$").matchEntire(source)?.let { m ->
+        val details = m.groupValues[2].replace("обнаружено в таблице соседей Android", "found in Android's neighbor table")
+        return "Host: ${m.groupValues[1]} · $details"
+    }
+    Regex("^ЭХО-запрос завершён: найдено устройств (\\d+) \\(не считая телефона\\)\\.$").matchEntire(source)?.let { return "ECHO request complete: ${it.groupValues[1]} devices found (phone excluded)." }
+    Regex("^IP-адрес должен находиться в текущей локальной подсети \\(((?:\\d{1,3}\\.){3}\\d{1,3})/(\\d+)\\)\\.$").matchEntire(source)?.let { return "The IP address must be in the current local subnet (${it.groupValues[1]}/${it.groupValues[2]})." }
+    Regex("^TCP-сканирование ((?:\\d{1,3}\\.){3}\\d{1,3}) · порты (\\d+)–(\\d+) · только текущая локальная подсеть$").matchEntire(source)?.let { m ->
+        return "TCP scan ${m.groupValues[1]} · ports ${m.groupValues[2]}–${m.groupValues[3]} · current local subnet only"
+    }
+    Regex("^Открытые TCP-порты: (.+)$").matchEntire(source)?.let { return "Open TCP ports: ${it.groupValues[1]}" }
+    Regex("^Проверено портов: (\\d+) · открыто: (\\d+)\\. Таймаут одного соединения — (\\d+) мс\\.$").matchEntire(source)?.let { m ->
+        return "Ports checked: ${m.groupValues[1]} · open: ${m.groupValues[2]}. Connection timeout: ${m.groupValues[3]} ms."
+    }
     Regex("^Канал CH (\\d+) чист от помех$").matchEntire(source)?.let { match ->
         return "Channel CH ${match.groupValues[1]} is clear of interference"
     }
@@ -308,7 +328,7 @@ private val translations = mapOf(
     "Свой размер, байт" to "Custom size, bytes", "Максимум 1400, чтобы снизить риск IP-фрагментации" to "Maximum 1400 to reduce the risk of IP fragmentation",
     "Применить" to "Apply", "Трассировка\nс анализом потерь (ТСАП)" to "Loss-analysis trace\n(LAT)", "Стоп" to "Stop",
     "Консоль вывода (\${state.logs.size})" to "Output console (\${state.logs.size})", "Узлы / Хопы (\${state.hops.size})" to "Nodes / hops (\${state.hops.size})",
-    "Готов к запуску. Выберите IP или домен и нажмите «Пинг» или «Трассировка с анализом потерь (ТСАП)»." to "Ready. Enter an IP address or domain, then tap Ping or Loss-analysis trace (LAT).",
+    "Готов к запуску. Выберите IP или домен, затем нажмите «Пинг», «ЭХО-запрос», «Сканировать TCP-порты» или «Трассировка с анализом потерь (ТСАП)»." to "Ready. Enter an IP address or domain, then tap Ping, ECHO request, Scan TCP ports, or Loss-analysis trace (LAT).",
     "--- Статистика: отправлено \${s.packetsTransmitted}, получено \${s.packetsReceived}, потеря \${s.packetLossPercent}% ---" to "--- Statistics: sent \${s.packetsTransmitted}, received \${s.packetsReceived}, loss \${s.packetLossPercent}% ---",
     "ЦЕЛЬ" to "TARGET", "ОЖИДАНИЕ ПЕРВОЙ ПРОБЫ" to "WAITING FOR FIRST PROBE", "Скопировать консоль" to "Copy console",
     "Проверка скорости в браузере" to "Check internet speed in browser", "Интернетометр" to "Internet speed test",
@@ -465,13 +485,39 @@ private val translations = mapOf(
     "Для переноса истории после переустановки сохраните копию и затем восстановите её. Пароли Wi-Fi не включаются." to "To transfer history after reinstalling, save a backup and restore it later. Wi-Fi passwords are not included.",
     "Создать копию" to "Create backup",
     "Восстановить" to "Restore",
-    "Восстановить данные WiFi Sonar?" to "Restore WiFi Sonar data?",
     "Отмена" to "Cancel",
     "Резервная копия сохранена" to "Backup saved",
     "Не удалось создать резервную копию" to "Could not create backup",
     "Не удалось прочитать резервную копию" to "Could not read backup",
     "Не удалось восстановить резервную копию" to "Could not restore backup",
     "Масштаб" to "Zoom",
+    "PING • ЭХО • ТСАП • TCP" to "PING • ECHO • TSAP • TCP",
+    "ЭХО-запрос · найти устройства в сети" to "ECHO request · find devices on the network",
+    "Сканер TCP-портов" to "TCP port scanner",
+    "Проверка только в текущей локальной подсети" to "Checks only the current local subnet",
+    "IP-адрес устройства" to "Device IP address",
+    "Порты" to "Ports",
+    "Укажите порт или диапазон (например, 1-1024; не более 4096 портов). Результаты появятся в консоли вывода." to "Enter a port or range (for example, 1-1024; up to 4096 ports). Results appear in the output console.",
+    "Сканировать TCP-порты" to "Scan TCP ports",
+    "КОНСОЛЬ ДИАГНОСТИКИ" to "DIAGNOSTICS CONSOLE",
+    "ВЫПОЛНЯЕТСЯ" to "RUNNING",
+    "ГОТОВА" to "READY",
+    "Остановить текущую проверку" to "Stop the current scan",
+    "Проверить адреса текущей подсети через ICMP Echo, TCP и таблицу соседей Android. Устройства, блокирующие такие ответы, могут не обнаружиться." to "Check addresses in the current subnet using ICMP Echo, TCP and Android's neighbor table. Devices that block these responses may not be detected.",
+    "Проверить TCP-подключение к указанным портам устройства. Публичные адреса вне текущей подсети не сканируются." to "Check TCP connections to the selected device's ports. Addresses outside the current subnet are not scanned.",
+    "Проверка устройств: ICMP Echo и TCP 80/443/22; таблица соседей Android учитывается дополнительно." to "Device discovery uses ICMP Echo and TCP 80/443/22; Android's neighbor table is also checked.",
+    "Узлы не ответили на проверку. Некоторые устройства скрывают ping и блокируют TCP; отсутствие ответа не доказывает, что устройство не подключено." to "No devices responded. Some devices block ping and TCP; a lack of response does not prove they are disconnected.",
+    "Открытых TCP-портов в выбранном диапазоне не обнаружено." to "No open TCP ports were found in the selected range.",
+    "Введите корректный IPv4-адрес устройства." to "Enter a valid device IPv4 address.",
+    "Не удалось определить текущую локальную подсеть." to "Could not determine the current local subnet.",
+    "Диапазон портов укажите как 80 или 1-1024 (не более 4096 портов)." to "Enter a port or range such as 80 or 1-1024 (up to 4096 ports).",
+    "Диапазон должен быть от 1 до 65535 и содержать не более 4096 портов." to "Ports must be between 1 and 65535, with no more than 4096 ports.",
+    "Сканирование остановлено пользователем." to "Scan stopped by user.",
+    "Запуск ЭХО-запроса по текущей локальной сети…" to "Starting ECHO request on the current local network…",
+    "Запуск сканера TCP-портов…" to "Starting TCP port scan…",
+    "Не удалось определить IPv4-подсеть телефона. Проверьте Wi-Fi-подключение и повторите ЭХО-запрос." to "Could not determine the phone's IPv4 subnet. Check the Wi-Fi connection and retry the ECHO request.",
+    "В локальной подсети нет адресов для проверки." to "There are no addresses to check in the local subnet.",
+    "Восстановить данные WiFi Sonar?" to "Restore WiFi Sonar data?",
     "Развернуть панель инструментов рисования." to "Expand the drawing tools panel.",
     "Изменить текст выбранной подписи." to "Edit the selected text label.",
     "Удалить выбранный объект или точку замера." to "Delete the selected object or measurement point."

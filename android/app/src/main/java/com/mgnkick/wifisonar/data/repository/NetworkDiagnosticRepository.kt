@@ -10,6 +10,11 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.InetAddress
@@ -22,6 +27,118 @@ import java.util.Random
 import java.util.regex.Pattern
 
 class NetworkDiagnosticRepository {
+
+    /** Discover responding IPv4 hosts only inside the currently connected subnet. */
+    suspend fun scanLocalNetwork(localIp: String, subnetMask: String, gateway: String): List<String> = withContext(Dispatchers.IO) {
+        val subnet = parseSubnet(localIp, subnetMask) ?: return@withContext listOf("Не удалось определить IPv4-подсеть телефона. Проверьте Wi-Fi-подключение и повторите ЭХО-запрос.")
+        val (network, broadcast, local, prefix) = subnet
+        val firstHost = network + 1
+        val lastHost = broadcast - 1
+        if (lastHost < firstHost) return@withContext listOf("В локальной подсети нет адресов для проверки.")
+        val maxHosts = 1024L
+        val truncated = lastHost - firstHost + 1 > maxHosts
+        val start = if (truncated) maxOf(firstHost, local - maxHosts / 2) else firstHost
+        val end = minOf(lastHost, start + maxHosts - 1)
+        val actualStart = if (truncated && end - start + 1 < maxHosts) maxOf(firstHost, end - maxHosts + 1) else start
+        val addresses = (actualStart..end).filter { it != local }.map(::ipv4String)
+        val allowedPorts = intArrayOf(80, 443, 22)
+        val gate = Semaphore(48)
+        val found = coroutineScope {
+            addresses.map { ip -> async(Dispatchers.IO) {
+                gate.withPermit {
+                    val address = InetAddress.getByAddress(ipv4Bytes(parseIpv4(ip)!!))
+                    val icmp = runCatching { address.isReachable(250) }.getOrDefault(false)
+                    val openPorts = if (!icmp) allowedPorts.filter { tcpProbe(ip, it, 180) } else emptyList()
+                    if (icmp || openPorts.isNotEmpty()) ip to (icmp to openPorts) else null
+                }
+            } }.awaitAll().filterNotNull()
+        }.toMap()
+        val arp = readArpTable().filterKeys { key -> parseIpv4(key)?.let { it in firstHost..lastHost } == true }
+        val discovered = (found.keys + arp.keys).distinct().sortedBy { parseIpv4(it) ?: Long.MAX_VALUE }
+        buildList {
+            add("ЭХО-запрос по локальной подсети ${ipv4String(network)}/$prefix · телефон ${ipv4String(local)} · шлюз ${gateway.ifBlank { "не определён" }}")
+            if (truncated) add("Подсеть содержит более $maxHosts адресов; проверен ближайший к телефону диапазон из $maxHosts адресов.")
+            add("Проверка устройств: ICMP Echo и TCP 80/443/22; таблица соседей Android учитывается дополнительно.")
+            add("Устройство: ${ipv4String(local)} (этот телефон)")
+            discovered.forEach { ip ->
+                val (icmp, ports) = found[ip] ?: (false to emptyList())
+                val details = buildList {
+                    if (icmp) add("ICMP")
+                    if (ports.isNotEmpty()) add("TCP ${ports.joinToString(", ")}")
+                    arp[ip]?.let { add("MAC $it") }
+                    if (isEmpty()) add("обнаружено в таблице соседей Android")
+                }.joinToString(" · ")
+                add("Узел: $ip · $details")
+            }
+            add(if (discovered.isEmpty()) "Узлы не ответили на проверку. Некоторые устройства скрывают ping и блокируют TCP; отсутствие ответа не доказывает, что устройство не подключено." else "ЭХО-запрос завершён: найдено устройств ${discovered.size} (не считая телефона).")
+        }
+    }
+
+    /** TCP connect scan restricted to the caller's current IPv4 subnet. */
+    suspend fun scanTcpPorts(rawTarget: String, rawPorts: String, localIp: String, subnetMask: String): List<String> = withContext(Dispatchers.IO) {
+        val target = parseIpv4(rawTarget.trim()) ?: return@withContext listOf("Введите корректный IPv4-адрес устройства.")
+        val subnet = parseSubnet(localIp, subnetMask) ?: return@withContext listOf("Не удалось определить текущую локальную подсеть.")
+        val (network, broadcast, _, prefix) = subnet
+        if (target !in (network + 1)..<broadcast) return@withContext listOf("IP-адрес должен находиться в текущей локальной подсети (${ipv4String(network)}/$prefix).")
+        val range = Regex("^(\\d{1,5})(?:-(\\d{1,5}))?$").matchEntire(rawPorts.trim())
+            ?: return@withContext listOf("Диапазон портов укажите как 80 или 1-1024 (не более 4096 портов).")
+        val first = range.groupValues[1].toIntOrNull() ?: 0
+        val last = range.groupValues[2].takeIf { it.isNotEmpty() }?.toIntOrNull() ?: first
+        if (first !in 1..65535 || last !in first..65535 || last - first + 1 > 4096) {
+            return@withContext listOf("Диапазон должен быть от 1 до 65535 и содержать не более 4096 портов.")
+        }
+        val ports = first..last
+        val gate = Semaphore(64)
+        val open = coroutineScope {
+            ports.map { port -> async(Dispatchers.IO) {
+                gate.withPermit { if (tcpProbe(ipv4String(target), port, 250)) port else null }
+            } }.awaitAll().filterNotNull()
+        }
+        buildList {
+            add("TCP-сканирование ${ipv4String(target)} · порты $first–$last · только текущая локальная подсеть")
+            if (open.isEmpty()) add("Открытых TCP-портов в выбранном диапазоне не обнаружено.")
+            else add("Открытые TCP-порты: ${open.joinToString(", ")}")
+            add("Проверено портов: ${ports.count()} · открыто: ${open.size}. Таймаут одного соединения — 250 мс.")
+        }
+    }
+
+    private data class Subnet(val network: Long, val broadcast: Long, val local: Long, val prefix: Int)
+
+    private fun parseSubnet(localIp: String, subnetMask: String): Subnet? {
+        val ip = parseIpv4(localIp) ?: return null
+        val mask = parseIpv4(subnetMask) ?: return null
+        val prefix = java.lang.Long.bitCount(mask)
+        if (prefix !in 1..30) return null
+        val expectedMask = (0xFFFFFFFFL shl (32 - prefix)) and 0xFFFFFFFFL
+        if (mask != expectedMask) return null
+        val network = ip and mask
+        val broadcast = network or (mask xor 0xFFFFFFFFL)
+        if (ip <= network || ip >= broadcast) return null
+        return Subnet(network, broadcast, ip, prefix)
+    }
+
+    private fun parseIpv4(value: String): Long? {
+        val octets = value.trim().split('.')
+        if (octets.size != 4) return null
+        var result = 0L
+        octets.forEach { part ->
+            val octet = part.toIntOrNull()?.takeIf { it in 0..255 } ?: return null
+            result = (result shl 8) or octet.toLong()
+        }
+        return result
+    }
+
+    private fun ipv4String(value: Long): String = listOf(24, 16, 8, 0).joinToString(".") { ((value shr it) and 255L).toString() }
+    private fun ipv4Bytes(value: Long): ByteArray = byteArrayOf((value shr 24).toByte(), (value shr 16).toByte(), (value shr 8).toByte(), value.toByte())
+
+    private fun readArpTable(): Map<String, String> = runCatching {
+        java.io.File("/proc/net/arp").readLines().drop(1).mapNotNull { line ->
+            val fields = line.trim().split(Regex("\\s+"))
+            val ip = fields.getOrNull(0) ?: return@mapNotNull null
+            val mac = fields.getOrNull(3)?.uppercase() ?: return@mapNotNull null
+            if (mac.matches(Regex("(?:[0-9A-F]{2}:){5}[0-9A-F]{2}")) && mac != "00:00:00:00:00:00") ip to mac else null
+        }.toMap()
+    }.getOrDefault(emptyMap())
 
     private val pingReplyPattern = Pattern.compile(
         "^(\\d+)\\s+bytes from\\s+([^:]+):\\s+icmp_seq=(\\d+)\\s+ttl=(\\d+)\\s+time=([\\d\\.]+)\\s*ms",

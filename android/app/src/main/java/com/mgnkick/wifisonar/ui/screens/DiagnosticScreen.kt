@@ -50,6 +50,8 @@ fun DiagnosticScreen(
     onTimeoutChange: (Int) -> Unit,
     onStartPing: () -> Unit,
     onStartTraceroute: () -> Unit,
+    onStartEchoScan: (String, String, String) -> Unit,
+    onStartPortScan: (String, String) -> Unit,
     onStartGuidedDiagnostics: () -> Unit,
     onStop: () -> Unit,
     onClear: () -> Unit,
@@ -77,6 +79,13 @@ fun DiagnosticScreen(
     }
 
     var customPacketSize by remember { mutableStateOf("") }
+    var portTarget by remember { mutableStateOf(connectionDetails.gateway) }
+    var portRange by remember { mutableStateOf("1-1024") }
+    LaunchedEffect(connectionDetails.gateway) {
+        if (portTarget.isBlank() && connectionDetails.gateway.isNotBlank() && connectionDetails.gateway != "0.0.0.0") {
+            portTarget = connectionDetails.gateway
+        }
+    }
     val packetSizePresets = listOf(32, 64, 128, 512, 1300)
     val isRunning = state.status == DiagnosticStatus.RUNNING
 
@@ -92,7 +101,7 @@ fun DiagnosticScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "PING • ТСАП • диагностика",
+                            text = "PING • ЭХО • ТСАП • TCP",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -140,6 +149,13 @@ fun DiagnosticScreen(
                 },
                 gateway = connectionDetails.gateway
             )
+            if (isRunning) {
+                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Icon(Icons.Default.Stop, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Остановить текущую проверку", color = MaterialTheme.colorScheme.error)
+                }
+            }
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Button(
@@ -154,6 +170,18 @@ fun DiagnosticScreen(
                 }
                 HelpHint("Последовательно проверить связь с маршрутизатором, DNS-серверами и интернетом.")
             }
+            Button(
+                onClick = { onStartEchoScan(connectionDetails.ipAddress, connectionDetails.subnetMask, connectionDetails.gateway) },
+                enabled = !isRunning && connectionDetails.ipAddress.isNotBlank() && connectionDetails.subnetMask.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Radar, contentDescription = null, modifier = Modifier.size(19.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("ЭХО-запрос · найти устройства в сети")
+            }
+            HelpHint("Проверить адреса текущей подсети через ICMP Echo, TCP и таблицу соседей Android. Устройства, блокирующие такие ответы, могут не обнаружиться.")
             // Expandable field troubleshooting guide
             Card(
                 modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -309,6 +337,59 @@ fun DiagnosticScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("Сканер TCP-портов", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text("Проверка только в текущей локальной подсети", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = portTarget,
+                            onValueChange = { portTarget = it.filter { ch -> ch.isDigit() || ch == '.' }.take(15) },
+                            modifier = Modifier.weight(1.25f),
+                            enabled = !isRunning,
+                            singleLine = true,
+                            label = { Text("IP-адрес устройства") },
+                            placeholder = { Text("192.168.1.25") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = portRange,
+                            onValueChange = { portRange = it.filter { ch -> ch.isDigit() || ch == '-' }.take(11) },
+                            modifier = Modifier.weight(0.85f),
+                            enabled = !isRunning,
+                            singleLine = true,
+                            label = { Text("Порты") },
+                            placeholder = { Text("1-1024") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                    Text("Укажите порт или диапазон (например, 1-1024; не более 4096 портов). Результаты появятся в консоли вывода.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(
+                        onClick = { onStartPortScan(portTarget.trim(), portRange.trim()) },
+                        enabled = !isRunning && portTarget.isNotBlank() && portRange.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.ManageSearch, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Сканировать TCP-порты")
+                    }
+                    HelpHint("Проверить TCP-подключение к указанным портам устройства. Публичные адреса вне текущей подсети не сканируются.")
+                }
+            }
+
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -339,19 +420,6 @@ fun DiagnosticScreen(
                 }
                 HelpHint("Отследить путь до узла и оценить потери на каждом промежуточном участке.")
 
-                if (isRunning) {
-                    Button(
-                        onClick = onStop,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.weight(0.9f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Стоп")
-                    }
-                    HelpHint("Остановить текущую проверку или трассировку.")
-                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -389,11 +457,11 @@ fun DiagnosticScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.Terminal, contentDescription = null, tint = Color(0xFF54F4FF), modifier = Modifier.size(16.dp))
-                        Text("FIELD TERMINAL", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF54F4FF))
+                        Text("КОНСОЛЬ ДИАГНОСТИКИ", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF54F4FF), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(if (isRunning) Color(0xFFFFC857) else Color(0xFF64F7B0)))
-                        Text(if (isRunning) "RUNNING" else "READY", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = if (isRunning) Color(0xFFFFC857) else Color(0xFF64F7B0))
+                        Text(if (isRunning) "ВЫПОЛНЯЕТСЯ" else "ГОТОВА", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = if (isRunning) Color(0xFFFFC857) else Color(0xFF64F7B0), maxLines = 1)
                     }
                 }
             }
@@ -414,7 +482,7 @@ fun DiagnosticScreen(
                     if (state.logs.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Готов к запуску. Выберите IP или домен и нажмите «Пинг» или «Трассировка с анализом потерь (ТСАП)».",
+                                text = "Готов к запуску. Выберите IP или домен, затем нажмите «Пинг», «ЭХО-запрос», «Сканировать TCP-порты» или «Трассировка с анализом потерь (ТСАП)».",
                                 color = Color.Gray,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace
