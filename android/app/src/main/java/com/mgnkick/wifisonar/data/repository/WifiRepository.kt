@@ -199,11 +199,21 @@ class WifiRepository(private val context: Context) {
         val rssi = wifiInfo?.rssi ?: -127
         val linkSpeed = wifiInfo?.linkSpeed ?: 0
         val frequency = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) wifiInfo?.frequency ?: 0 else 0
-        val routeGateway = wifiNetwork?.let { network ->
-            connectivityManager.getLinkProperties(network)?.routes
-                ?.firstOrNull { it.isDefaultRoute && it.gateway is Inet4Address }
-                ?.gateway?.hostAddress
-        }
+        // DhcpInfo is deprecated and often reports all-zero values on newer Android
+        // releases and vendor builds. LinkProperties is scoped to the actual Wi-Fi
+        // Network and carries the address/prefix Android configured for this device.
+        val linkProperties = wifiNetwork?.let(connectivityManager::getLinkProperties)
+        val ipv4LinkAddress = linkProperties?.linkAddresses
+            ?.firstOrNull { it.address is Inet4Address && !it.address.isLoopbackAddress && !it.address.isLinkLocalAddress }
+        val routeGateway = linkProperties?.routes
+            ?.firstOrNull { it.isDefaultRoute && it.gateway is Inet4Address }
+            ?.gateway?.hostAddress
+        val linkIpAddress = ipv4LinkAddress?.address?.hostAddress
+        val linkSubnetMask = ipv4LinkAddress?.let { prefixLengthToIpv4Mask(it.prefixLength) }
+        val ipv4DnsServers = linkProperties?.dnsServers
+            ?.filterIsInstance<Inet4Address>()
+            ?.mapNotNull { it.hostAddress }
+            .orEmpty()
 
         val txSpeed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) wifiInfo?.txLinkSpeedMbps ?: linkSpeed else linkSpeed
         val rxSpeed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) wifiInfo?.rxLinkSpeedMbps ?: linkSpeed else linkSpeed
@@ -224,11 +234,12 @@ class WifiRepository(private val context: Context) {
             ssid = ssid,
             bssid = bssid,
             rssi = rssi,
-            ipAddress = formatIpAddress(dhcpInfo?.ipAddress ?: 0),
+            ipAddress = linkIpAddress?.takeIf { it.isNotBlank() }
+                ?: formatIpAddress(dhcpInfo?.ipAddress ?: 0),
             gateway = routeGateway?.takeIf { it.isNotBlank() } ?: formatIpAddress(dhcpInfo?.gateway ?: 0),
-            subnetMask = formatIpAddress(dhcpInfo?.netmask ?: 0),
-            dns1 = formatIpAddress(dhcpInfo?.dns1 ?: 0),
-            dns2 = formatIpAddress(dhcpInfo?.dns2 ?: 0),
+            subnetMask = linkSubnetMask ?: formatIpAddress(dhcpInfo?.netmask ?: 0),
+            dns1 = ipv4DnsServers.getOrNull(0) ?: formatIpAddress(dhcpInfo?.dns1 ?: 0),
+            dns2 = ipv4DnsServers.getOrNull(1) ?: formatIpAddress(dhcpInfo?.dns2 ?: 0),
             linkSpeedMbps = linkSpeed,
             txLinkSpeedMbps = txSpeed,
             rxLinkSpeedMbps = rxSpeed,
@@ -250,6 +261,12 @@ class WifiRepository(private val context: Context) {
                 "0.0.0.0"
             }
         }
+    }
+
+    private fun prefixLengthToIpv4Mask(prefixLength: Int): String? {
+        if (prefixLength !in 0..32) return null
+        val mask = if (prefixLength == 0) 0L else (0xFFFFFFFFL shl (32 - prefixLength)) and 0xFFFFFFFFL
+        return listOf(24, 16, 8, 0).joinToString(".") { ((mask shr it) and 255L).toString() }
     }
 
     private fun mapScanResults(results: List<ScanResult>): List<WifiNetwork> {
