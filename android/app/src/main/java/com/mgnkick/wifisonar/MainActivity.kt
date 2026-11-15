@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
                 setBackgroundMonitorStartPending(false)
                 Toast.makeText(
                     this,
-                    localized("Для отображения мониторинга в системной шторке разрешите уведомления WiFi Pulse."),
+                    localized("Для отображения мониторинга в системной шторке разрешите уведомления WiFi Sonar."),
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -190,7 +190,8 @@ class MainActivity : ComponentActivity() {
                                 getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).edit().putBoolean("dark_theme", darkTheme).apply()
                             },
                             isBackgroundMonitoring = isBackgroundMonitoringState,
-                            onToggleBackgroundMonitoring = { toggleBackgroundMonitoring() }
+                            onToggleBackgroundMonitoring = { toggleBackgroundMonitoring() },
+                            onRestoreComplete = { WifiMonitorService.stop(this); recreate() }
                         )
                     }
                 }
@@ -332,7 +333,8 @@ fun MainAppContent(
     onToggleLanguage: () -> Unit,
     onToggleTheme: () -> Unit,
     isBackgroundMonitoring: Boolean,
-    onToggleBackgroundMonitoring: () -> Unit
+    onToggleBackgroundMonitoring: () -> Unit,
+    onRestoreComplete: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
     var showAbout by remember { mutableStateOf(false) }
@@ -524,7 +526,8 @@ fun MainAppContent(
                         runCatching { connectionHistoryRepository.saveWifiPassword(id, password) }
                             .onFailure { Toast.makeText(context, "Не удалось сохранить пароль: ${it.message ?: "ошибка"}", Toast.LENGTH_LONG).show() }
                     },
-                    onOpenAbout = { showAbout = true }
+                    onOpenAbout = { showAbout = true },
+                    onRestoreComplete = onRestoreComplete
                 )
                 is Screen.CoverageMap -> ExperimentalHeatmapTab(
                     connectionDetails = uiState.connectionDetails,

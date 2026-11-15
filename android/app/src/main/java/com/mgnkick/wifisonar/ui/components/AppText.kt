@@ -24,6 +24,9 @@ val LocalAppLanguage = compositionLocalOf { AppLanguage.RU }
 fun appUiText(source: String, language: AppLanguage): String {
     if (language == AppLanguage.RU) return source
     translations[source]?.let { return it }
+    Regex("^Восстановятся подключения \\((\\d+)\\), открытые сети \\((\\d+)\\), настройки и данные карты( с планом помещения)?\\. Текущие данные будут заменены\\. Ранее внесённые пароли Wi-Fi в копию не входят\\.$").matchEntire(source)?.let { match ->
+        return "This will restore ${match.groupValues[1]} connections, ${match.groupValues[2]} open networks, settings and map data${if (match.groupValues[3].isNotEmpty()) " with the floor plan" else ""}. Current data will be replaced. Previously entered Wi-Fi passwords are not included."
+    }
     Regex("^Канал CH (\\d+) чист от помех$").matchEntire(source)?.let { match ->
         return "Channel CH ${match.groupValues[1]} is clear of interference"
     }
@@ -357,7 +360,7 @@ private val translations = mapOf(
     "Сбор скорости передачи данных…" to "Collecting traffic data…",
     "Скорость передачи по Wi-Fi-интерфейсу; это не отдельный тест LAN." to "Traffic rate from the Wi-Fi interface; this is not a separate LAN test.",
     "Нет счётчика Wi-Fi-интерфейса: показан общий трафик устройства, это не тест LAN." to "No Wi-Fi interface counter: showing total device traffic, not a LAN test.",
-    "Для отображения мониторинга в системной шторке разрешите уведомления WiFi Pulse." to "Allow WiFi Sonar notifications to show monitoring in the notification shade.",
+    "Для отображения мониторинга в системной шторке разрешите уведомления WiFi Sonar." to "Allow WiFi Sonar notifications to show monitoring in the notification shade.",
     "По уровню сигнала" to "By signal strength", "По имени (A-Z)" to "By name (A-Z)",
     "По номеру канала" to "By channel number", "По числу узлов (Mesh/Репитеры)" to "By node count (mesh/repeaters)",
     "Выбран другой сателлит. График показывает только его наблюдения." to "A different access point is selected. The chart shows only its observations.",
@@ -458,6 +461,17 @@ private val translations = mapOf(
     "Удалить изображение плана и начать новую схему без замеров и фигур." to "Remove the floor plan image and start a new blank map.",
     "Закрыть полноэкранный редактор." to "Close the full-screen editor.",
     "Свернуть панель инструментов рисования." to "Collapse the drawing tools panel.",
+    "Резервная копия" to "Backup",
+    "Для переноса истории после переустановки сохраните копию и затем восстановите её. Пароли Wi-Fi не включаются." to "To transfer history after reinstalling, save a backup and restore it later. Wi-Fi passwords are not included.",
+    "Создать копию" to "Create backup",
+    "Восстановить" to "Restore",
+    "Восстановить данные WiFi Sonar?" to "Restore WiFi Sonar data?",
+    "Отмена" to "Cancel",
+    "Резервная копия сохранена" to "Backup saved",
+    "Не удалось создать резервную копию" to "Could not create backup",
+    "Не удалось прочитать резервную копию" to "Could not read backup",
+    "Не удалось восстановить резервную копию" to "Could not restore backup",
+    "Масштаб" to "Zoom",
     "Развернуть панель инструментов рисования." to "Expand the drawing tools panel.",
     "Изменить текст выбранной подписи." to "Edit the selected text label.",
     "Удалить выбранный объект или точку замера." to "Delete the selected object or measurement point."

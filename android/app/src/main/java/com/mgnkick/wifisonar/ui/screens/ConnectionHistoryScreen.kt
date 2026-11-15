@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +39,10 @@ import android.widget.Toast
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.mgnkick.wifisonar.data.backup.AppDataBackup
+import com.mgnkick.wifisonar.data.backup.AppDataBackupManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +54,8 @@ fun ConnectionHistoryScreen(
     onClearOpenNetworks: () -> Unit,
     onGetPassword: (String) -> String?,
     onSavePassword: (String, String) -> Unit,
-    onOpenAbout: () -> Unit
+    onOpenAbout: () -> Unit,
+    onRestoreComplete: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var passwordEntryId by remember { mutableStateOf<String?>(null) }
@@ -58,6 +65,35 @@ fun ConnectionHistoryScreen(
     val language = LocalAppLanguage.current
     val dateLocale = if (language == AppLanguage.EN) Locale.US else Locale("ru", "RU")
     val context = LocalContext.current
+    var pendingBackup by remember { mutableStateOf<AppDataBackup?>(null) }
+    val createBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) runCatching { AppDataBackupManager.write(context, uri) }
+            .onSuccess { Toast.makeText(context, appUiText("Резервная копия сохранена", language), Toast.LENGTH_LONG).show() }
+            .onFailure { Toast.makeText(context, appUiText("Не удалось создать резервную копию", language), Toast.LENGTH_LONG).show() }
+    }
+    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runCatching { AppDataBackupManager.read(context, uri) }
+            .onSuccess { pendingBackup = it }
+            .onFailure { Toast.makeText(context, appUiText("Не удалось прочитать резервную копию", language), Toast.LENGTH_LONG).show() }
+    }
+    pendingBackup?.let { backup ->
+        AlertDialog(
+            onDismissRequest = { pendingBackup = null },
+            title = { Text("Восстановить данные WiFi Sonar?") },
+            text = {
+                Text("Восстановятся подключения (${backup.connectionCount}), открытые сети (${backup.openNetworkCount}), настройки и данные карты${if (backup.hasFloorPlan) " с планом помещения" else ""}. Текущие данные будут заменены. Ранее внесённые пароли Wi-Fi в копию не входят.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val result = runCatching { AppDataBackupManager.restore(context, backup) }
+                    pendingBackup = null
+                    result.onSuccess { onRestoreComplete() }
+                        .onFailure { Toast.makeText(context, appUiText("Не удалось восстановить резервную копию", language), Toast.LENGTH_LONG).show() }
+                }) { Text("Восстановить") }
+            },
+            dismissButton = { TextButton(onClick = { pendingBackup = null }) { Text("Отмена") } }
+        )
+    }
     val visibleHistoryText = remember(selectedTab, chronologicalEntries, openNetworks, dateLocale, language) {
         if (selectedTab == 0) chronologicalEntries.joinToString("\n\n") { entry ->
             buildString {
@@ -113,6 +149,23 @@ fun ConnectionHistoryScreen(
         TabRow(selectedTabIndex = selectedTab) {
             listOf("Подключения" to entries.size, "Сети без пароля" to openNetworks.size).forEachIndexed { index, (label, count) ->
                 Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text("$label ($count)") })
+            }
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Резервная копия", style = MaterialTheme.typography.titleSmall)
+                Text("Для переноса истории после переустановки сохраните копию и затем восстановите её. Пароли Wi-Fi не включаются.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { createBackup.launch("WiFi-Sonar-backup.zip") }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Backup, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Создать копию", maxLines = 1)
+                    }
+                    OutlinedButton(onClick = { openBackup.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Restore, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Восстановить", maxLines = 1)
+                    }
+                }
             }
         }
         if (selectedTab == 0) {

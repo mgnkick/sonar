@@ -2,9 +2,11 @@
 <data-extraction-rules>
     <cloud-backup>
         <include domain="sharedpref" path="."/>
+        <include domain="file" path="experimental/"/>
         <exclude domain="sharedpref" path="device_specific.xml"/>
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="."/>
+        <include domain="file" path="experimental/"/>
     </device-transfer>
 </data-extraction-rules>

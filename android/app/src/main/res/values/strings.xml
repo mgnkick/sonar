@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">WiFi Pulse</string>
+    <string name="app_name">WiFi Sonar</string>
     <string name="scan_title">Сканирование сетей</string>
     <string name="audit_title">Смарт-Аудит</string>
     <string name="diag_title">Диагностика</string>

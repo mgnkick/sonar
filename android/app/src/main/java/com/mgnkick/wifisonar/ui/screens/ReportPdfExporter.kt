@@ -49,7 +49,7 @@ fun exportReportPdf(
     var y = 54f
     page.canvas.drawText(title.take(70), margin, y, titlePaint)
     y += 30f
-    page.canvas.drawText("WiFi Pulse Analyzer • полевой отчёт", margin, y, bodyPaint)
+    page.canvas.drawText("WiFi Sonar • полевой отчёт", margin, y, bodyPaint)
     y += 25f
 
     lines.forEach { line ->

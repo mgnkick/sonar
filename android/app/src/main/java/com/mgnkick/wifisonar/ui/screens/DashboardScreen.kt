@@ -106,9 +106,11 @@ fun DashboardScreen(
                 title = {
                     Column {
                         Text(
-                            text = "WiFi Pulse Analyzer",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            text = "WiFi Sonar",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Сетей: ${state.filteredGroups.size} • Физических BSSID: $totalNodesCount",

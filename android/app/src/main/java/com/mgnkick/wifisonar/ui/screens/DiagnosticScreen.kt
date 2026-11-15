@@ -636,7 +636,7 @@ fun DiagnosticScreen(
                     TextButton(
                         onClick = {
                             val report = buildString {
-                                appendLine("WiFi Pulse Analyzer — отчёт")
+                                appendLine("WiFi Sonar — отчёт")
                                 appendLine("Дата: ${java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
                                 appendLine("SSID: ${connectionDetails.ssid.ifBlank { "не подключён" }}")
                                 appendLine("BSSID: ${connectionDetails.bssid}")

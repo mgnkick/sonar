@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Router
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.produceState
@@ -107,7 +109,7 @@ fun ExperimentalHeatmapTab(
     var fullscreenEntryPending by remember { mutableStateOf(false) }
     var previousOrientation by remember { mutableIntStateOf(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) }
     var fullscreenToolsExpanded by remember { mutableStateOf(true) }
-    var zoom by remember { mutableFloatStateOf(1f) }
+    var zoom by remember { mutableFloatStateOf(1.2f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     LaunchedEffect(fullscreenEntryPending, configuration.orientation) {
         if (fullscreenEntryPending && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -123,7 +125,7 @@ fun ExperimentalHeatmapTab(
         }
     }
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        val newZoom = (zoom * zoomChange).coerceIn(1f, 5f)
+        val newZoom = (zoom * zoomChange).coerceIn(0.75f, 5f)
         val ratio = newZoom / zoom
         zoom = newZoom
         pan = pan * ratio + panChange
@@ -341,7 +343,7 @@ fun ExperimentalHeatmapTab(
         Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column {
                 CoverageMapCanvas(
-                    modifier = Modifier.fillMaxWidth().height(460.dp),
+                    modifier = Modifier.fillMaxWidth().height(520.dp),
                     samples = samples,
                     sketchShapes = sketchShapes,
                     planBitmap = planBitmap,
@@ -358,6 +360,7 @@ fun ExperimentalHeatmapTab(
                     onShapeDragPreview = onShapeDragPreview,
                     clearShapePreview = clearShapePreview
                 )
+                ZoomControl(zoom = zoom, onZoomChange = { zoom = it; if (it <= 1f) pan = Offset.Zero })
                 MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
             }
         }
@@ -424,6 +427,7 @@ fun ExperimentalHeatmapTab(
                         )
                         Column(Modifier.align(Alignment.TopStart).width(150.dp)) {
                             Text("КАРТА ПОКРЫТИЯ · ТСАП", color = heatAccent, style = MaterialTheme.typography.labelLarge)
+                            ZoomControl(zoom = zoom, onZoomChange = { zoom = it; if (it <= 1f) pan = Offset.Zero })
                             TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Сброс масштаба") }
                             HelpHint("Вернуть исходный масштаб и положение плана.")
                             TextButton(onClick = { showFullscreen = false }) {
@@ -688,6 +692,17 @@ private fun saveCoverageDrawing(
 }.getOrNull()
 
 @Composable
+private fun ZoomControl(zoom: Float, onZoomChange: (Float) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Масштаб", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            Text("${(zoom * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        }
+        Slider(value = zoom, onValueChange = onZoomChange, valueRange = 0.75f..5f, steps = 16, modifier = Modifier.fillMaxWidth().heightIn(min = 36.dp))
+    }
+}
+
+@Composable
 private fun MapToolSelector(selected: MapTool, onSelect: (MapTool) -> Unit, vertical: Boolean) {
     val tools = listOf(
         Triple(MapTool.SELECT_OBJECT, "Выбрать объект", "Коснитесь фигуры, текста или точки, чтобы выбрать её."),
@@ -707,6 +722,13 @@ private fun MapToolSelector(selected: MapTool, onSelect: (MapTool) -> Unit, vert
                     FilterChip(
                         selected = selected == tool,
                         onClick = { onSelect(tool) },
+                        leadingIcon = {
+                            when (tool) {
+                                MapTool.ROUTER -> Icon(Icons.Default.Router, contentDescription = null, modifier = Modifier.size(22.dp))
+                                MapTool.SATELLITE -> Icon(Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(22.dp))
+                                else -> Unit
+                            }
+                        },
                         label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 2) },
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                     )
@@ -718,7 +740,19 @@ private fun MapToolSelector(selected: MapTool, onSelect: (MapTool) -> Unit, vert
         androidx.compose.foundation.lazy.LazyRow(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(tools) { (tool, label, description) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(selected = selected == tool, onClick = { onSelect(tool) }, label = { Text(label) }, modifier = Modifier.heightIn(min = 48.dp))
+                    FilterChip(
+                        selected = selected == tool,
+                        onClick = { onSelect(tool) },
+                        leadingIcon = {
+                            when (tool) {
+                                MapTool.ROUTER -> Icon(Icons.Default.Router, contentDescription = null, modifier = Modifier.size(22.dp))
+                                MapTool.SATELLITE -> Icon(Icons.Default.Hub, contentDescription = null, modifier = Modifier.size(22.dp))
+                                else -> Unit
+                            }
+                        },
+                        label = { Text(label, maxLines = 1) },
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    )
                     HelpHint(description)
                 }
             }
@@ -871,7 +905,7 @@ private fun CoverageMapCanvas(
                         drawCircle(shapeColor, radius = sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)) / 2f, center = center, style = Stroke(shapeStroke))
                     }
                     SketchKind.ROUTER, SketchKind.SATELLITE -> drawIntoCanvas { canvas ->
-                        drawAccessPointMarker(canvas.nativeCanvas, p1.x, p1.y, minOf(width, height) * 0.075f, shape.kind, shapeColor.toArgb(), language)
+                        drawAccessPointMarker(canvas.nativeCanvas, p1.x, p1.y, minOf(width, height) * 0.09f, shape.kind, shapeColor.toArgb(), language)
                     }
                     SketchKind.TEXT -> if (shape.text.isNotBlank()) {
                         labelPaint.textSize = 16.dp.toPx()
@@ -989,7 +1023,7 @@ private fun distanceToSegmentSquared(point: Offset, start: Offset, end: Offset):
 private fun HeatLegend(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         Surface(Modifier.size(10.dp), color = color, shape = RoundedCornerShape(3.dp)) {}
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -1018,7 +1052,7 @@ private fun drawAccessPointMarker(canvas: android.graphics.Canvas, centerX: Floa
         else -> if (language == com.mgnkick.wifisonar.ui.components.AppLanguage.EN) "Satellite" else "Сателлит"
     }
     val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.WHITE; textSize = (size * 0.24f).coerceAtLeast(10f)
+        this.color = android.graphics.Color.WHITE; textSize = (size * 0.27f).coerceAtLeast(12f)
         textAlign = AndroidPaint.Align.CENTER
         typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
     }
