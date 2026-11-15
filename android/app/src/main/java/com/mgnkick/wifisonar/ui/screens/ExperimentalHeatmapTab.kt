@@ -75,8 +75,8 @@ private const val HEAT_KEY = "samples"
 private const val PLAN_KEY = "plan_uri"
 private const val SHAPES_KEY = "sketch_shapes"
 
-private enum class MapTool { SELECT_OBJECT, ERASER, MEASURE, LINE, RECTANGLE, CIRCLE, TEXT }
-private enum class SketchKind { LINE, RECTANGLE, CIRCLE, TEXT }
+private enum class MapTool { SELECT_OBJECT, ERASER, MEASURE, LINE, RECTANGLE, CIRCLE, ROUTER, SATELLITE, TEXT }
+private enum class SketchKind { LINE, RECTANGLE, CIRCLE, ROUTER, SATELLITE, TEXT }
 private data class SketchShape(val kind: SketchKind, val x1: Float, val y1: Float, val x2: Float, val y2: Float, val text: String = "")
 
 @Composable
@@ -223,6 +223,8 @@ fun ExperimentalHeatmapTab(
                 MapTool.LINE -> "Проведите пальцем от начала линии до её конца."
                 MapTool.RECTANGLE -> "Проведите пальцем от одного угла прямоугольника к противоположному."
                 MapTool.CIRCLE -> "Проведите пальцем от одного края круга к противоположному."
+                MapTool.ROUTER -> "Коснитесь плана, чтобы отметить расположение роутера."
+                MapTool.SATELLITE -> "Коснитесь плана, чтобы отметить расположение Mesh-сателлита."
             },
             style = MaterialTheme.typography.labelSmall,
             color = heatAccent
@@ -258,6 +260,13 @@ fun ExperimentalHeatmapTab(
                     selectedPointTime = timestamp
                     selectedShapeIndex = -1
                     preferences.edit().putString(HEAT_KEY, writeSamples(samples)).apply()
+                }
+                MapTool.ROUTER, MapTool.SATELLITE -> {
+                    val kind = if (currentTool == MapTool.ROUTER) SketchKind.ROUTER else SketchKind.SATELLITE
+                    sketchShapes = sketchShapes + SketchShape(kind, point.x, point.y, point.x, point.y)
+                    selectedPointTime = null
+                    selectedShapeIndex = sketchShapes.lastIndex
+                    preferences.edit().putString(SHAPES_KEY, writeShapes(sketchShapes)).apply()
                 }
                 MapTool.TEXT -> {
                     textAnchor = point
@@ -355,7 +364,7 @@ fun ExperimentalHeatmapTab(
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(
                 onClick = {
-                    val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes)
+                    val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes, language)
                     Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
                 },
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp)
@@ -372,7 +381,7 @@ fun ExperimentalHeatmapTab(
                 val selectedShape = sketchShapes.getOrNull(selectedShapeIndex)
                 Text(
                     selected?.let { "Выбрана точка замера · ${it.rssi} дБм · ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.time))}" }
-                        ?: selectedShape?.let { "Выбран объект: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг"; SketchKind.TEXT -> "текст" }}" }
+                        ?: selectedShape?.let { "Выбран объект: ${when (it.kind) { SketchKind.LINE -> "линия"; SketchKind.RECTANGLE -> "прямоугольник"; SketchKind.CIRCLE -> "круг"; SketchKind.ROUTER -> "роутер"; SketchKind.SATELLITE -> "сателлит"; SketchKind.TEXT -> "текст" }}" }
                         ?: "Объект не выбран",
                     modifier = Modifier.weight(1f), color = heatAccent, style = MaterialTheme.typography.labelMedium
                 )
@@ -424,7 +433,7 @@ fun ExperimentalHeatmapTab(
                             }
                             HelpHint("Закрыть полноэкранный редактор.")
                             TextButton(onClick = {
-                                val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes)
+                                val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes, language)
                                 Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
                             }) {
                                 Icon(Icons.Default.SaveAlt, contentDescription = null, tint = heatAccent)
@@ -566,7 +575,8 @@ private fun saveCoverageDrawing(
     context: Context,
     plan: Bitmap?,
     samples: List<CoverageSample>,
-    shapes: List<SketchShape>
+    shapes: List<SketchShape>,
+    language: com.mgnkick.wifisonar.ui.components.AppLanguage
 ): String? = runCatching {
     val outputWidth = 1600
     val aspect = plan?.let { it.width.toFloat() / it.height.coerceAtLeast(1) } ?: (4f / 3f)
@@ -631,6 +641,9 @@ private fun saveCoverageDrawing(
                 val dy = y2 - y1
                 canvas.drawCircle((x1 + x2) / 2f, (y1 + y2) / 2f, sqrt(dx * dx + dy * dy) / 2f, paint)
             }
+            SketchKind.ROUTER, SketchKind.SATELLITE -> drawAccessPointMarker(
+                canvas, x1, y1, scale * 0.075f, shape.kind, android.graphics.Color.rgb(85, 244, 255), language
+            )
             SketchKind.TEXT -> if (shape.text.isNotBlank()) {
                 paint.style = AndroidPaint.Style.FILL
                 paint.textSize = (scale * 0.025f).coerceIn(20f, 48f)
@@ -683,6 +696,8 @@ private fun MapToolSelector(selected: MapTool, onSelect: (MapTool) -> Unit, vert
         Triple(MapTool.LINE, "Линия", "Проведите пальцем от начала линии до её конца."),
         Triple(MapTool.RECTANGLE, "Прямоугольник", "Проведите пальцем от одного угла до противоположного."),
         Triple(MapTool.CIRCLE, "Круг", "Проведите пальцем от одного края круга до другого."),
+        Triple(MapTool.ROUTER, "Роутер", "Коснитесь плана, чтобы отметить расположение роутера."),
+        Triple(MapTool.SATELLITE, "Сателлит", "Коснитесь плана, чтобы отметить расположение Mesh-сателлита."),
         Triple(MapTool.TEXT, "Текст", "Коснитесь места на плане, введите подпись и добавьте её на холст.")
     )
     if (vertical) {
@@ -732,10 +747,11 @@ private fun CoverageMapCanvas(
 ) {
     val colors = MaterialTheme.colorScheme
     val heatAccent = colors.primary
+    val language = LocalAppLanguage.current
     val interpolationSamples = remember(samples) { samples.takeLast(60) }
     Box(
         modifier.clip(RoundedCornerShape(14.dp))
-            .transformable(transformState, enabled = tool == MapTool.MEASURE || tool == MapTool.SELECT_OBJECT || tool == MapTool.ERASER)
+            .transformable(transformState, enabled = tool == MapTool.MEASURE || tool == MapTool.SELECT_OBJECT || tool == MapTool.ERASER || tool == MapTool.ROUTER || tool == MapTool.SATELLITE)
             .pointerInput(tool, samples, sketchShapes, zoom, pan, planBitmap) {
                 fun mapPosition(position: Offset): Offset? {
                     val viewportWidth = size.width.toFloat().coerceAtLeast(1f)
@@ -854,6 +870,9 @@ private fun CoverageMapCanvas(
                         val center = Offset((p1.x + p2.x) / 2f, (p1.y + p2.y) / 2f)
                         drawCircle(shapeColor, radius = sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)) / 2f, center = center, style = Stroke(shapeStroke))
                     }
+                    SketchKind.ROUTER, SketchKind.SATELLITE -> drawIntoCanvas { canvas ->
+                        drawAccessPointMarker(canvas.nativeCanvas, p1.x, p1.y, minOf(width, height) * 0.075f, shape.kind, shapeColor.toArgb(), language)
+                    }
                     SketchKind.TEXT -> if (shape.text.isNotBlank()) {
                         labelPaint.textSize = 16.dp.toPx()
                         val textWidth = labelPaint.measureText(shape.text)
@@ -944,6 +963,11 @@ private fun distanceToShapeSquared(point: Offset, shape: SketchShape): Float {
             val dy = (point.y - start.y).let { if (it < -halfHeight) it + halfHeight else if (it > halfHeight) it - halfHeight else 0f }
             dx * dx + dy * dy
         }
+        SketchKind.ROUTER, SketchKind.SATELLITE -> {
+            val distance = sqrt(distanceToSegmentSquared(point, start, start))
+            val outside = (distance - 0.055f).coerceAtLeast(0f)
+            outside * outside
+        }
     }
 }
 
@@ -967,6 +991,42 @@ private fun HeatLegend(color: Color, label: String) {
         Surface(Modifier.size(10.dp), color = color, shape = RoundedCornerShape(3.dp)) {}
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 9.sp)
     }
+}
+
+private fun drawAccessPointMarker(canvas: android.graphics.Canvas, centerX: Float, centerY: Float, size: Float, kind: SketchKind, color: Int, language: com.mgnkick.wifisonar.ui.components.AppLanguage) {
+    val fill = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply { this.color = color; style = AndroidPaint.Style.FILL }
+    val white = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply { this.color = android.graphics.Color.WHITE; style = AndroidPaint.Style.FILL }
+    val line = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.WHITE; style = AndroidPaint.Style.STROKE
+        strokeWidth = (size * 0.08f).coerceAtLeast(2f); strokeCap = AndroidPaint.Cap.ROUND
+    }
+    canvas.drawCircle(centerX, centerY, size * 0.52f, fill)
+    if (kind == SketchKind.ROUTER) {
+        val body = RectF(centerX - size * 0.31f, centerY - size * 0.02f, centerX + size * 0.31f, centerY + size * 0.25f)
+        canvas.drawLine(centerX - size * 0.2f, centerY - size * 0.03f, centerX - size * 0.29f, centerY - size * 0.28f, line)
+        canvas.drawLine(centerX + size * 0.2f, centerY - size * 0.03f, centerX + size * 0.29f, centerY - size * 0.28f, line)
+        canvas.drawRoundRect(body, size * 0.06f, size * 0.06f, white)
+        listOf(-0.13f, 0f, 0.13f).forEach { dx -> canvas.drawCircle(centerX + size * dx, centerY + size * 0.12f, size * 0.035f, fill) }
+    } else {
+        canvas.drawLine(centerX - size * 0.17f, centerY, centerX + size * 0.17f, centerY, line)
+        canvas.drawCircle(centerX, centerY, size * 0.17f, white)
+        canvas.drawCircle(centerX - size * 0.27f, centerY, size * 0.09f, white)
+        canvas.drawCircle(centerX + size * 0.27f, centerY, size * 0.09f, white)
+    }
+    val label = when (kind) {
+        SketchKind.ROUTER -> if (language == com.mgnkick.wifisonar.ui.components.AppLanguage.EN) "Router" else "Роутер"
+        else -> if (language == com.mgnkick.wifisonar.ui.components.AppLanguage.EN) "Satellite" else "Сателлит"
+    }
+    val labelPaint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.WHITE; textSize = (size * 0.24f).coerceAtLeast(10f)
+        textAlign = AndroidPaint.Align.CENTER
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+    }
+    val baseline = centerY + size * 0.78f
+    val textWidth = labelPaint.measureText(label)
+    fill.color = android.graphics.Color.rgb(7, 16, 24)
+    canvas.drawRoundRect(centerX - textWidth / 2f - size * 0.08f, baseline - labelPaint.textSize, centerX + textWidth / 2f + size * 0.08f, baseline + size * 0.08f, size * 0.08f, size * 0.08f, fill)
+    canvas.drawText(label, centerX, baseline, labelPaint)
 }
 
 private fun readSamples(serialized: String?): List<CoverageSample> {

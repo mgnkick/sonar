@@ -27,6 +27,10 @@ fun appUiText(source: String, language: AppLanguage): String {
     Regex("^Канал CH (\\d+) чист от помех$").matchEntire(source)?.let { match ->
         return "Channel CH ${match.groupValues[1]} is clear of interference"
     }
+    Regex("^Выбран объект: (линия|прямоугольник|круг|роутер|сателлит|текст)$").matchEntire(source)?.let { match ->
+        val name = mapOf("линия" to "line", "прямоугольник" to "rectangle", "круг" to "circle", "роутер" to "router", "сателлит" to "satellite", "текст" to "text").getValue(match.groupValues[1])
+        return "Selected object: $name"
+    }
     Regex("^Рядом обнаружено открытых точек доступа: (\\d+)$").matchEntire(source)?.let { return "Open access points nearby: ${it.groupValues[1]}" }
     Regex("^Соседние каналы 2,4 ГГц перекрываются с CH (\\d+)$").matchEntire(source)?.let { return "Nearby 2.4 GHz channels overlap with CH ${it.groupValues[1]}" }
     Regex("^Подключение использует DFS-канал CH (\\d+)$").matchEntire(source)?.let { return "Connection uses DFS channel CH ${it.groupValues[1]}" }
@@ -193,7 +197,18 @@ private val translations = mapOf(
     "Удалить выбранное" to "Delete selected", "Удалить последнюю точку" to "Delete last measurement",
     "Отменить последнюю фигуру" to "Undo last shape", "Выбрать объект" to "Select object",
     "Ластик" to "Eraser", "Замер" to "Measure", "Линия" to "Line", "Прямоугольник" to "Rectangle",
-    "Круг" to "Circle", "Выбрать сеть Wi-Fi" to "Select Wi-Fi network",
+    "Круг" to "Circle", "Роутер" to "Router", "Сателлит" to "Satellite",
+    "Выбрать сеть Wi-Fi" to "Select Wi-Fi network",
+    "Коснитесь плана, чтобы отметить расположение роутера." to "Tap the plan to mark the router location.",
+    "Коснитесь плана, чтобы отметить расположение Mesh-сателлита." to "Tap the plan to mark the Mesh satellite location.",
+    "Коснитесь метки или контура, чтобы выбрать объект; удалите его отдельной кнопкой." to "Tap a marker or outline to select it; remove it with the separate button.",
+    "Коснитесь метки или контура, чтобы сразу стереть ближайший объект." to "Tap a marker or outline to erase the nearest object.",
+    "Коснитесь метки или контура, чтобы выбрать её." to "Tap a marker or outline to select it.",
+    "Коснитесь объекта или точки, чтобы сразу удалить её." to "Tap an object or point to delete it.",
+    "Коснитесь плана, чтобы поставить замер; двумя пальцами можно менять масштаб и перемещать план." to "Tap the plan to add a measurement; use two fingers to zoom and move the plan.",
+    "Проведите пальцем от начала линии до её конца." to "Drag from the start of the line to its end.",
+    "Проведите пальцем от одного угла прямоугольника к противоположному." to "Drag from one corner of the rectangle to the opposite corner.",
+    "Проведите пальцем от одного края круга к противоположному." to "Drag from one edge of the circle to the opposite edge.",
     "Запустить аудит эфира" to "Run spectrum audit", "Запустить в фоне" to "Run in background",
     "Остановить мониторинг" to "Stop monitoring", "Имя сети, RSSI и текущий трафик в системном уведомлении" to "Network name, RSSI and current traffic in a system notification",
     "Подключитесь к сети в настройках Android для отображения сетевых параметров" to "Connect to Wi-Fi in Android settings to view network details",

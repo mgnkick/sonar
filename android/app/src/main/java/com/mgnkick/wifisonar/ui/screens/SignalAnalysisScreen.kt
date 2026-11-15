@@ -806,11 +806,17 @@ fun SpectrumCanvas(
 
         visible.forEach { net ->
             val centerX = channelX(net.channel.toFloat())
-            val curveWidth = (plotWidth / visibleSpan) * (if (band == WifiBand.BAND_2_4_GHZ) 4.5f else 3.5f) * (net.channelWidth / 20f).coerceIn(1f, 8f)
-            val peakY = axisY - (((net.rssi + 100) / 70f).coerceIn(0.1f, 1f) * (height - 50.dp.toPx()))
+            // Channel numbers advance by 5 MHz in both bands (2.4 GHz channels
+            // are 5 MHz apart; 5 GHz channel numbers advance by 4 per 20 MHz).
+            val channelWidthInUnits = (net.channelWidth.coerceAtLeast(20) / 5f)
+            val curveWidth = (plotWidth / visibleSpan) * channelWidthInUnits
+            // Match the dBm grid: -100 dBm sits on the baseline and -30 dBm
+            // reaches the top of the plot.
+            val peakY = axisY - (((net.rssi + 100) / 70f).coerceIn(0f, 1f) * (height - 50.dp.toPx()))
+            val controlY = axisY - (axisY - peakY) * (4f / 3f)
             val path = Path()
             path.moveTo(centerX - curveWidth / 2f, axisY)
-            path.cubicTo(centerX - curveWidth / 4f, peakY, centerX + curveWidth / 4f, peakY, centerX + curveWidth / 2f, axisY)
+            path.cubicTo(centerX - curveWidth / 4f, controlY, centerX + curveWidth / 4f, controlY, centerX + curveWidth / 2f, axisY)
             val curveColor = Color(net.signalQuality.hexColor)
             drawPath(path, curveColor.copy(alpha = 0.10f), style = Stroke(width = 10.dp.toPx()))
             drawPath(path, curveColor.copy(alpha = 0.16f))
