@@ -61,7 +61,10 @@ fun AboutIconButton(onClick: () -> Unit) {
         IconButton(onClick = LocalHelpToggle.current, modifier = Modifier.size(34.dp)) {
             Icon(
                 Icons.Default.QuestionMark,
-                contentDescription = appUiText("Режим подсказок", LocalAppLanguage.current),
+                contentDescription = appUiText(
+                    if (LocalHelpMode.current) "Выключить режим подсказок" else "Включить режим подсказок",
+                    LocalAppLanguage.current
+                ),
                 tint = if (LocalHelpMode.current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -413,7 +416,7 @@ fun MainAppContent(
             ) {
                 navItems.forEach { screen ->
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.title) },
+                        icon = { Icon(screen.icon, contentDescription = appUiText(screen.title, appLanguage)) },
                         label = { Text(screen.title, fontSize = 11.sp) },
                         selected = currentScreen == screen,
                         onClick = { currentScreen = screen },

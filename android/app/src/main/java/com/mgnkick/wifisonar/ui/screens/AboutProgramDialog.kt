@@ -3,6 +3,7 @@ package com.mgnkick.wifisonar.ui.screens
 import com.mgnkick.wifisonar.ui.components.Text
 import com.mgnkick.wifisonar.ui.components.LocalAppLanguage
 import com.mgnkick.wifisonar.ui.components.appUiText
+import com.mgnkick.wifisonar.BuildConfig
 
 import android.content.Intent
 import android.net.Uri
@@ -61,14 +62,16 @@ fun AboutProgramDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    "WiFi Sonar объединяет сканирование Wi-Fi, аудит эфира, диагностику маршрута и карту замеров сигнала.",
+                    "WiFi Sonar анализирует Wi-Fi-сети и радиоканалы, проверяет локальное подключение и помогает измерять покрытие по плану помещения.",
                     style = MaterialTheme.typography.bodyMedium
                 )
+                Text("Версия приложения: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 AboutFeature("Сканер (Mesh)", "Сети, точки доступа, уровень сигнала и каналы.")
                 AboutFeature("Смарт-Аудит", "Загруженность радиоэфира, качество сигнала и безопасность.")
-                AboutFeature("Диагностика", "Пинг, трассировка с анализом потерь и сохранение вывода консоли.")
+                AboutFeature("Диагностика", "Пинг, ТСАП, ЭХО-запрос для поиска устройств в локальной сети, проверка TCP-портов и консоль результатов.")
                 AboutFeature("Спектр/Инфо", "Спектр каналов, подключение и история переключений.")
                 AboutFeature("Карта", "План помещения, фигуры, подписи и замеры сигнала.")
+                AboutFeature("История и резервные копии", "История подключений и открытых сетей; перенос данных через резервную копию.")
                 Text("Контакты и поддержка", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 ContactEntry(
                     title = "Сбербанк · рубли",

@@ -25,7 +25,7 @@ fun HelpHint(description: String, modifier: Modifier = Modifier) {
     val language = LocalAppLanguage.current
     var show by remember(description) { mutableStateOf(false) }
     IconButton(onClick = { show = true }, modifier = modifier.size(30.dp)) {
-        Icon(Icons.Outlined.Info, contentDescription = appUiText("Подсказка", language), modifier = Modifier.size(16.dp))
+        Icon(Icons.Outlined.Info, contentDescription = appUiText("Открыть подсказку", language), modifier = Modifier.size(16.dp))
     }
     if (show) {
         AlertDialog(
