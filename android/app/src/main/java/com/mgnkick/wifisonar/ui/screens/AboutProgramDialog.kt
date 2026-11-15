@@ -83,6 +83,9 @@ fun AboutProgramDialog(onDismiss: () -> Unit) {
                 ContactEntry("Telegram", "@mgnkick") {
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TELEGRAM_URL))) }
                 }
+                ContactEntry("Канал WiFi Sonar в Telegram", "Новости и обновления приложения") {
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(TELEGRAM_CHANNEL_URL))) }
+                }
                 ContactEntry("Email", "mgn.kick@gmail.com") {
                     runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:mgn.kick@gmail.com"))) }
                 }
@@ -101,6 +104,7 @@ fun AboutProgramDialog(onDismiss: () -> Unit) {
 
 private const val PROJECT_URL = "https://179.253.79.218/#about"
 private const val TELEGRAM_URL = "https://t.me/mgnkick"
+private const val TELEGRAM_CHANNEL_URL = "https://t.me/wifisonar"
 private const val CARD_NUMBER = "5336 6903 0435 1846"
 
 @Composable

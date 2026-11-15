@@ -384,6 +384,8 @@ private val translations = mapOf(
     "Проведите пальцем от одного края круга к противоположному." to "Drag across the circle from one edge to the other.",
     "Страница проекта · WiFi Sonar ↗" to "Project page · WiFi Sonar ↗",
     "Контакты и поддержка" to "Contact and support", "Сбербанк · рубли" to "Sberbank · RUB",
+    "Канал WiFi Sonar в Telegram" to "WiFi Sonar Telegram channel",
+    "Новости и обновления приложения" to "App news and updates",
     "Номер карты" to "Card number", "Номер карты скопирован" to "Card number copied",
     "Скопировать номер карты" to "Copy card number",
     "Выбери план помещения или фотографию из галереи." to "Choose a floor plan or photo from your gallery.",
