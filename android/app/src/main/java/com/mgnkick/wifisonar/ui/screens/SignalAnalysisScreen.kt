@@ -53,6 +53,7 @@ fun SignalAnalysisScreen(
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
+    scanCooldownSeconds: Int = 0,
     isBackgroundMonitoring: Boolean = false,
     onToggleBackgroundMonitoring: () -> Unit = {},
     onSelectSignalTrackingBssid: (String?) -> Unit = {},
@@ -89,7 +90,9 @@ fun SignalAnalysisScreen(
                 )
             )
         },
-        floatingActionButton = { StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks) }
+        floatingActionButton = {
+            StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks, cooldownSeconds = scanCooldownSeconds)
+        }
     ) { padding ->
         Column(
             modifier = Modifier
