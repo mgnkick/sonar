@@ -193,6 +193,7 @@ fun DashboardScreen(
                 .padding(padding)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 12.dp)
+                .padding(bottom = 88.dp)
         ) {
             ConnectionStatusPanel(
                 details = state.connectionDetails,
