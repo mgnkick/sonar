@@ -486,6 +486,7 @@ fun MainAppContent(
                     isRefreshingNetworks = uiState.isScanning,
                     onRefreshNetworks = { viewModel.triggerScan() },
                     lastScanTimestamp = uiState.lastScanTimestamp,
+                    scanCooldownSeconds = uiState.scanThrottleCooldownSeconds,
                     onOpenAbout = { showAbout = true }
                 )
                 is Screen.Diagnostics -> com.mgnkick.wifisonar.ui.screens.DiagnosticScreen(
@@ -506,6 +507,7 @@ fun MainAppContent(
                     isRefreshingNetworks = uiState.isScanning,
                     onRefreshNetworks = { viewModel.triggerScan() },
                     lastScanTimestamp = uiState.lastScanTimestamp,
+                    scanCooldownSeconds = uiState.scanThrottleCooldownSeconds,
                     onOpenAbout = { showAbout = true }
                 )
                 is Screen.SignalAnalysis -> SignalAnalysisScreen(
@@ -515,6 +517,7 @@ fun MainAppContent(
                     isRefreshingNetworks = uiState.isScanning,
                     onRefreshNetworks = { viewModel.triggerScan() },
                     lastScanTimestamp = uiState.lastScanTimestamp,
+                    scanCooldownSeconds = uiState.scanThrottleCooldownSeconds,
                     isBackgroundMonitoring = isBackgroundMonitoring,
                     onToggleBackgroundMonitoring = onToggleBackgroundMonitoring,
                     onSelectSignalTrackingBssid = { viewModel.selectSignalTrackingBssid(it) },
@@ -532,13 +535,17 @@ fun MainAppContent(
                             .onFailure { Toast.makeText(context, "Не удалось сохранить пароль: ${it.message ?: "ошибка"}", Toast.LENGTH_LONG).show() }
                     },
                     onOpenAbout = { showAbout = true },
-                    onRestoreComplete = onRestoreComplete
+                    onRestoreComplete = onRestoreComplete,
+                    isRefreshingNetworks = uiState.isScanning,
+                    scanCooldownSeconds = uiState.scanThrottleCooldownSeconds,
+                    onRefreshNetworks = { viewModel.triggerScan() }
                 )
                 is Screen.CoverageMap -> ExperimentalHeatmapTab(
                     connectionDetails = uiState.connectionDetails,
                     onOpenAbout = { showAbout = true },
                     isRefreshingNetworks = uiState.isScanning,
-                    onRefreshNetworks = { viewModel.triggerScan() }
+                    onRefreshNetworks = { viewModel.triggerScan() },
+                    scanCooldownSeconds = uiState.scanThrottleCooldownSeconds
                 )
             }
             }
