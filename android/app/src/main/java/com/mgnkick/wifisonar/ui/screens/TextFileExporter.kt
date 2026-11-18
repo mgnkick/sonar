@@ -7,10 +7,20 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/** Shared filename convention for every file exported by WiFi Sonar. */
+fun wifiSonarExportFileName(extension: String, timestamp: Long = System.currentTimeMillis()): String {
+    val date = SimpleDateFormat("ddMMyy-HHmm", Locale.US).format(Date(timestamp))
+    val safeExtension = extension.trim().trimStart('.').lowercase(Locale.ROOT).ifBlank { "dat" }
+    return "WiFi Sonar$date.$safeExtension"
+}
 
 /** Saves a UTF-8 text export to Downloads/WiFiPulse. */
 fun exportTextFile(context: Context, fileName: String, body: String): String? = runCatching {
-    val safeName = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(70).ifBlank { "WiFiPulse-export" } + ".txt"
+    val safeName = wifiSonarExportFileName("txt")
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
