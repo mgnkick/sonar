@@ -152,7 +152,7 @@ fun ConnectionHistoryScreen(
         )
         TabRow(selectedTabIndex = selectedTab) {
             listOf("Подключения" to entries.size, "Сети без пароля" to openNetworks.size).forEachIndexed { index, (label, count) ->
-                Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text("$label ($count)") })
+                Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text("${appUiText(label, language)} ($count)") })
             }
         }
         Card(
