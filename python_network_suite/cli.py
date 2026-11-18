@@ -51,7 +51,7 @@ C_GRAY = "\033[90m"
 def print_banner():
     banner = f"""
 {C_CYAN}{C_BOLD}======================================================================
-  WiFi Pulse & Network Suite (Python 3.10+)
+  WiFi Sonar & Network Suite (Python 3.10+)
   Анализатор Wi-Fi, Mesh/Репитеров, Реальный Пинг и Трассировка
 ======================================================================{C_RESET}
 """
@@ -277,7 +277,7 @@ async def interactive_menu():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="WiFi Pulse & Network Suite: Wi-Fi Mesh/Repeater Scanner, Ping & Traceroute"
+        description="WiFi Sonar & Network Suite: Wi-Fi Mesh/Repeater Scanner, Ping & Traceroute"
     )
     parser.add_argument("--scan", action="store_true", help="Запустить сканирование эфира Wi-Fi")
     parser.add_argument("--sample", action="store_true", help="Проанализировать демонстрационный Mesh/Repeater эфир")

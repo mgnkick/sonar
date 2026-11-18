@@ -55,7 +55,10 @@ fun ConnectionHistoryScreen(
     onGetPassword: (String) -> String?,
     onSavePassword: (String, String) -> Unit,
     onOpenAbout: () -> Unit,
-    onRestoreComplete: () -> Unit
+    onRestoreComplete: () -> Unit,
+    isRefreshingNetworks: Boolean = false,
+    scanCooldownSeconds: Int = 0,
+    onRefreshNetworks: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var passwordEntryId by remember { mutableStateOf<String?>(null) }
@@ -122,7 +125,8 @@ fun ConnectionHistoryScreen(
         }.ifBlank { "Журнал открытых сетей пуст." }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
+      Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("История сетей", fontWeight = FontWeight.Bold) },
             navigationIcon = { Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 14.dp)) },
@@ -133,10 +137,10 @@ fun ConnectionHistoryScreen(
                     Toast.makeText(context, appUiText("Данные скопированы", language), Toast.LENGTH_SHORT).show()
                 }) { Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать историю", language)) }
                 IconButton(onClick = {
-                    val fileName = if (selectedTab == 0) "WiFiPulse-history" else "WiFiPulse-open-networks"
+                    val fileName = if (selectedTab == 0) "WiFi Sonar-history" else "WiFi Sonar-open-networks"
                     val section = appUiText(if (selectedTab == 0) "История подключений" else "Журнал открытых сетей", language)
                     val saved = exportTextFile(context, fileName, "WiFi Sonar — $section\n${appUiText("Экспортировано: ", language)}${dateTime(System.currentTimeMillis(), dateLocale)}\n\n$visibleHistoryText")
-                    Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFiPulse" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFi Sonar" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
                 }) { Icon(Icons.Default.SaveAlt, contentDescription = appUiText("Сохранить историю", language)) }
                 IconButton(onClick = { if (selectedTab == 0) { onClearConnections(); revealedPasswords.clear() } else onClearOpenNetworks() }) {
                     Icon(Icons.Default.DeleteSweep, contentDescription = "Очистить журнал", tint = MaterialTheme.colorScheme.error)
@@ -148,7 +152,7 @@ fun ConnectionHistoryScreen(
         )
         TabRow(selectedTabIndex = selectedTab) {
             listOf("Подключения" to entries.size, "Сети без пароля" to openNetworks.size).forEachIndexed { index, (label, count) ->
-                Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text("$label ($count)") })
+                Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text("${appUiText(label, language)} ($count)") })
             }
         }
         Card(
@@ -159,19 +163,21 @@ fun ConnectionHistoryScreen(
                 Text("Резервная копия", style = MaterialTheme.typography.titleSmall)
                 Text("Для переноса истории после переустановки сохраните копию и затем восстановите её. Пароли Wi-Fi не включаются.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { createBackup.launch("WiFi-Sonar-backup.zip") }, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(onClick = { createBackup.launch(wifiSonarExportFileName("zip")) }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.Backup, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Создать копию", maxLines = 1)
                     }
                     OutlinedButton(onClick = { openBackup.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.Restore, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Восстановить", maxLines = 1)
                     }
                 }
+                HelpHint("Сохраните резервную копию, чтобы перенести локальную историю и настройки на другое устройство. Восстановление заменит текущие данные; пароли Wi-Fi в копию не входят.")
+                HelpHint("Очистка удаляет записи выбранной вкладки с устройства. Она не удаляет подключение Android и не влияет на сохранённые в системе сети.")
             }
         }
         if (selectedTab == 0) {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
@@ -210,7 +216,7 @@ fun ConnectionHistoryScreen(
             val sortedOpenNetworks = remember(openNetworks) { openNetworks.sortedByDescending { it.lastSeenAt } }
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
@@ -228,6 +234,13 @@ fun ConnectionHistoryScreen(
                 }
             }
         }
+      }
+      StickyWifiRefreshButton(
+          isRefreshing = isRefreshingNetworks,
+          onRefresh = onRefreshNetworks,
+          cooldownSeconds = scanCooldownSeconds,
+          modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+      )
     }
 
     if (passwordEntryId != null) {

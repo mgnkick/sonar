@@ -1,6 +1,6 @@
 {
-  "name": "WiFi Sonar 0.9.18 — анализатор Wi-Fi для Android",
-  "description": "Сканирование Wi-Fi-сетей, анализ сигнала и каналов, диагностика соединения, трассировка с анализом потерь и карта замеров.",
+  "name": "WiFi Sonar 0.9.33 — анализатор Wi-Fi для Android",
+  "description": "WiFi Sonar 0.9.33 для Android: сканер Wi-Fi 2,4/5/6 ГГц, смарт-аудит, Ping и трассировка с анализом потерь, ЭХО-поиск устройств, TCP-сканер портов, мониторинг сигнала, карта замеров и ZIP-резервные копии. Эмулятор сайта использует демонстрационные данные.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

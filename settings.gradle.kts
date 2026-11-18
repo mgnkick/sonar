@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "WiFiPulse"
+rootProject.name = "WiFi Sonar"
 include(":app")
 project(":app").projectDir = file("android/app")

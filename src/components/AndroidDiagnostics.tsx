@@ -21,6 +21,12 @@ interface HopItem {
   isTargetReached: boolean;
 }
 
+const responseTimeColor = (rttMs: number | null) => {
+  if (rttMs === null) return '#94a3b8';
+  const progress = Math.min(1, Math.max(0, rttMs) / 200);
+  return `hsl(${Math.round(120 * (1 - progress))} 78% 54%)`;
+};
+
 export const AndroidDiagnostics: React.FC<AndroidDiagnosticsProps> = ({ isDark, gatewayIp = '192.168.1.1' }) => {
   const [target, setTarget] = useState('8.8.8.8');
   const [packetCount, setPacketCount] = useState<number>(4);
@@ -133,7 +139,7 @@ export const AndroidDiagnostics: React.FC<AndroidDiagnosticsProps> = ({ isDark, 
     setHops([]);
     setActiveTab('console');
 
-    addLog(`Трассировка маршрута к ${host} через ProcessBuilder (/system/bin/ping -t <ttl>):`, 'output');
+    addLog(`Демонстрационная трассировка маршрута к ${host}:`, 'output');
     addLog(`Максимальное число прыжков: 30, таймаут: ${timeoutSec}с`, 'output');
 
     // Realistic intermediate hops based on target
@@ -213,7 +219,7 @@ export const AndroidDiagnostics: React.FC<AndroidDiagnosticsProps> = ({ isDark, 
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold tracking-tight">Диагностика сети</h1>
-            <p className="text-xs text-slate-400">Реальный Ping и Traceroute (ProcessBuilder)</p>
+            <p className="text-xs text-amber-300">Демонстрация: примерные Ping и Traceroute · не реальные проверки телефона</p>
           </div>
           <div className="flex items-center gap-1.5">
             {logs.length > 0 && !isRunning && (
@@ -434,15 +440,7 @@ export const AndroidDiagnostics: React.FC<AndroidDiagnosticsProps> = ({ isDark, 
                     </div>
                   </div>
 
-                  <span
-                    className={`font-mono font-bold text-xs ${
-                      hop.rttMs && hop.rttMs < 30
-                        ? 'text-emerald-400'
-                        : hop.rttMs && hop.rttMs < 75
-                        ? 'text-amber-400'
-                        : 'text-rose-400'
-                    }`}
-                  >
+                  <span className="font-mono font-bold text-xs" style={{ color: responseTimeColor(hop.rttMs) }}>
                     {hop.rttMs} ms
                   </span>
                 </div>

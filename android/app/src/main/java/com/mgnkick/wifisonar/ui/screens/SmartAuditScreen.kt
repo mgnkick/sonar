@@ -39,6 +39,7 @@ fun SmartAuditScreen(
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
+    scanCooldownSeconds: Int = 0,
     modifier: Modifier = Modifier,
     onOpenAbout: () -> Unit = {}
 ) {
@@ -66,7 +67,9 @@ fun SmartAuditScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = { StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks) },
+        floatingActionButton = {
+            StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks, cooldownSeconds = scanCooldownSeconds)
+        },
         modifier = modifier
     ) { padding ->
         LazyColumn(
@@ -75,7 +78,7 @@ fun SmartAuditScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
+            contentPadding = PaddingValues(start = 0.dp, top = 12.dp, end = 0.dp, bottom = 88.dp)
         ) {
             item {
                 ConnectionStatusPanel(
@@ -181,7 +184,6 @@ fun AuditScoreCard(report: AuditReport) {
                         fontSize = 12.sp
                     )
                 }
-
                 Spacer(modifier = Modifier.width(16.dp))
 
                 // Score Gauge Ring
@@ -212,6 +214,7 @@ fun AuditScoreCard(report: AuditReport) {
                     }
                 }
             }
+            HelpHint("Индекс 0–100 суммирует найденные признаки качества Wi-Fi, помех и защиты; высокий балл не гарантирует скорость или безопасность. Оценка зависит от числа видимых сетей и разрешений Android, поэтому читайте её вместе с конкретными рекомендациями ниже.")
 
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = Color(0xFF334155), thickness = 0.5.dp)
@@ -380,6 +383,14 @@ fun RecommendationCard(recommendation: AuditRecommendation) {
                 lineHeight = 18.sp,
                 fontSize = 12.sp
             )
+
+            HelpHint(when (recommendation.category) {
+                AuditCategory.CHANNEL_CONGESTION -> "Соседние сети — косвенный признак, не замер занятости эфира. Сверьте канал и ширину с повторными измерениями в проблемной точке; после изменения настроек снова проверьте задержку и скорость."
+                AuditCategory.SIGNAL_COVERAGE -> "RSSI показывает мощность принятого сигнала в текущей точке. Это не скорость и не качество интернета: сравнивайте тем же телефоном, в том же месте и дополняйте тестом потерь и фактической пропускной способности."
+                AuditCategory.SECURITY_PROTOCOL -> "Сканирование определяет объявленный режим защиты Wi-Fi, но не проверяет пароль, настройки шифров роутера или защищённость приложений. Подтвердите конфигурацию в панели владельца сети."
+                AuditCategory.TOPOLOGY_EFFICIENCY -> "Mesh, репитеры и поддержка роуминга определяются по радиопризнакам и могут классифицироваться ошибочно. Проверьте BSSID, схему подключения и реальный переход клиента между точками."
+                AuditCategory.NETWORK_LATENCY -> "Ping измеряет RTT и ответы ICMP только до выбранной цели и в этой серии. Чтобы локализовать участок, сравните шлюз, внешний IP и доменное имя; промежуточный узел может ограничивать ICMP."
+            })
 
             Spacer(modifier = Modifier.height(12.dp))
 

@@ -25,7 +25,7 @@ export const GitHubGuideModal: React.FC<GitHubGuideModalProps> = ({ isOpen, onCl
       commands: [
         'git init -b main',
         'git add .',
-        'git commit -m "feat: Initial commit with WiFi Pulse Android & GitHub Actions CI/CD"'
+        'git commit -m "feat: Initial commit with WiFi Sonar Android & GitHub Actions CI/CD"'
       ]
     },
     {
@@ -33,7 +33,7 @@ export const GitHubGuideModal: React.FC<GitHubGuideModalProps> = ({ isOpen, onCl
       title: 'Создание репозитория на GitHub и Push',
       desc: 'Создайте пустой репозиторий на github.com (не добавляйте README или .gitignore, они уже есть), затем привяжите remote и отправьте код:',
       commands: [
-        'git remote add origin https://github.com/ВАШ_ЛОГИН/wifi-pulse.git',
+        'git remote add origin https://github.com/ВАШ_ЛОГИН/sonar.git',
         'git push -u origin main'
       ]
     },

@@ -157,7 +157,7 @@ class NetworkInfoService:
         try:
             req = urllib.request.Request(
                 "https://api.ipify.org",
-                headers={"User-Agent": "WiFiPulse/1.0"}
+                headers={"User-Agent": "WiFiSonar/1.0"}
             )
             with urllib.request.urlopen(req, timeout=2.5) as response:
                 return response.read().decode("utf-8").strip()
