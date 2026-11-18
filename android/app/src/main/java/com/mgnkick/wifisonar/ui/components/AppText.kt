@@ -733,6 +733,7 @@ private val phraseTranslations = mapOf(
     "Разница между лучшей и слабейшей точками составляет " to "The signal difference between the strongest and weakest points is ",
     "Перемещение роутера" to "Moving the router",
     "покрытие слабой комнаты" to "coverage in the weak-signal room",
+    "Точка доступа" to "Access point",
     "Точка " to "Point ",
     "Сейчас подключён этот BSSID" to "Currently connected to this BSSID",
     "График выбранного сателлита" to "Chart for selected access point",
