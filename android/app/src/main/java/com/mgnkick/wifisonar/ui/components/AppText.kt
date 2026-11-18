@@ -69,6 +69,11 @@ fun appUiText(source: String, language: AppLanguage): String {
     Regex("^(\\d+)с назад$").matchEntire(source)?.let { return "${it.groupValues[1]}s ago" }
     Regex("^(\\d+)м (\\d+)с назад$").matchEntire(source)?.let { return "${it.groupValues[1]}m ${it.groupValues[2]}s ago" }
     Regex("^(\\d+)ч (\\d+)м назад$").matchEntire(source)?.let { return "${it.groupValues[1]}h ${it.groupValues[2]}m ago" }
+    Regex("^([0-9]+)% \\(~([0-9.]+) м\\)$").matchEntire(source)?.let { return "${it.groupValues[1]}% (~${it.groupValues[2]} m)" }
+    Regex("^~([0-9.]+) м$").matchEntire(source)?.let { return "~${it.groupValues[1]} m" }
+    Regex("^Разница между лучшей и слабейшей точками составляет (.+) dB\\. Перемещение роутера может заметно улучшить покрытие слабой комнаты\\.$").matchEntire(source)?.let {
+        return "The difference between the best and weakest points is ${it.groupValues[1]} dB. Moving the router may noticeably improve coverage in the weak-signal room."
+    }
 
     var result = source
     orderedPhraseTranslations.forEach { (ru, en) ->
@@ -749,7 +754,12 @@ private val phraseTranslations = mapOf(
     "Линк: " to "Link: ",
     "Мобильная сеть: " to "Mobile network: ",
     "Потери " to "Loss ",
-    "Версия приложения: " to "App version: "
+    "Версия приложения: " to "App version: ",
+    "Не удалось запустить фоновый мониторинг: " to "Could not start background monitoring: ",
+    "Не удалось сохранить пароль: " to "Could not save password: ",
+    "Текущее подключение Wi-Fi" to "Current Wi-Fi connection",
+    "Стандарт: " to "Standard: ",
+    "Маска: " to "Subnet mask: "
 )
 
 private val orderedPhraseTranslations = phraseTranslations.entries.sortedByDescending { it.key.length }
