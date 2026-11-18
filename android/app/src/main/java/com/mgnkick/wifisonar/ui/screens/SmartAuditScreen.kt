@@ -39,6 +39,7 @@ fun SmartAuditScreen(
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
+    scanCooldownSeconds: Int = 0,
     modifier: Modifier = Modifier,
     onOpenAbout: () -> Unit = {}
 ) {
@@ -66,7 +67,9 @@ fun SmartAuditScreen(
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = { StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks) },
+        floatingActionButton = {
+            StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks, cooldownSeconds = scanCooldownSeconds)
+        },
         modifier = modifier
     ) { padding ->
         LazyColumn(
