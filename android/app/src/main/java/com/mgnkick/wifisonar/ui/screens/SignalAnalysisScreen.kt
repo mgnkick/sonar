@@ -99,7 +99,7 @@ fun SignalAnalysisScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp)
+                .padding(bottom = 88.dp)
         ) {
             ConnectionStatusPanel(
                 details = state.connectionDetails,
