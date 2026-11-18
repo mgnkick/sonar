@@ -163,7 +163,7 @@ fun ConnectionHistoryScreen(
                 Text("Резервная копия", style = MaterialTheme.typography.titleSmall)
                 Text("Для переноса истории после переустановки сохраните копию и затем восстановите её. Пароли Wi-Fi не включаются.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { createBackup.launch("WiFi-Sonar-backup.zip") }, modifier = Modifier.weight(1f)) {
+                    OutlinedButton(onClick = { createBackup.launch(wifiSonarExportFileName("zip")) }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.Backup, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Создать копию", maxLines = 1)
                     }
                     OutlinedButton(onClick = { openBackup.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.weight(1f)) {
