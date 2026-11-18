@@ -214,7 +214,7 @@ fun ConnectionHistoryScreen(
             val sortedOpenNetworks = remember(openNetworks) { openNetworks.sortedByDescending { it.lastSeenAt } }
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 88.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
