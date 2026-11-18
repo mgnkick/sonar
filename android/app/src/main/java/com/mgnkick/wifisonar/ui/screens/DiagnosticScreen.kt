@@ -16,6 +16,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.AltRoute
+import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -108,6 +110,17 @@ fun DiagnosticScreen(
         onStartPortScan(target, ports)
     }
     val runGuided: () -> Unit = { wasInterrupted = false; lastAction = onStartGuidedDiagnostics; onStartGuidedDiagnostics() }
+    val changeTool: (DiagnosticTool) -> Unit = { tool ->
+        if (tool != selectedTool) wasInterrupted = false
+        selectedTool = tool
+    }
+    val changeTarget: (String) -> Unit = { target -> wasInterrupted = false; onTargetChange(target) }
+    val changeCount: (Int) -> Unit = { count -> wasInterrupted = false; onCountChange(count) }
+    val changePacketSize: (Int) -> Unit = { size -> wasInterrupted = false; onPacketSizeChange(size) }
+    val changeTimeout: (Int) -> Unit = { timeout -> wasInterrupted = false; onTimeoutChange(timeout) }
+    val changePortTarget: (String) -> Unit = { target -> wasInterrupted = false; portTarget = target }
+    val changePortRange: (String) -> Unit = { range -> wasInterrupted = false; portRange = range }
+    val changeCustomPacketSize: (String) -> Unit = { size -> wasInterrupted = false; customPacketSize = size }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -137,11 +150,11 @@ fun DiagnosticScreen(
                     Column(Modifier.weight(0.92f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         ConnectionStatusPanel(connectionDetails, visibleNetworkCount, isRefreshingNetworks, onRefreshNetworks, lastScanTimestamp, showRefreshButton = false)
                         DiagnosticControls(
-                            state, selectedTool, { selectedTool = it }, onTargetChange, onCountChange, onPacketSizeChange, onTimeoutChange,
+                            state, selectedTool, changeTool, changeTarget, changeCount, changePacketSize, changeTimeout,
                             runPing, runTrace, runEcho, runTcp, runGuided,
                             interrupt,
-                            running, connectionDetails, portTarget, { portTarget = it }, portRange, { portRange = it },
-                            advancedExpanded, { advancedExpanded = !advancedExpanded }, customPacketSize, { customPacketSize = it },
+                            running, connectionDetails, portTarget, changePortTarget, portRange, changePortRange,
+                            advancedExpanded, { advancedExpanded = !advancedExpanded }, customPacketSize, changeCustomPacketSize,
                             guideExpanded, { guideExpanded = !guideExpanded },
                             onSpeedOpen = { url -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } },
                             onRouter = { openRouter(context, connectionDetails.gateway) }
@@ -157,11 +170,11 @@ fun DiagnosticScreen(
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp).padding(bottom = 102.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     ConnectionStatusPanel(connectionDetails, visibleNetworkCount, isRefreshingNetworks, onRefreshNetworks, lastScanTimestamp, modifier = Modifier.padding(top = 4.dp), showRefreshButton = false)
                     DiagnosticControls(
-                        state, selectedTool, { selectedTool = it }, onTargetChange, onCountChange, onPacketSizeChange, onTimeoutChange,
+                        state, selectedTool, changeTool, changeTarget, changeCount, changePacketSize, changeTimeout,
                         runPing, runTrace, runEcho, runTcp, runGuided,
                         interrupt,
-                        running, connectionDetails, portTarget, { portTarget = it }, portRange, { portRange = it },
-                        advancedExpanded, { advancedExpanded = !advancedExpanded }, customPacketSize, { customPacketSize = it },
+                        running, connectionDetails, portTarget, changePortTarget, portRange, changePortRange,
+                        advancedExpanded, { advancedExpanded = !advancedExpanded }, customPacketSize, changeCustomPacketSize,
                         guideExpanded, { guideExpanded = !guideExpanded },
                         onSpeedOpen = { url -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } },
                         onRouter = { openRouter(context, connectionDetails.gateway) }
@@ -234,6 +247,7 @@ private fun DiagnosticControls(
     onRouter: () -> Unit
 ) {
     val colors = MaterialTheme.colorScheme
+    val compactFields = LocalConfiguration.current.screenWidthDp < 400 || LocalConfiguration.current.fontScale >= 1.25f
     val presets = listOfNotNull(connection.gateway.takeIf { it.isNotBlank() && it != "0.0.0.0" }?.let { "Шлюз · $it" }) + listOf("8.8.8.8", "1.1.1.1", "yandex.ru")
 
     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface)) {
@@ -252,7 +266,7 @@ private fun DiagnosticControls(
                 HelpHint("PING измеряет отклик и потери до узла; ТСАП показывает маршрут и потери по хопам; ЭХО ищет устройства в локальной подсети; TCP проверяет, какие порты отвечают. Отсутствие ответа не доказывает, что устройство выключено: ICMP и соединения могут блокироваться.")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ToolChip("PING", Icons.Default.Speed, selectedTool == DiagnosticTool.PING, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.PING) }
-                    ToolChip("ТСАП", Icons.Default.AltRoute, selectedTool == DiagnosticTool.TRACE, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.TRACE) }
+                    ToolChip("ТСАП", Icons.AutoMirrored.Filled.AltRoute, selectedTool == DiagnosticTool.TRACE, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.TRACE) }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ToolChip("ЭХО", Icons.Default.Radar, selectedTool == DiagnosticTool.ECHO, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.ECHO) }
@@ -279,9 +293,16 @@ private fun DiagnosticControls(
                     HelpHint("Устройства, блокирующие ответы или скрытые Android, могут не обнаружиться.")
                 }
                 DiagnosticTool.TCP -> {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(portTarget, onPortTarget, Modifier.weight(1.2f), enabled = !running, singleLine = true, label = { Text("IP устройства") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), shape = RoundedCornerShape(12.dp))
-                        OutlinedTextField(portRange, onPortRange, Modifier.weight(.8f), enabled = !running, singleLine = true, label = { Text("Порты") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), shape = RoundedCornerShape(12.dp))
+                    if (compactFields) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(portTarget, onPortTarget, Modifier.fillMaxWidth(), enabled = !running, singleLine = true, label = { Text("IP устройства") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), shape = RoundedCornerShape(12.dp))
+                            OutlinedTextField(portRange, onPortRange, Modifier.fillMaxWidth(), enabled = !running, singleLine = true, label = { Text("Порты") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), shape = RoundedCornerShape(12.dp))
+                        }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(portTarget, onPortTarget, Modifier.weight(1.2f), enabled = !running, singleLine = true, label = { Text("IP устройства") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), shape = RoundedCornerShape(12.dp))
+                            OutlinedTextField(portRange, onPortRange, Modifier.weight(.8f), enabled = !running, singleLine = true, label = { Text("Порты") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), shape = RoundedCornerShape(12.dp))
+                        }
                     }
                     Text("Диапазон до 4096 портов; проверяются адреса текущей локальной подсети.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                     HelpHint("Укажите IPv4-адрес устройства и диапазон портов. Порт считается открытым только если удалённый узел принял TCP-соединение; закрытый или отфильтрованный порт не раскрывает состояние самого устройства.")
@@ -391,7 +412,7 @@ private fun DiagnosticControls(
                 Icon(Icons.Default.Router, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text("Настройки роутера · ${connection.gateway}", maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Button(onClick = onStartGuidedDiagnostics, enabled = !running, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                Icon(Icons.Default.FactCheck, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Проверить шлюз, DNS и интернет")
+                Icon(Icons.AutoMirrored.Filled.FactCheck, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Проверить шлюз, DNS и интернет")
             }
             HelpHint("Последовательно проверить связь с маршрутизатором, DNS-серверами и интернетом.")
         }
@@ -586,3 +607,4 @@ private fun openRouter(context: android.content.Context, gateway: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$gateway")))
     }
 }
+
