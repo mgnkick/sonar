@@ -34,7 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -276,23 +275,56 @@ fun ConnectionStatusPanel(
 fun StickyWifiRefreshButton(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cooldownSeconds: Int = 0
 ) {
+    val language = LocalAppLanguage.current
+    val waitingForNextScan = cooldownSeconds > 0
     Box(modifier.size(56.dp)) {
         FloatingActionButton(
-            onClick = onRefresh,
+            onClick = {
+                if (!isRefreshing && !waitingForNextScan) onRefresh()
+            },
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(16.dp),
-            containerColor = MaterialTheme.colorScheme.primary
+            containerColor = MaterialTheme.colorScheme.primary.copy(
+                alpha = if (waitingForNextScan) 0.78f else 1f
+            )
         ) {
-            if (isRefreshing) {
-                CircularProgressIndicator(
+            when {
+                waitingForNextScan -> Box(
+                    modifier = Modifier.size(36.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        progress = (cooldownSeconds.coerceIn(0, 30) / 30f),
+                        modifier = Modifier.fillMaxSize(),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                    )
+                    androidx.compose.foundation.layout.Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            cooldownSeconds.toString(),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Text(
+                            if (language == com.mgnkick.wifisonar.ui.components.AppLanguage.EN) "s" else "с",
+                            fontSize = 8.sp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+                isRefreshing -> CircularProgressIndicator(
                     modifier = Modifier.size(22.dp),
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
-            } else {
-                androidx.compose.material3.Icon(
+                else -> androidx.compose.material3.Icon(
                     Icons.Default.Refresh,
                     contentDescription = "Обновить вручную",
                     tint = MaterialTheme.colorScheme.onPrimary
