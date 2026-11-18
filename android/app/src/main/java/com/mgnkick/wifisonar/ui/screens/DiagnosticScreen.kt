@@ -155,7 +155,7 @@ fun DiagnosticScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 10.dp)
-                .padding(bottom = 18.dp)
+                .padding(bottom = 132.dp)
         ) {
             ConnectionStatusPanel(
                 details = connectionDetails,
