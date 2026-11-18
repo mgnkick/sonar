@@ -37,8 +37,8 @@ export const CodeExplorer: React.FC = () => {
             <FileCode className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-100">Исходный код Android-проекта</h2>
-            <p className="text-xs text-slate-400">Kotlin, Gradle DSL, Jetpack Compose, CI/CD</p>
+            <h2 className="text-sm font-bold text-slate-100">Шаблон Android-проекта</h2>
+            <p className="text-xs text-slate-400">Учебный пример Kotlin, Gradle DSL, Jetpack Compose и CI/CD; это не полный исходный код версии 0.9.33.</p>
           </div>
         </div>
 
@@ -57,7 +57,7 @@ export const CodeExplorer: React.FC = () => {
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 text-xs font-bold shadow-md shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition"
           >
             <Download className={`w-3.5 h-3.5 ${isDownloading ? 'animate-bounce' : ''}`} />
-            <span>{isDownloading ? 'Создание ZIP...' : 'Скачать проект (.ZIP)'}</span>
+            <span>{isDownloading ? 'Создание ZIP...' : 'Скачать шаблон (.ZIP)'}</span>
           </button>
         </div>
       </div>
@@ -67,7 +67,7 @@ export const CodeExplorer: React.FC = () => {
         {/* Left Sidebar: File Tree */}
         <div className="w-64 border-r border-slate-800/80 bg-slate-950/40 p-2 overflow-y-auto space-y-1">
           <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Файлы репозитория
+            Файлы шаблона
           </div>
           {ANDROID_PROJECT_FILES.map((file) => {
             const isSelected = file.path === selectedFilePath;

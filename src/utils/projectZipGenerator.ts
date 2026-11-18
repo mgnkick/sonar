@@ -797,9 +797,9 @@ class DiagnosticViewModel(
     path: 'README.md',
     name: 'README.md',
     language: 'markdown',
-    content: `# WiFi Sonar — Анализатор Wi-Fi, Mesh-сетей и диагностика (Ping/Traceroute)
+    content: `# WiFi Sonar — стартовый шаблон Android-проекта
 
-Полнофункциональное приложение для Android (API 26+) с реальным сканером Wi-Fi, детекцией Mesh-сетей (802.11k/r/v) и инструментами сетевой диагностики (Ping и Traceroute на ProcessBuilder).
+Это учебный шаблон с примерами Ping и Traceroute, Gradle и GitHub Actions. Он не содержит полный исходный код приложения WiFi Sonar 0.9.33 и не повторяет все его функции. Скачать APK можно из последнего опубликованного GitHub Release.
 `
   }
 ];
@@ -815,7 +815,7 @@ export async function downloadAndroidProjectZip(): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'wifi-sonar-android-mesh-project.zip';
+  a.download = 'wifi-sonar-android-template-0.9.33.zip';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

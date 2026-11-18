@@ -126,7 +126,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Мобильный анализатор Wi-Fi на Kotlin с автоматической сборкой APK в GitHub Actions
+                Android-приложение для обследования Wi-Fi · актуальная версия исходников 0.9.33
               </p>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function App() {
                 }`}
               >
                 <FileCode2 className="w-3.5 h-3.5" />
-                <span>Код проекта</span>
+                <span>Шаблон Android</span>
               </button>
 
               <button
@@ -188,12 +188,12 @@ export default function App() {
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 text-xs font-bold shadow-lg shadow-cyan-500/25 hover:brightness-110 active:scale-95 transition"
             >
               <Download className={`w-3.5 h-3.5 ${isDownloading ? 'animate-bounce' : ''}`} />
-              <span>{isDownloading ? 'Сборка архива...' : 'Скачать .ZIP'}</span>
+              <span>{isDownloading ? 'Сборка архива...' : 'Скачать шаблон .ZIP'}</span>
             </button>
             <a
               href="https://github.com/mgnkick/sonar/releases/latest/download/app-release.apk"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-cyan-400/50 bg-cyan-950/60 hover:bg-cyan-900/70 text-cyan-100 text-xs font-bold transition"
-              aria-label="Скачать актуальный APK WiFi Sonar для Android"
+              aria-label="Скачать APK из последнего опубликованного GitHub Release WiFi Sonar"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Скачать APK</span>
@@ -228,6 +228,10 @@ export default function App() {
 
             {/* Right: Feature Highlights & Quick Action Center */}
             <div className="lg:col-span-7 space-y-5">
+              <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 text-xs leading-relaxed text-amber-100">
+                <strong className="block mb-1">Демонстрация интерфейса</strong>
+                В эмуляторе показаны тестовые сети и примерные результаты. Он не сканирует Wi-Fi-эфир телефона и не заменяет проверки в Android-приложении. Для реальных измерений установите APK; кнопка скачивания ведёт на последний опубликованный GitHub Release.
+              </div>
               {/* Architecture & Stack Card */}
               <div className="p-6 rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur-md space-y-4">
                 <div className="flex items-center justify-between">
@@ -238,7 +242,7 @@ export default function App() {
                     </h2>
                   </div>
                   <span className="text-xs font-mono text-emerald-400 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Готово к публикации
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Исходники 0.9.33
                   </span>
                 </div>
 
@@ -257,8 +261,8 @@ export default function App() {
 
                   <div className="p-3 rounded-2xl border border-slate-800 bg-slate-950/60">
                     <span className="text-slate-400 block text-[11px]">Системные API Android</span>
-                    <strong className="text-slate-100 text-sm mt-0.5 block">WifiManager, DhcpInfo</strong>
-                    <span className="text-slate-400 text-[11px]">ConnectivityManager, ScanResult</span>
+                    <strong className="text-slate-100 text-sm mt-0.5 block">WifiManager, ScanResult</strong>
+                    <span className="text-slate-400 text-[11px]">ConnectivityManager, LinkProperties</span>
                   </div>
 
                   <div className="p-3 rounded-2xl border border-slate-800 bg-slate-950/60">
@@ -273,25 +277,49 @@ export default function App() {
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                     <span>
-                      <strong>Группировка SSID/BSSID и Mesh-аналитика</strong>: группировка физических узлов по SSID, классификация Mesh-систем (Keenetic, Deco, AiMesh) и выявление репитеров по OUI-вендорам.
+                      <strong>Сканирование сетей</strong>: обнаружение точек доступа в диапазонах 2,4, 5 и 6 ГГц, группировка SSID и BSSID, фильтры и оценка уровня сигнала.
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                     <span>
-                      <strong>Бесшовный роуминг 802.11k/r/v</strong>: определение поддержки Fast BSS Transition (802.11r FT), Radio Resource Management (802.11k) и BSS Transition (802.11v) в эфире.
+                      <strong>Сигнал и радиоэфир</strong>: график RSSI, отслеживание выбранной точки доступа, спектр видимых сетей и оценки каналов. Это анализ данных Wi-Fi scan, а не аппаратный RF-анализатор.
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                     <span>
-                      <strong>Спектр каналов и RF-бипер</strong>: параболические кривые интерференции, рейтинг зашумленности и звуковой индикатор для поиска слепых зон.
+                      <strong>Смарт-аудит</strong>: рекомендации по перекрытию каналов 2,4 ГГц, ширине 40 МГц, DFS, открытым сетям, качеству сигнала и безопасности. Балл и загруженность — эвристическая оценка по видимым сетям.
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                     <span>
-                      <strong>Параметры соединения и Ping</strong>: локальный IP, шлюз, маска, DNS 1 &amp; 2, скорость линка Rx/Tx и встроенный инструмент измерения задержки.
+                      <strong>Диагностика сети</strong>: Ping, трассировка с анализом потерь, поиск устройств ЭХО и проверка TCP-портов в локальной подсети; есть пошаговая проверка шлюза, DNS и интернета и консоль с управлением запуском.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>Подключение и мониторинг</strong>: IP, шлюз, маска, DNS, скорости Rx/Tx, проверка отклика шлюза и фоновое системное уведомление.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>Карта покрытия</strong>: загрузка плана или фото, точки замеров, отметки оборудования и фигур, локальное сохранение и экспорт схемы в PNG.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>История и перенос данных</strong>: журнал подключений и обнаруженных открытых сетей, экспорт отчётов и ZIP-резервная копия. Пароли Wi-Fi в копию не входят.
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <strong>Подсказки «?»</strong>: пояснения к инструментам и интерпретации результатов на русском и английском языках.
                     </span>
                   </div>
                 </div>
@@ -302,7 +330,7 @@ export default function App() {
                 <div>
                   <h3 className="text-sm font-bold text-white">Готовы собрать APK на GitHub?</h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Скачайте готовый архив или просмотрите файлы проекта и конфигурацию воркфлоу.
+                    Скачайте стартовый шаблон Android-проекта или просмотрите его файлы и пример GitHub Actions.
                   </p>
                 </div>
 
@@ -311,7 +339,7 @@ export default function App() {
                     onClick={() => setActivePane('code')}
                     className="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition"
                   >
-                    Открыть код
+                    Открыть шаблон
                   </button>
                   <button
                     onClick={() => setIsGuideOpen(true)}

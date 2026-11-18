@@ -173,14 +173,14 @@ export const GitHubWorkflowViewer: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h4 className="text-xs font-bold text-slate-100">
-                WiFi Sonar 0.9.33 — Release APK
+                APK из последнего GitHub Release
               </h4>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 Release • Android 8.0+
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              APK доступен на сайте и в последнем GitHub Release.
+              Ссылка скачивает последнюю опубликованную версию. Новая сборка появится после публикации релиза.
             </p>
           </div>
         </div>
@@ -189,7 +189,7 @@ export const GitHubWorkflowViewer: React.FC = () => {
           href="https://github.com/mgnkick/sonar/releases/latest/download/app-release.apk"
           className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition"
         >
-          Скачать APK
+          Скачать последний APK
         </a>
       </div>
     </div>
