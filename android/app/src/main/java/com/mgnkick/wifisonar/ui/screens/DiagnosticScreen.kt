@@ -710,7 +710,7 @@ fun DiagnosticScreen(
                                     })
                                 }
                             }
-                            val savedPdf = exportReportPdf(context, "WiFiPulse-diagnostics-${System.currentTimeMillis()}", "Диагностика сети", pdfBody)
+                            val savedPdf = exportReportPdf(context, wifiSonarExportFileName("pdf"), "Диагностика сети", pdfBody)
                             Toast.makeText(context, savedPdf?.let { "PDF сохранён в Загрузки/WiFiPulse" } ?: "Не удалось сохранить PDF", Toast.LENGTH_LONG).show()
                         }
                     ) {
