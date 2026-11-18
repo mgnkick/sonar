@@ -137,10 +137,10 @@ fun ConnectionHistoryScreen(
                     Toast.makeText(context, appUiText("Данные скопированы", language), Toast.LENGTH_SHORT).show()
                 }) { Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать историю", language)) }
                 IconButton(onClick = {
-                    val fileName = if (selectedTab == 0) "WiFiPulse-history" else "WiFiPulse-open-networks"
+                    val fileName = if (selectedTab == 0) "WiFi Sonar-history" else "WiFi Sonar-open-networks"
                     val section = appUiText(if (selectedTab == 0) "История подключений" else "Журнал открытых сетей", language)
                     val saved = exportTextFile(context, fileName, "WiFi Sonar — $section\n${appUiText("Экспортировано: ", language)}${dateTime(System.currentTimeMillis(), dateLocale)}\n\n$visibleHistoryText")
-                    Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFiPulse" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFi Sonar" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
                 }) { Icon(Icons.Default.SaveAlt, contentDescription = appUiText("Сохранить историю", language)) }
                 IconButton(onClick = { if (selectedTab == 0) { onClearConnections(); revealedPasswords.clear() } else onClearOpenNetworks() }) {
                     Icon(Icons.Default.DeleteSweep, contentDescription = "Очистить журнал", tint = MaterialTheme.colorScheme.error)

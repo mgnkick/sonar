@@ -428,12 +428,12 @@ chmod +x ./gradlew
 
 ### Сборка через GitHub Actions
 
-Workflow находится в `.github/workflows/android-build.yml`. Он собирает только Release-вариант и публикует артефакт `WiFiPulse-Android-Release-APK`.
+Workflow находится в `.github/workflows/android-build.yml`. Он собирает только Release-вариант и публикует артефакт `WiFi-Sonar-Android-Release-APK`.
 
 1. Открой вкладку **Actions** репозитория.
 2. Выбери последний запуск **Android APK Build** для нужного коммита.
 3. Убедись, что workflow завершился со статусом **Success**.
-4. Скачай `WiFiPulse-Android-Release-APK` в разделе Artifacts.
+4. Скачай `WiFi-Sonar-Android-Release-APK` в разделе Artifacts.
 5. Установи APK на тестовое устройство и проверь ключевые сценарии.
 
 Текущая конфигурация release подписывает APK debug-ключом для тестовой установки. Для официального распространения через магазины приложений необходимо отдельно настроить собственную подпись и правила хранения ключа. Не включай keystore и пароли в репозиторий.

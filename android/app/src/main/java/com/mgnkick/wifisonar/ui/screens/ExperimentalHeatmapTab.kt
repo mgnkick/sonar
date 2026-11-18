@@ -369,7 +369,7 @@ fun ExperimentalHeatmapTab(
             OutlinedButton(
                 onClick = {
                     val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes, language)
-                    Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFi Sonar" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
                 },
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp)
             ) {
@@ -439,7 +439,7 @@ fun ExperimentalHeatmapTab(
                             HelpHint("Закрыть полноэкранный редактор.")
                             TextButton(onClick = {
                                 val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes, language)
-                                Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFi Sonar" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
                             }) {
                                 Icon(Icons.Default.SaveAlt, contentDescription = null, tint = heatAccent)
                                 Spacer(Modifier.width(4.dp))
@@ -685,7 +685,7 @@ private fun saveCoverageDrawing(
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/WiFiPulse")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/WiFi Sonar")
     }
     val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: error("Не удалось создать PNG")
     context.contentResolver.openOutputStream(uri)?.use { image.compress(Bitmap.CompressFormat.PNG, 100, it) } ?: error("Не удалось записать PNG")

@@ -141,7 +141,7 @@ export const AndroidDashboard: React.FC<AndroidDashboardProps> = ({
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold tracking-tight">WiFi Pulse</h1>
+            <h1 className="text-lg font-bold tracking-tight">WiFi Sonar</h1>
             <p className="text-xs text-slate-400">
               Сетей: {filteredGroups.length} • BSSID узлов: {networks.length}
             </p>

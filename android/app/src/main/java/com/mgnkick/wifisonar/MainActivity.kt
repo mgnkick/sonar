@@ -47,7 +47,7 @@ import com.mgnkick.wifisonar.ui.screens.PermissionsScreen
 import com.mgnkick.wifisonar.ui.screens.SignalAnalysisScreen
 import com.mgnkick.wifisonar.ui.screens.ExperimentalHeatmapTab
 import com.mgnkick.wifisonar.ui.screens.AboutProgramDialog
-import com.mgnkick.wifisonar.ui.theme.WiFiPulseTheme
+import com.mgnkick.wifisonar.ui.theme.WiFiSonarTheme
 import com.mgnkick.wifisonar.ui.viewmodel.WifiViewModel
 import com.mgnkick.wifisonar.ui.components.AppLanguage
 import com.mgnkick.wifisonar.ui.components.LocalAppLanguage
@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
                     if (getSharedPreferences("wifi_pulse_settings", MODE_PRIVATE).getString("app_language", "ru") == "en") AppLanguage.EN else AppLanguage.RU
                 )
             }
-            WiFiPulseTheme(darkTheme = darkTheme) {
+            WiFiSonarTheme(darkTheme = darkTheme) {
                 CompositionLocalProvider(LocalAppLanguage provides appLanguage) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

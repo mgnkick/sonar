@@ -1,4 +1,4 @@
-# Proguard rules for WiFiPulse Analyzer
+# Proguard rules for WiFi Sonar
 -keepattributes *Annotation*
 -keepclassmembers class * {
     @androidx.compose.runtime.Composable *;

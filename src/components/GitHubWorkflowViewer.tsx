@@ -7,7 +7,7 @@ export const GitHubWorkflowViewer: React.FC = () => {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(4); // Completed by default
   const [logs, setLogs] = useState<string[]>([
     'Run actions/checkout@v4',
-    'Syncing repository com.wifipulse.analyzer...',
+    'Syncing repository com.mgnkick.wifisonar...',
     'Run actions/setup-java@v4 (JDK 17 Eclipse Temurin)',
     'Java home: /opt/hostedtoolcache/Java_Temurin-jdk/17.0.10-7/x64',
     'Run gradle/actions/setup-gradle@v3',
@@ -19,7 +19,7 @@ export const GitHubWorkflowViewer: React.FC = () => {
     '> Task :app:packageRelease',
     'BUILD SUCCESSFUL in 18s',
     'Run actions/upload-artifact@v4',
-    'Artifact "WiFiPulse-Android-Release-APK" uploaded successfully!'
+    'Artifact "WiFi-Sonar-Android-Release-APK" uploaded successfully!'
   ]);
 
   const steps = [
@@ -41,7 +41,7 @@ export const GitHubWorkflowViewer: React.FC = () => {
       'Configuring Gradle 8.7 daemon and build cache...',
       'Executing: ./gradlew --no-daemon :app:assembleRelease',
       ':app:preBuild UP-TO-DATE\n:app:compileReleaseKotlin\n:app:packageRelease\nBUILD SUCCESSFUL',
-      'Uploading artifact android/app/build/outputs/apk/release/app-release.apk as "WiFiPulse-Android-Release-APK"... Done!'
+      'Uploading artifact android/app/build/outputs/apk/release/app-release.apk as "WiFi-Sonar-Android-Release-APK"... Done!'
     ];
 
     let step = 0;

@@ -76,6 +76,8 @@ fun DiagnosticScreen(
     var guideExpanded by remember { mutableStateOf(false) }
     var showConsole by remember { mutableStateOf(false) }
     var selectedOutputTab by remember { mutableIntStateOf(0) }
+    var wasInterrupted by remember { mutableStateOf(false) }
+    var lastAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var customPacketSize by remember { mutableStateOf("") }
     var portTarget by remember(connectionDetails.gateway) { mutableStateOf(connectionDetails.gateway) }
     var portRange by remember { mutableStateOf("1-1024") }
@@ -84,6 +86,26 @@ fun DiagnosticScreen(
     val wide = LocalConfiguration.current.screenWidthDp >= 840
     val fontScale = LocalConfiguration.current.fontScale.coerceAtLeast(1f)
     val consoleHeight = (420f * fontScale).coerceIn(320f, 560f).dp
+    val interrupt: () -> Unit = { wasInterrupted = true; onStop() }
+    val continueLastAction: () -> Unit = {
+        lastAction?.let { action ->
+            wasInterrupted = false
+            action()
+        }
+    }
+    val runPing: () -> Unit = { wasInterrupted = false; lastAction = onStartPing; onStartPing() }
+    val runTrace: () -> Unit = { wasInterrupted = false; lastAction = onStartTraceroute; onStartTraceroute() }
+    val runEcho: (String, String, String) -> Unit = { ip, mask, gateway ->
+        wasInterrupted = false
+        lastAction = { onStartEchoScan(ip, mask, gateway) }
+        onStartEchoScan(ip, mask, gateway)
+    }
+    val runTcp: (String, String) -> Unit = { target, ports ->
+        wasInterrupted = false
+        lastAction = { onStartPortScan(target, ports) }
+        onStartPortScan(target, ports)
+    }
+    val runGuided: () -> Unit = { wasInterrupted = false; lastAction = onStartGuidedDiagnostics; onStartGuidedDiagnostics() }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -102,7 +124,7 @@ fun DiagnosticScreen(
         },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (running) StickyWifiStopButton(onStop = onStop)
+                if (running) StickyWifiStopButton(onStop = interrupt)
                 StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks, cooldownSeconds = scanCooldownSeconds)
             }
         }
@@ -114,8 +136,8 @@ fun DiagnosticScreen(
                         ConnectionStatusPanel(connectionDetails, visibleNetworkCount, isRefreshingNetworks, onRefreshNetworks, lastScanTimestamp, showRefreshButton = false)
                         DiagnosticControls(
                             state, selectedTool, { selectedTool = it }, onTargetChange, onCountChange, onPacketSizeChange, onTimeoutChange,
-                            onStartPing, onStartTraceroute, onStartEchoScan, onStartPortScan, onStartGuidedDiagnostics,
-                            onStop,
+                            runPing, runTrace, runEcho, runTcp, runGuided,
+                            interrupt,
                             running, connectionDetails, portTarget, { portTarget = it }, portRange, { portRange = it },
                             advancedExpanded, { advancedExpanded = !advancedExpanded }, customPacketSize, { customPacketSize = it },
                             guideExpanded, { guideExpanded = !guideExpanded },
@@ -125,7 +147,8 @@ fun DiagnosticScreen(
                     }
                     DiagnosticConsole(
                         state, running, selectedOutputTab, { selectedOutputTab = it }, onClear, connectionDetails,
-                        Modifier.weight(1.08f).fillMaxHeight().padding(bottom = 8.dp), consoleHeight, showActions = true
+                        Modifier.weight(1.08f).fillMaxHeight().padding(bottom = 8.dp), consoleHeight, showActions = true,
+                        onInterrupt = interrupt, onContinue = continueLastAction, canContinue = wasInterrupted && lastAction != null
                     )
                 }
             } else {
@@ -133,8 +156,8 @@ fun DiagnosticScreen(
                     ConnectionStatusPanel(connectionDetails, visibleNetworkCount, isRefreshingNetworks, onRefreshNetworks, lastScanTimestamp, modifier = Modifier.padding(top = 4.dp), showRefreshButton = false)
                     DiagnosticControls(
                         state, selectedTool, { selectedTool = it }, onTargetChange, onCountChange, onPacketSizeChange, onTimeoutChange,
-                        onStartPing, onStartTraceroute, onStartEchoScan, onStartPortScan, onStartGuidedDiagnostics,
-                        onStop,
+                        runPing, runTrace, runEcho, runTcp, runGuided,
+                        interrupt,
                         running, connectionDetails, portTarget, { portTarget = it }, portRange, { portRange = it },
                         advancedExpanded, { advancedExpanded = !advancedExpanded }, customPacketSize, { customPacketSize = it },
                         guideExpanded, { guideExpanded = !guideExpanded },
@@ -173,7 +196,7 @@ fun DiagnosticScreen(
                 }
             }
         ) {
-            DiagnosticConsole(state, running, selectedOutputTab, { selectedOutputTab = it }, onClear, connectionDetails, Modifier.fillMaxWidth().height(consoleHeight + 170.dp).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), consoleHeight, showActions = true)
+            DiagnosticConsole(state, running, selectedOutputTab, { selectedOutputTab = it }, onClear, connectionDetails, Modifier.fillMaxWidth().height(consoleHeight + 210.dp).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), consoleHeight, showActions = true, onInterrupt = interrupt, onContinue = continueLastAction, canContinue = wasInterrupted && lastAction != null)
         }
     }
 }
@@ -361,7 +384,10 @@ private fun DiagnosticConsole(
     connection: WifiConnectionDetails,
     modifier: Modifier = Modifier,
     consoleHeight: androidx.compose.ui.unit.Dp,
-    showActions: Boolean
+    showActions: Boolean,
+    onInterrupt: () -> Unit,
+    onContinue: () -> Unit,
+    canContinue: Boolean
 ) {
     val listState = rememberLazyListState()
     val clipboard = LocalClipboardManager.current
@@ -379,6 +405,23 @@ private fun DiagnosticConsole(
             if (state.logs.isNotEmpty()) IconButton(onClick = onClear) { Icon(Icons.Default.DeleteOutline, "Очистить логи") }
             HelpHint("Вывод операций и структурированные данные трассировки. Новые строки прокручиваются автоматически.")
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onInterrupt, enabled = running, modifier = Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                Icon(Icons.Default.Stop, null)
+                Spacer(Modifier.width(6.dp))
+                Text("Прервать")
+            }
+            Button(onClick = onContinue, enabled = !running && canContinue, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.PlayArrow, null)
+                Spacer(Modifier.width(6.dp))
+                Text("Продолжить")
+            }
+        }
+        if (canContinue) Text(
+            "После прерывания проверка запускается заново.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         TabRow(selectedTabIndex = selectedTab) {
             Tab(selectedTab == 0, { onTabChange(0) }, text = { Text("Вывод (${state.logs.size})") })
             Tab(selectedTab == 1, { onTabChange(1) }, text = { Text("Узлы / Хопы (${state.hops.size})") })
@@ -410,7 +453,7 @@ private fun DiagnosticConsole(
                 TextButton(onClick = {
                     val body = diagnosticReport(state, connection)
                     val pdf = exportReportPdf(context, wifiSonarExportFileName("pdf"), "Диагностика сети", body)
-                    Toast.makeText(context, if (pdf != null) "PDF сохранён в Загрузки/WiFiPulse" else "Не удалось сохранить PDF", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, if (pdf != null) "PDF сохранён в Загрузки/WiFi Sonar" else "Не удалось сохранить PDF", Toast.LENGTH_LONG).show()
                 }) { Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(4.dp)); Text("PDF") }
                 TextButton(onClick = {
                     val report = diagnosticReport(state, connection)

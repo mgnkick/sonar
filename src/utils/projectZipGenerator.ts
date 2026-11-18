@@ -51,7 +51,7 @@ jobs:
       - name: Find and Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wifipulse-debug-apk
+          name: wifi-sonar-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
           if-no-files-found: error
@@ -109,7 +109,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "WiFiPulse"
+rootProject.name = "WiFi Sonar"
 include(":app")
 `
   },
@@ -169,11 +169,11 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 }
 
 android {
-    namespace = "com.wifipulse.analyzer"
+    namespace = "com.mgnkick.wifisonar"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.wifipulse.analyzer"
+        applicationId = "com.mgnkick.wifisonar"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -242,17 +242,17 @@ dependencies {
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="WiFi Pulse"
+        android:label="WiFi Sonar"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.WiFiPulse"
+        android:theme="@style/Theme.WiFiSonar"
         tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="WiFi Pulse"
-            android:theme="@style/Theme.WiFiPulse"
+            android:label="WiFi Sonar"
+            android:theme="@style/Theme.WiFiSonar"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -264,10 +264,10 @@ dependencies {
 `
   },
   {
-    path: 'app/src/main/java/com/wifipulse/analyzer/data/model/WifiModels.kt',
+    path: 'app/src/main/java/com/mgnkick/wifisonar/data/model/WifiModels.kt',
     name: 'WifiModels.kt',
     language: 'kotlin',
-    content: `package com.wifipulse.analyzer.data.model
+    content: `package com.mgnkick.wifisonar.data.model
 
 import kotlin.math.pow
 
@@ -414,12 +414,12 @@ data class SignalHistoryPoint(val timestamp: Long, val rssi: Int)
 `
   },
   {
-    path: 'app/src/main/java/com/wifipulse/analyzer/data/repository/WifiTopologyAnalyzer.kt',
+    path: 'app/src/main/java/com/mgnkick/wifisonar/data/repository/WifiTopologyAnalyzer.kt',
     name: 'WifiTopologyAnalyzer.kt',
     language: 'kotlin',
-    content: `package com.wifipulse.analyzer.data.repository
+    content: `package com.mgnkick.wifisonar.data.repository
 
-import com.wifipulse.analyzer.data.model.*
+import com.mgnkick.wifisonar.data.model.*
 
 object WifiTopologyAnalyzer {
     private val OUI_DATABASE: Map<String, String> = mapOf(
@@ -516,16 +516,16 @@ object WifiTopologyAnalyzer {
 `
   },
   {
-    path: 'app/src/main/java/com/wifipulse/analyzer/ui/viewmodel/WifiViewModel.kt',
+    path: 'app/src/main/java/com/mgnkick/wifisonar/ui/viewmodel/WifiViewModel.kt',
     name: 'WifiViewModel.kt',
     language: 'kotlin',
-    content: `package com.wifipulse.analyzer.ui.viewmodel
+    content: `package com.mgnkick.wifisonar.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.wifipulse.analyzer.data.model.*
-import com.wifipulse.analyzer.data.repository.WifiRepository
-import com.wifipulse.analyzer.data.repository.WifiTopologyAnalyzer
+import com.mgnkick.wifisonar.data.model.*
+import com.mgnkick.wifisonar.data.repository.WifiRepository
+import com.mgnkick.wifisonar.data.repository.WifiTopologyAnalyzer
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -586,10 +586,10 @@ class WifiViewModel(private val repository: WifiRepository) : ViewModel() {
 `
   },
   {
-    path: 'app/src/main/java/com/wifipulse/analyzer/data/model/DiagnosticModels.kt',
+    path: 'app/src/main/java/com/mgnkick/wifisonar/data/model/DiagnosticModels.kt',
     name: 'DiagnosticModels.kt',
     language: 'kotlin',
-    content: `package com.wifipulse.analyzer.data.model
+    content: `package com.mgnkick.wifisonar.data.model
 
 enum class DiagnosticMode { PING, TRACEROUTE }
 enum class DiagnosticStatus { IDLE, RUNNING, COMPLETED, CANCELLED, ERROR }
@@ -634,12 +634,12 @@ sealed class DiagnosticLogEntry {
 `
   },
   {
-    path: 'app/src/main/java/com/wifipulse/analyzer/data/repository/NetworkDiagnosticRepository.kt',
+    path: 'app/src/main/java/com/mgnkick/wifisonar/data/repository/NetworkDiagnosticRepository.kt',
     name: 'NetworkDiagnosticRepository.kt',
     language: 'kotlin',
-    content: `package com.wifipulse.analyzer.data.repository
+    content: `package com.mgnkick.wifisonar.data.repository
 
-import com.wifipulse.analyzer.data.model.*
+import com.mgnkick.wifisonar.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.currentCoroutineContext
@@ -722,15 +722,15 @@ class NetworkDiagnosticRepository {
 `
   },
   {
-    path: 'app/src/main/java/com/wifipulse/analyzer/ui/viewmodel/DiagnosticViewModel.kt',
+    path: 'app/src/main/java/com/mgnkick/wifisonar/ui/viewmodel/DiagnosticViewModel.kt',
     name: 'DiagnosticViewModel.kt',
     language: 'kotlin',
-    content: `package com.wifipulse.analyzer.ui.viewmodel
+    content: `package com.mgnkick.wifisonar.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.wifipulse.analyzer.data.model.*
-import com.wifipulse.analyzer.data.repository.NetworkDiagnosticRepository
+import com.mgnkick.wifisonar.data.model.*
+import com.mgnkick.wifisonar.data.repository.NetworkDiagnosticRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -797,7 +797,7 @@ class DiagnosticViewModel(
     path: 'README.md',
     name: 'README.md',
     language: 'markdown',
-    content: `# WiFi Pulse — Анализатор Wi-Fi, Mesh-сетей и диагностика (Ping/Traceroute)
+    content: `# WiFi Sonar — Анализатор Wi-Fi, Mesh-сетей и диагностика (Ping/Traceroute)
 
 Полнофункциональное приложение для Android (API 26+) с реальным сканером Wi-Fi, детекцией Mesh-сетей (802.11k/r/v) и инструментами сетевой диагностики (Ping и Traceroute на ProcessBuilder).
 `
@@ -815,7 +815,7 @@ export async function downloadAndroidProjectZip(): Promise<void> {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'wifi-pulse-android-mesh-project.zip';
+  a.download = 'wifi-sonar-android-mesh-project.zip';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

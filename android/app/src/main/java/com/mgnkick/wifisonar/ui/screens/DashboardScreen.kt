@@ -140,8 +140,8 @@ fun DashboardScreen(
                         }) { Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать отчёт", language)) }
                     }
                     IconButton(onClick = {
-                        val saved = exportTextFile(context, if (networkSelectionMode && selectedSsids.isNotEmpty()) "WiFiPulse-selected-networks" else "WiFiPulse-wifi-report", networkReport)
-                        Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFiPulse" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
+                        val saved = exportTextFile(context, if (networkSelectionMode && selectedSsids.isNotEmpty()) "WiFi Sonar-selected-networks" else "WiFi Sonar-wifi-report", networkReport)
+                        Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFi Sonar" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
                     }) { Icon(Icons.Default.SaveAlt, contentDescription = appUiText("Сохранить отчёт", language)) }
                     HelpHint("Сохранить TXT-отчёт по текущему подключению и видимым сетям либо выбранным сетям.")
                     AboutIconButton(onOpenAbout)

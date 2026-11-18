@@ -200,8 +200,8 @@ fun SurveyPointDialog(
                                 appendLine("Слабейшее место: ${comparable.minByOrNull { it.rssi }?.room}")
                             }
                         }
-                        val saved = exportReportPdf(context, "WiFiPulse-survey-${System.currentTimeMillis()}", "Обследование Wi-Fi", report)
-                        Toast.makeText(context, saved?.let { "PDF сохранён: ${if (it.startsWith("content:")) "Загрузки/WiFiPulse" else it}" } ?: "Не удалось сохранить PDF", Toast.LENGTH_LONG).show()
+                        val saved = exportReportPdf(context, "WiFi Sonar-survey-${System.currentTimeMillis()}", "Обследование Wi-Fi", report)
+                        Toast.makeText(context, saved?.let { "PDF сохранён: ${if (it.startsWith("content:")) "Загрузки/WiFi Sonar" else it}" } ?: "Не удалось сохранить PDF", Toast.LENGTH_LONG).show()
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {

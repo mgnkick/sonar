@@ -87,7 +87,7 @@ private val CyberpunkShapes = Shapes(
 )
 
 @Composable
-fun WiFiPulseTheme(
+fun WiFiSonarTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit

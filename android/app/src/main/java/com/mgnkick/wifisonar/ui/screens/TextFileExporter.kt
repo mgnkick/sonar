@@ -18,14 +18,14 @@ fun wifiSonarExportFileName(extension: String, timestamp: Long = System.currentT
     return "WiFi Sonar$date.$safeExtension"
 }
 
-/** Saves a UTF-8 text export to Downloads/WiFiPulse. */
+/** Saves a UTF-8 text export to Downloads/WiFi Sonar. */
 fun exportTextFile(context: Context, fileName: String, body: String): String? = runCatching {
     val safeName = wifiSonarExportFileName("txt")
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
             put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/WiFiPulse")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/WiFi Sonar")
         }
         val uri: Uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: error("Не удалось создать файл в Downloads")
@@ -33,7 +33,7 @@ fun exportTextFile(context: Context, fileName: String, body: String): String? = 
             ?: error("Не удалось открыть файл")
         uri.toString()
     } else {
-        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "WiFiPulse").apply { mkdirs() }
+        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "WiFi Sonar").apply { mkdirs() }
         val file = File(dir, safeName)
         file.writeText(body, Charsets.UTF_8)
         file.absolutePath
