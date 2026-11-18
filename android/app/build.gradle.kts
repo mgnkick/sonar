@@ -12,8 +12,8 @@ android {
         applicationId = "com.mgnkick.wifisonar"
         minSdk = 26 // Android 8.0 Oreo
         targetSdk = 34
-        versionCode = 123
-        versionName = "0.9.33"
+        versionCode = 124
+        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -24,6 +24,8 @@ concurrency:
 jobs:
   build-apk:
     name: Build Android APK
+    outputs:
+      version_name: ${{ steps.metadata.outputs.version_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -56,11 +58,13 @@ jobs:
           ls -lh android/app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare APK and version metadata
+        id: metadata
         run: |
           mkdir -p release-assets
           cp android/app/build/outputs/apk/release/app-release.apk release-assets/app-release.apk
           python3 - <<'PY'
           import json
+          import os
           import pathlib
           import re
 
@@ -75,6 +79,9 @@ jobs:
           }
           pathlib.Path("release-assets/version.json").write_text(
               json.dumps(metadata, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+          pathlib.Path(os.environ["GITHUB_OUTPUT"]).write_text(
+              f"version_name={version_name.group(1)}\n", encoding="utf-8"
           )
           print(json.dumps(metadata))
           PY
@@ -105,8 +112,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APK_PATH: release/app-release.apk
-          RELEASE_TAG: wifi-sonar-build-${{ github.run_id }}-${{ github.run_attempt }}
-          RELEASE_TITLE: WiFi Sonar APK build ${{ github.run_number }}
+          RELEASE_TAG: wifi-sonar-v${{ needs.build-apk.outputs.version_name }}-${{ github.run_number }}
+          RELEASE_TITLE: WiFi Sonar ${{ needs.build-apk.outputs.version_name }}
         run: |
           gh release create "$RELEASE_TAG" "$APK_PATH" release/version.json --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
