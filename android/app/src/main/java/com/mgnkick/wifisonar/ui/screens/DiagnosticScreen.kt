@@ -60,6 +60,7 @@ fun DiagnosticScreen(
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
+    scanCooldownSeconds: Int = 0,
     onOpenAbout: () -> Unit = {}
 ) {
     var selectedOutputTab by remember { mutableIntStateOf(0) }
@@ -122,7 +123,31 @@ fun DiagnosticScreen(
                 )
             )
         },
-        floatingActionButton = { StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks) }
+        floatingActionButton = {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (isRunning) {
+                    OutlinedButton(
+                        onClick = onStop,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Остановить текущую проверку")
+                    }
+                }
+                StickyWifiRefreshButton(
+                    isRefreshing = isRefreshingNetworks,
+                    onRefresh = onRefreshNetworks,
+                    cooldownSeconds = scanCooldownSeconds
+                )
+            }
+        }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -149,14 +174,6 @@ fun DiagnosticScreen(
                 },
                 gateway = connectionDetails.gateway
             )
-            if (isRunning) {
-                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                    Icon(Icons.Default.Stop, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Остановить текущую проверку", color = MaterialTheme.colorScheme.error)
-                }
-            }
-
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Button(
                     onClick = onStartGuidedDiagnostics,
