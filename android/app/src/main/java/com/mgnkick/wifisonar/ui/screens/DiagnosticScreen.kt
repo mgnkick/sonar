@@ -91,7 +91,6 @@ fun DiagnosticScreen(
     val isRunning = state.status == DiagnosticStatus.RUNNING
 
     BottomSheetScaffold(
-        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -122,19 +121,6 @@ fun DiagnosticScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (isRunning) StickyWifiStopButton(onStop = onStop)
-                StickyWifiRefreshButton(
-                    isRefreshing = isRefreshingNetworks,
-                    onRefresh = onRefreshNetworks,
-                    cooldownSeconds = scanCooldownSeconds
-                )
-            }
         },
         sheetContent = {
             Column(
@@ -459,11 +445,11 @@ fun DiagnosticScreen(
         sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         sheetContainerColor = MaterialTheme.colorScheme.surface,
         sheetDragHandle = { BottomSheetDefaults.DragHandle() }
-    ) { padding ->
+        content = { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 10.dp)
                 .padding(bottom = 88.dp)
@@ -753,7 +739,23 @@ fun DiagnosticScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
         }
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 250.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (isRunning) StickyWifiStopButton(onStop = onStop)
+            StickyWifiRefreshButton(
+                isRefreshing = isRefreshingNetworks,
+                onRefresh = onRefreshNetworks,
+                cooldownSeconds = scanCooldownSeconds
+            )
+        }
+        }
     }
+    )
 }
 
 @Composable
