@@ -66,6 +66,9 @@ fun appUiText(source: String, language: AppLanguage): String {
     Regex("^Успешно: ([\\d.]+) мс$").matchEntire(source)?.let { return "Success: ${it.groupValues[1]} ms" }
     Regex("^Сетей: (\\d+) · обновлено (.+)$").matchEntire(source)?.let { return "Networks: ${it.groupValues[1]} · updated ${it.groupValues[2]}" }
     Regex("^Настройки роутера [·•] (.+)$").matchEntire(source)?.let { return "Router settings · ${it.groupValues[1]}" }
+    Regex("^(\\d+)с назад$").matchEntire(source)?.let { return "${it.groupValues[1]}s ago" }
+    Regex("^(\\d+)м (\\d+)с назад$").matchEntire(source)?.let { return "${it.groupValues[1]}m ${it.groupValues[2]}s ago" }
+    Regex("^(\\d+)ч (\\d+)м назад$").matchEntire(source)?.let { return "${it.groupValues[1]}h ${it.groupValues[2]}m ago" }
 
     var result = source
     orderedPhraseTranslations.forEach { (ru, en) ->
@@ -698,7 +701,54 @@ private val phraseTranslations = mapOf(
     "Сохранить пароль" to "Save password", "Сохранить замер" to "Save measurement",
     "Проверьте" to "Check", "проверьте" to "check", "включите" to "enable",
     "Интернет" to "Internet", "Время" to "Time", "Дата" to "Date", "Трассировка" to "Trace",
-    "Пинг" to "Ping", "Диагностика" to "Diagnostics", "сигнала" to "signal", "Сигнала" to "Signal"
+    "Пинг" to "Ping", "Диагностика" to "Diagnostics", "сигнала" to "signal", "Сигнала" to "Signal",
+    "Сетей: " to "Networks: ",
+    "обновлено " to "updated ",
+    "Физических BSSID: " to "Physical BSSIDs: ",
+    "Физические узлы сети (" to "Physical network nodes (",
+    "Узлы / Хопы (" to "Nodes / Hops (",
+    "Превышен таймаут" to "Timed out",
+    "Статистика: отправлено " to "Statistics: sent ",
+    "получено " to "received ",
+    "потеря " to "loss ",
+    "МИН " to "MIN ",
+    "МАКС " to "MAX ",
+    "Мобильная сеть" to "Mobile network",
+    "Цель: " to "Target: ",
+    "ОШИБКА:" to "ERROR:",
+    "точка замера" to "measurement point",
+    "Точка замера" to "Measurement point",
+    "Текущая частота: " to "Current frequency: ",
+    "Лучшее место: " to "Best location: ",
+    "Слабейшее место: " to "Weakest location: ",
+    "Зона " to "Zone ",
+    "Замеры: " to "Measurements: ",
+    "Сравнение диапазонов в зоне " to "Band comparison in zone ",
+    "Лучше по уровню сигнала: " to "Better signal strength: ",
+    "Проверьте скорость и задержку в обоих диапазонах перед выбором." to "Compare speed and latency on both bands before choosing.",
+    "Для сети " to "For network ",
+    "в диапазоне " to "in the band ",
+    "лучшее место — " to "best location — ",
+    "слабейшее — " to "weakest — ",
+    "Разница между лучшей и слабейшей точками составляет " to "The signal difference between the strongest and weakest points is ",
+    "Перемещение роутера" to "Moving the router",
+    "покрытие слабой комнаты" to "coverage in the weak-signal room",
+    "Точка " to "Point ",
+    "Сейчас подключён этот BSSID" to "Currently connected to this BSSID",
+    "График выбранного сателлита" to "Chart for selected access point",
+    "телефон подключён к другому BSSID" to "phone is connected to another BSSID",
+    "Лучшие каналы для настройки роутера: " to "Best channels for router setup: ",
+    "Перекрывающихся сетей: " to "Overlapping networks: ",
+    "Ширина оценки: " to "Assessment width: ",
+    "Экспертные рекомендации (" to "Expert recommendations (",
+    "Сетей в анализе: " to "Networks analyzed: ",
+    "Проверка времени отклика до маршрутизатора " to "Checking response time to router ",
+    "Ошибка: " to "Error: ",
+    "средний RTT " to "average RTT ",
+    "Линк: " to "Link: ",
+    "Мобильная сеть: " to "Mobile network: ",
+    "Потери " to "Loss ",
+    "Версия приложения: " to "App version: "
 )
 
 private val orderedPhraseTranslations = phraseTranslations.entries.sortedByDescending { it.key.length }
