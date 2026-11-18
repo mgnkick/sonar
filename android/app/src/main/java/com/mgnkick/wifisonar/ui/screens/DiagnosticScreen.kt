@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import com.mgnkick.wifisonar.AboutIconButton
 import com.mgnkick.wifisonar.data.model.*
 import com.mgnkick.wifisonar.ui.components.HelpHint
+import com.mgnkick.wifisonar.ui.components.LocalAppLanguage
+import com.mgnkick.wifisonar.ui.components.appUiText
 import com.mgnkick.wifisonar.ui.components.Text
 import com.mgnkick.wifisonar.ui.viewmodel.DiagnosticUiState
 
@@ -453,6 +455,14 @@ private fun DiagnosticConsole(
                     if (state.hops.isEmpty()) Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                         Text(if (running) "ТСАП собирает данные маршрута…" else "Запустите ТСАП, чтобы увидеть узлы маршрута.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     } else LazyColumn(Modifier.fillMaxSize().padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        item {
+                            Text(
+                                appUiText("Цвет RTT: зелёный — быстро, красный — медленно (шкала 0–200 мс).", LocalAppLanguage.current),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
                         items(state.hops) { hop -> HopResultCard(hop) }
                     }
                 }
@@ -515,11 +525,21 @@ private fun HopResultCard(hop: TracerouteHop) {
             if (hop.probesSent > 0) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Metric("Потери", "${"%.0f".format(hop.lossPercent)}%", lossColor, Modifier.weight(1f))
                 Metric("Ответы", "${hop.probesReceived}/${hop.probesSent}", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-                Metric("Средний RTT", hop.averageRttMs?.let { "${"%.1f".format(it)} ms" } ?: "—", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
+                Metric("Средний RTT", hop.averageRttMs?.let { "${"%.1f".format(it)} ms" } ?: "—", responseTimeColor(hop.averageRttMs), Modifier.weight(1f))
             } else Text("Ожидание первой пробы", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("МИН ${hop.minRttMs?.let { "%.1f".format(it) } ?: "—"} ms · МАКС ${hop.maxRttMs?.let { "%.1f".format(it) } ?: "—"} ms", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("МИН ${hop.minRttMs?.let { "%.1f".format(it) } ?: "—"} ms", style = MaterialTheme.typography.labelSmall, color = hop.minRttMs?.let(::responseTimeColor) ?: MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("МАКС ${hop.maxRttMs?.let { "%.1f".format(it) } ?: "—"} ms", style = MaterialTheme.typography.labelSmall, color = hop.maxRttMs?.let(::responseTimeColor) ?: MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
+}
+
+private fun responseTimeColor(rttMs: Float?): Color {
+    if (rttMs == null) return Color(0xFF94A3B8)
+    // Interpolate hue from green (fast) through yellow to red (slow), clamped at 200 ms.
+    val progress = (rttMs.coerceAtLeast(0f) / 200f).coerceIn(0f, 1f)
+    return Color.hsv(hue = 120f * (1f - progress), saturation = 0.78f, value = 0.78f)
 }
 
 @Composable

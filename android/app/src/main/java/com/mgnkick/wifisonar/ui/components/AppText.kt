@@ -189,6 +189,7 @@ private val translations = mapOf(
     "Сканер (Mesh)" to "Scanner (Mesh)", "Смарт-Аудит" to "Smart Audit",
     "Диагностика" to "Diagnostics", "Спектр/Инфо" to "Spectrum / Info", "Карта" to "Map",
     "История" to "History", "Язык и тема" to "Language and theme", "Русский" to "Russian",
+    "Цвет RTT: зелёный — быстро, красный — медленно (шкала 0–200 мс)." to "RTT color: green is fast, red is slow (0–200 ms scale).",
     "Язык: Русский" to "Language: Russian", "Язык: English" to "Language: English",
     "Светлая тема" to "Light theme", "Тёмная тема" to "Dark theme",
     "История сетей" to "Network history", "Подключения" to "Connections",
