@@ -55,7 +55,10 @@ fun ConnectionHistoryScreen(
     onGetPassword: (String) -> String?,
     onSavePassword: (String, String) -> Unit,
     onOpenAbout: () -> Unit,
-    onRestoreComplete: () -> Unit
+    onRestoreComplete: () -> Unit,
+    isRefreshingNetworks: Boolean = false,
+    scanCooldownSeconds: Int = 0,
+    onRefreshNetworks: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var passwordEntryId by remember { mutableStateOf<String?>(null) }
@@ -122,7 +125,8 @@ fun ConnectionHistoryScreen(
         }.ifBlank { "Журнал открытых сетей пуст." }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
+      Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("История сетей", fontWeight = FontWeight.Bold) },
             navigationIcon = { Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 14.dp)) },
@@ -228,6 +232,13 @@ fun ConnectionHistoryScreen(
                 }
             }
         }
+      }
+      StickyWifiRefreshButton(
+          isRefreshing = isRefreshingNetworks,
+          onRefresh = onRefreshNetworks,
+          cooldownSeconds = scanCooldownSeconds,
+          modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+      )
     }
 
     if (passwordEntryId != null) {
