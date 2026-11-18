@@ -96,7 +96,6 @@ fun DashboardScreen(
         }.trimEnd()
     }
     val scrollState = rememberScrollState()
-    val isAtContentEnd = scrollState.maxValue > 0 && scrollState.value >= scrollState.maxValue
     val totalNodesCount = state.networkGroups.sumOf { it.totalNodesCount }
 
     Scaffold(
@@ -179,12 +178,12 @@ fun DashboardScreen(
                 )
             )
         },
-        floatingActionButtonPosition = if (isAtContentEnd) FabPosition.Start else FabPosition.End,
+        floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             StickyWifiRefreshButton(
                 isRefreshing = state.isScanning,
                 onRefresh = onScanClick,
-                modifier = Modifier.offset(y = (-24).dp)
+                cooldownSeconds = state.scanThrottleCooldownSeconds
             )
         }
     ) { padding ->
