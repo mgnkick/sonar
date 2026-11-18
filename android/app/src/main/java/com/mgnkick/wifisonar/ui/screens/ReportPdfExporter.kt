@@ -64,7 +64,7 @@ fun exportReportPdf(
     }
     document.finishPage(page)
 
-    val safeName = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(70).ifBlank { "WiFiPulse-report" } + ".pdf"
+    val safeName = wifiSonarExportFileName("pdf")
     val location: String
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val values = ContentValues().apply {
