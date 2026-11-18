@@ -352,12 +352,30 @@ private fun DiagnosticControls(
             TextButton(onClick = toggleGuide, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp)) {
                 Icon(Icons.Default.Build, null); Spacer(Modifier.width(8.dp)); Text("Памятка монтажника", Modifier.weight(1f)); Icon(if (guideExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
             }
-            if (guideExpanded) listOf(
-                "Wi-Fi подключён, интернета нет" to "Проверьте шлюз, затем 1.1.1.1 и DNS-имя yandex.ru. Если шлюз отвечает, а внешние узлы нет — вероятна проблема WAN/провайдера.",
-                "Скорость низкая только в дальней комнате" to "Сравните RSSI и задержку рядом с роутером и в проблемной комнате. Ниже −70 dBm проверьте размещение, препятствия и диапазон 2,4/5 ГГц.",
-                "Высокий ping или потери" to "Сначала проверьте шлюз. Потери уже до шлюза указывают на локальный сегмент; только за шлюзом — на внешний маршрут или провайдера.",
-                "IPTV зависает / видеонаблюдение отваливается" to "Проверьте стабильность RSSI, потери и задержку в течение минуты; для стационарных устройств предпочтительно проводное подключение, если оно возможно."
-            ).forEach { (title, body) -> Column(Modifier.padding(bottom = 8.dp)) { Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall); Text(body, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant) } }
+            if (guideExpanded) {
+                val tips = buildList {
+                    if (!connection.isConnected) add("Нет активного Wi-Fi-подключения" to "Сначала подключитесь к целевой точке доступа. Без активного соединения RSSI, шлюз и диапазон могут относиться к другому состоянию или быть недоступны.")
+                    else {
+                        add("Текущее подключение: ${connection.ssid.ifBlank { "SSID скрыт" }}" to "RSSI ${connection.rssi} dBm · ${connection.frequency.takeIf { it > 0 }?.let { "$it MHz" } ?: "частота недоступна"} · шлюз ${connection.gateway.ifBlank { "не определён" }}. Сравнивайте контрольные точки одним телефоном и при той же нагрузке.")
+                        if (connection.rssi < -70) add("Сигнал слабее −70 dBm" to "Снимите RSSI рядом с точкой и в проблемном месте. Уровень около −67 dBm и выше обычно комфортнее для требовательных сервисов, но порог зависит от клиента, помех и задачи. Проверьте препятствия и размещение до покупки усилителя.")
+                        if (connection.isVpnActive) add("Активен VPN" to "VPN может менять маршрут и задержку до внешних узлов. Для диагностики сравните локальный шлюз и внешний IP; при разрешении владельца сети повторите внешний тест без VPN.")
+                    }
+                    when (selectedTool) {
+                        DiagnosticTool.PING -> add("Ping: отделите локальную сеть от провайдера" to "Проверьте по очереди шлюз, внешний IP 1.1.1.1 и домен yandex.ru. Потери до шлюза локализуют проблему рядом с клиентом; шлюз без потерь, но внешний IP с потерями — выше по маршруту; IP доступен, домен нет — проверьте DNS. ICMP может ограничиваться, поэтому перепроверьте другим узлом и повторным запуском.")
+                        DiagnosticTool.TRACE -> add("Трассировка: читайте маршрут целиком" to "Звёздочка означает только отсутствие ответа на конкретную пробу. Промежуточный маршрутизатор может ограничивать ICMP и при этом пересылать трафик. Ищите устойчивый рост задержки/потерь на нескольких хопах, который сохраняется до конечного узла; сравните повторный маршрут.")
+                        DiagnosticTool.ECHO -> add("ЭХО: список найденных узлов неполный по природе метода" to "Поиск объединяет ICMP, TCP-пробы и таблицу соседей Android в локальном IPv4-сегменте. Фильтрация, спящий клиент, изоляция Wi-Fi-клиентов и VLAN могут скрыть устройство. Проверяйте адреса в DHCP-таблице роутера и не трактуйте отсутствие узла как неисправность.")
+                        DiagnosticTool.TCP -> add("TCP: интерпретируйте каждый порт отдельно" to "Открыт — узел принял TCP-соединение на этом порту в момент проверки. Закрыт — узел ответил отказом; фильтруется/таймаут — ответ не получен. Последние два состояния не доказывают, что устройство выключено. Сканируйте только свою сеть и нужные сервисы.")
+                    }
+                    state.pingSummary?.takeIf { selectedTool == DiagnosticTool.PING || selectedTool == DiagnosticTool.TRACE }?.let { summary ->
+                        add("Последний результат: ${summary.packetsReceived}/${summary.packetsTransmitted} ответов" to "Потери ${summary.packetLossPercent}% · RTT min/avg/max ${summary.minRttMs.toInt()}/${summary.avgRttMs.toInt()}/${summary.maxRttMs.toInt()} мс. Это результат до ${state.target}; он не описывает всю сеть. Повторите замер серией и сравните шлюз с внешним узлом.")
+                    }
+                    if (state.status == DiagnosticStatus.ERROR && state.errorMessage != null) add("Тест завершился ошибкой" to "${state.errorMessage} Проверьте адрес, разрешение имени, доступность сети и таймаут. Отдельный сбой ICMP не подтверждает отказ сервиса — используйте подходящий TCP-тест.")
+                }
+                tips.forEach { (title, body) -> Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                    Text(body, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, lineHeight = 18.sp)
+                } }
+            }
         }
     }
 
@@ -568,3 +586,4 @@ private fun openRouter(context: android.content.Context, gateway: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$gateway")))
     }
 }
+
