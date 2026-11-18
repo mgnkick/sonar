@@ -246,11 +246,15 @@ private fun DiagnosticControls(
     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface)) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Инструмент", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToolChip("PING", Icons.Default.Speed, selectedTool == DiagnosticTool.PING, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.PING) }
-                ToolChip("ТСАП", Icons.Default.AltRoute, selectedTool == DiagnosticTool.TRACE, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.TRACE) }
-                ToolChip("ЭХО", Icons.Default.Radar, selectedTool == DiagnosticTool.ECHO, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.ECHO) }
-                ToolChip("TCP", Icons.Default.Search, selectedTool == DiagnosticTool.TCP, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.TCP) }
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ToolChip("PING", Icons.Default.Speed, selectedTool == DiagnosticTool.PING, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.PING) }
+                    ToolChip("ТСАП", Icons.Default.AltRoute, selectedTool == DiagnosticTool.TRACE, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.TRACE) }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ToolChip("ЭХО", Icons.Default.Radar, selectedTool == DiagnosticTool.ECHO, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.ECHO) }
+                    ToolChip("TCP", Icons.Default.Search, selectedTool == DiagnosticTool.TCP, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.TCP) }
+                }
             }
             when (selectedTool) {
                 DiagnosticTool.PING, DiagnosticTool.TRACE -> {
