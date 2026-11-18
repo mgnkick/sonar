@@ -586,4 +586,3 @@ private fun openRouter(context: android.content.Context, gateway: String) {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$gateway")))
     }
 }
-

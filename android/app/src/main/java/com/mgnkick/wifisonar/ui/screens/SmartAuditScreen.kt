@@ -487,4 +487,3 @@ fun EmptyAuditPlaceholder(onScanClick: () -> Unit) {
         }
     }
 }
-
