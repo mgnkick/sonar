@@ -28,9 +28,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
@@ -333,5 +335,32 @@ fun StickyWifiRefreshButton(
             }
         }
         HelpHint("Обновить список сетей и статус подключения.", Modifier.align(Alignment.TopStart).offset(x = (-12).dp, y = (-12).dp))
+    }
+}
+
+@Composable
+fun StickyWifiStopButton(
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val language = LocalAppLanguage.current
+    Box(modifier.size(56.dp)) {
+        FloatingActionButton(
+            onClick = onStop,
+            modifier = Modifier.fillMaxSize(),
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError
+        ) {
+            Icon(
+                imageVector = Icons.Default.Stop,
+                contentDescription = appUiText("Остановить текущую проверку", language),
+                tint = MaterialTheme.colorScheme.onError
+            )
+        }
+        HelpHint(
+            "Остановить текущую проверку.",
+            Modifier.align(Alignment.TopStart).offset(x = (-12).dp, y = (-12).dp)
+        )
     }
 }
