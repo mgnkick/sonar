@@ -681,7 +681,7 @@ private fun saveCoverageDrawing(
         paint.color = android.graphics.Color.WHITE
         canvas.drawText(label, labelX, baseline, paint)
     }
-    val name = "WiFiSonar-map-${System.currentTimeMillis()}.png"
+    val name = wifiSonarExportFileName("png")
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
