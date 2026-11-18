@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.mgnkick.wifisonar.ui.components.HelpHint
 import com.mgnkick.wifisonar.data.model.WifiConnectionDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -162,6 +163,7 @@ fun ConnectionInfoScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                        HelpHint("IP-адрес назначен телефону, шлюз обычно является адресом роутера, маска задаёт локальную подсеть, DNS преобразует имена сайтов в IP-адреса. Пустые значения могут означать, что Android не предоставил эти данные.")
                         Spacer(modifier = Modifier.height(12.dp))
 
                         InfoRow(label = "IP-адрес устройства", value = details.ipAddress)
@@ -192,6 +194,7 @@ fun ConnectionInfoScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
+                        HelpHint("Проверка измеряет доступность и время отклика роутера из локальной сети. Низкая стабильная задержка обычно нормальна; таймаут может быть вызван фильтрацией ICMP и не всегда означает, что роутер недоступен.")
                         Text(
                             text = "Проверка времени отклика до маршрутизатора ${details.gateway}",
                             style = MaterialTheme.typography.bodySmall,

@@ -173,7 +173,7 @@ export const GitHubWorkflowViewer: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h4 className="text-xs font-bold text-slate-100">
-                WiFi Sonar 0.9.18 — Release APK
+                WiFi Sonar 0.9.33 — Release APK
               </h4>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 Release • Android 8.0+

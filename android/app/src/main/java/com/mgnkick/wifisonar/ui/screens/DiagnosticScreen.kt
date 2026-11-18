@@ -247,6 +247,7 @@ private fun DiagnosticControls(
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Инструмент", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                HelpHint("PING измеряет отклик и потери до узла; ТСАП показывает маршрут и потери по хопам; ЭХО ищет устройства в локальной подсети; TCP проверяет, какие порты отвечают. Отсутствие ответа не доказывает, что устройство выключено: ICMP и соединения могут блокироваться.")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ToolChip("PING", Icons.Default.Speed, selectedTool == DiagnosticTool.PING, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.PING) }
                     ToolChip("ТСАП", Icons.Default.AltRoute, selectedTool == DiagnosticTool.TRACE, !running, Modifier.weight(1f)) { onToolChange(DiagnosticTool.TRACE) }
@@ -266,6 +267,7 @@ private fun DiagnosticControls(
                         trailingIcon = { if (state.target.isNotEmpty()) IconButton(onClick = { onTargetChange("") }, enabled = !running) { Icon(Icons.Default.Close, "Очистить") } },
                         shape = RoundedCornerShape(14.dp)
                     )
+                    HelpHint("Введите IP-адрес или домен узла. Для проверки домашней сети начните со шлюза; сравнение шлюза, внешнего IP и домена помогает отделить проблему Wi-Fi от проблемы DNS или интернета.")
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(presets) { preset -> SuggestionChip(onClick = { if (!running) onTargetChange(preset.substringAfter(" · ", preset)) }, label = { Text(preset, maxLines = 1) }, enabled = !running) }
                     }
@@ -280,6 +282,7 @@ private fun DiagnosticControls(
                         OutlinedTextField(portRange, onPortRange, Modifier.weight(.8f), enabled = !running, singleLine = true, label = { Text("Порты") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii), shape = RoundedCornerShape(12.dp))
                     }
                     Text("Диапазон до 4096 портов; проверяются адреса текущей локальной подсети.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    HelpHint("Укажите IPv4-адрес устройства и диапазон портов. Порт считается открытым только если удалённый узел принял TCP-соединение; закрытый или отфильтрованный порт не раскрывает состояние самого устройства.")
                 }
             }
 
@@ -308,6 +311,7 @@ private fun DiagnosticControls(
                 })
             }
             if (running) TextButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Stop, null); Spacer(Modifier.width(6.dp)); Text("Остановить диагностику") }
+            HelpHint("Начинает выбранную проверку. Время отклика ниже обычно лучше; потеря пакетов, таймауты и резкий рост задержки указывают на нестабильность. Один тест — снимок условий, повторите измерение для сравнения.")
             if (state.status == DiagnosticStatus.ERROR && state.errorMessage != null) Text(state.errorMessage, color = colors.error, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -318,6 +322,7 @@ private fun DiagnosticControls(
                 Icon(Icons.Default.Tune, null); Spacer(Modifier.width(8.dp)); Text("Дополнительные параметры", Modifier.weight(1f)); Icon(if (advancedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
             }
             if (advancedExpanded) Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                HelpHint("Эти параметры меняют только проверку Ping/ТСАП: больше пакетов даёт надёжнее оценку потерь, крупный пакет проверяет передачу больших данных, а короткий таймаут быстрее отмечает узел как неответивший.")
                 Text("Количество пакетов", style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(4 to "4", 10 to "10", 0 to "∞").forEach { (count, label) -> FilterChip(state.packetCount == count, { onCountChange(count) }, enabled = !running, label = { Text(label) }) }
@@ -407,7 +412,8 @@ private fun DiagnosticConsole(
             }
             if (running) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             if (state.logs.isNotEmpty()) IconButton(onClick = onClear) { Icon(Icons.Default.DeleteOutline, "Очистить логи") }
-            HelpHint("Вывод операций и структурированные данные трассировки. Новые строки прокручиваются автоматически.")
+            HelpHint("Вывод операций и структурированные данные трассировки. Новые строки прокручиваются автоматически; очистка удаляет только журнал на экране.")
+            HelpHint("В выводе ищите задержку, таймауты и долю потерь. Во вкладке «Узлы / Хопы» каждый узел — промежуточный маршрутизатор; звёздочки означают отсутствие ответа на пробу и сами по себе не доказывают обрыв маршрута.")
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onInterrupt, enabled = running, modifier = Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
@@ -421,6 +427,7 @@ private fun DiagnosticConsole(
                 Text("Продолжить")
             }
         }
+        HelpHint("«Прервать» останавливает текущий запуск; «Продолжить» повторно запускает последний выбранный тест с теми же параметрами. Частичный результат прерванного запуска может быть неполным.")
         if (canContinue) Text(
             "После прерывания проверка запускается заново.",
             style = MaterialTheme.typography.labelSmall,
@@ -466,6 +473,7 @@ private fun DiagnosticConsole(
                     Toast.makeText(context, "Отчёт сохранён и скопирован", Toast.LENGTH_SHORT).show()
                 }) { Icon(Icons.Default.Save, null); Spacer(Modifier.width(4.dp)); Text("Сохранить") }
             }
+            HelpHint("Копировать переносит текстовый журнал в буфер обмена; PDF сохраняет отчёт для отправки или архива. Перед публикацией проверьте, что в отчёте нет адресов или имён сети, которые вы не хотите раскрывать.")
         }
     }
 }

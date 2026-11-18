@@ -119,7 +119,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-bold tracking-tight text-white">WiFi Sonar</h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-                  Android 8.0+ · версия 0.9.18
+                  Android 8.0+ · версия 0.9.33
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/30 hidden sm:inline-flex">
                   Jetpack Compose &amp; CI/CD

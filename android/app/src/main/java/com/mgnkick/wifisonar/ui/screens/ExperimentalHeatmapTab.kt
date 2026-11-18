@@ -378,6 +378,7 @@ fun ExperimentalHeatmapTab(
                 Text("Сохранить рисунок PNG")
             }
             HelpHint("Сохранить изображение плана вместе с подписями, фигурами и замерами в PNG.")
+            HelpHint("Точки фиксируют измеренный сигнал в выбранных местах. Интерполированные цвета между точками — визуальная оценка, а не измерение и не прогноз; для полезной карты добавьте замеры в каждой комнате.")
         }
         if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

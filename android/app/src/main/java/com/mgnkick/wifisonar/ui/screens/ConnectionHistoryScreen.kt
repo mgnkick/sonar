@@ -170,6 +170,8 @@ fun ConnectionHistoryScreen(
                         Icon(Icons.Default.Restore, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Восстановить", maxLines = 1)
                     }
                 }
+                HelpHint("Сохраните резервную копию, чтобы перенести локальную историю и настройки на другое устройство. Восстановление заменит текущие данные; пароли Wi-Fi в копию не входят.")
+                HelpHint("Очистка удаляет записи выбранной вкладки с устройства. Она не удаляет подключение Android и не влияет на сохранённые в системе сети.")
             }
         }
         if (selectedTab == 0) {

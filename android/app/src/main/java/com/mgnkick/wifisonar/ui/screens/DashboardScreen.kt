@@ -227,6 +227,7 @@ fun DashboardScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
             )
+            HelpHint("Ввести текст, чтобы найти сети по имени, BSSID или производителю; фильтр не запускает новое сканирование.")
 
             // Band Filter Chips
             LazyRow(
@@ -458,7 +459,7 @@ fun ExpandableWifiGroupCard(
                                 tint = if (isSelectedForExport) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
-                        HelpHint(if (selectionMode) "Отметить эту сеть для копирования или сохранения." else if (group.isExpanded) "Свернуть список точек доступа этой сети." else "Показать отдельные точки доступа и BSSID этой сети.")
+                        HelpHint(if (selectionMode) "Отметить эту сеть для копирования или сохранения." else if (group.isExpanded) "Свернуть список точек доступа этой сети." else "Нажмите на сеть, чтобы раскрыть отдельные точки доступа и их BSSID. RSSI ближе к нулю означает более сильный сигнал; удалённая точка может быть объединена Android с текущим подключением.")
                     }
                 }
 

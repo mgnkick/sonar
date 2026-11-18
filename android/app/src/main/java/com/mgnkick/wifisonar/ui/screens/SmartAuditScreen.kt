@@ -184,7 +184,6 @@ fun AuditScoreCard(report: AuditReport) {
                         fontSize = 12.sp
                     )
                 }
-
                 Spacer(modifier = Modifier.width(16.dp))
 
                 // Score Gauge Ring
@@ -215,6 +214,7 @@ fun AuditScoreCard(report: AuditReport) {
                     }
                 }
             }
+            HelpHint("Индекс 0–100 суммирует найденные признаки качества Wi-Fi, помех и защиты; высокий балл не гарантирует скорость или безопасность. Оценка зависит от числа видимых сетей и разрешений Android, поэтому читайте её вместе с конкретными рекомендациями ниже.")
 
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = Color(0xFF334155), thickness = 0.5.dp)
