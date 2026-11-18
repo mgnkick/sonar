@@ -78,7 +78,7 @@ fun SmartAuditScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 12.dp)
+            contentPadding = PaddingValues(start = 0.dp, top = 12.dp, end = 0.dp, bottom = 88.dp)
         ) {
             item {
                 ConnectionStatusPanel(
