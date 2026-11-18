@@ -86,7 +86,8 @@ fun ExperimentalHeatmapTab(
     connectionDetails: WifiConnectionDetails,
     onOpenAbout: () -> Unit = {},
     isRefreshingNetworks: Boolean = false,
-    onRefreshNetworks: () -> Unit = {}
+    onRefreshNetworks: () -> Unit = {},
+    scanCooldownSeconds: Int = 0
 ) {
     val colors = MaterialTheme.colorScheme
     val heatAccent = colors.primary
@@ -342,8 +343,9 @@ fun ExperimentalHeatmapTab(
 
         Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column {
+                MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
                 CoverageMapCanvas(
-                    modifier = Modifier.fillMaxWidth().height(520.dp),
+                    modifier = Modifier.fillMaxWidth().height(420.dp),
                     samples = samples,
                     sketchShapes = sketchShapes,
                     planBitmap = planBitmap,
@@ -361,7 +363,6 @@ fun ExperimentalHeatmapTab(
                     clearShapePreview = clearShapePreview
                 )
                 ZoomControl(zoom = zoom, onZoomChange = { zoom = it; if (it <= 1f) pan = Offset.Zero })
-                MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
             }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -527,7 +528,8 @@ fun ExperimentalHeatmapTab(
       StickyWifiRefreshButton(
           isRefreshing = isRefreshingNetworks,
           onRefresh = onRefreshNetworks,
-          modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp)
+          modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
+          cooldownSeconds = scanCooldownSeconds
       )
       if (textAnchor != null || editingTextIndex >= 0) {
           val editing = editingTextIndex >= 0
