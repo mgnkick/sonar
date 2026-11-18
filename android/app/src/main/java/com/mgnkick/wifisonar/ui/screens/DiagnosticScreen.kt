@@ -444,7 +444,7 @@ fun DiagnosticScreen(
         sheetPeekHeight = 230.dp,
         sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         sheetContainerColor = MaterialTheme.colorScheme.surface,
-        sheetDragHandle = { BottomSheetDefaults.DragHandle() }
+        sheetDragHandle = { BottomSheetDefaults.DragHandle() },
         content = { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
         Column(
