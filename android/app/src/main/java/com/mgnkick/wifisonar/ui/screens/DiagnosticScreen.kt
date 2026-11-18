@@ -129,17 +129,7 @@ fun DiagnosticScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (isRunning) {
-                    OutlinedButton(
-                        onClick = onStop,
-                        modifier = Modifier.heightIn(min = 48.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Остановить текущую проверку")
-                    }
+                    StickyWifiStopButton(onStop = onStop)
                 }
                 StickyWifiRefreshButton(
                     isRefreshing = isRefreshingNetworks,
