@@ -84,7 +84,7 @@ export const AndroidSmartAudit: React.FC<AndroidSmartAuditProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Интеллектуальный аудит</h2>
-          <p className="text-[10px] text-slate-400">Автоматический аудит радиоэфира и безопасности</p>
+          <p className="text-[10px] text-amber-300">Пример аудита на демонстрационных данных</p>
         </div>
         <button
           onClick={onRefresh}

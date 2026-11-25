@@ -86,7 +86,8 @@ fun ExperimentalHeatmapTab(
     connectionDetails: WifiConnectionDetails,
     onOpenAbout: () -> Unit = {},
     isRefreshingNetworks: Boolean = false,
-    onRefreshNetworks: () -> Unit = {}
+    onRefreshNetworks: () -> Unit = {},
+    scanCooldownSeconds: Int = 0
 ) {
     val colors = MaterialTheme.colorScheme
     val heatAccent = colors.primary
@@ -342,8 +343,9 @@ fun ExperimentalHeatmapTab(
 
         Card(Modifier.fillMaxWidth().padding(horizontal = 12.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, heatAccent.copy(alpha = 0.65f))) {
             Column {
+                MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
                 CoverageMapCanvas(
-                    modifier = Modifier.fillMaxWidth().height(520.dp),
+                    modifier = Modifier.fillMaxWidth().height(420.dp),
                     samples = samples,
                     sketchShapes = sketchShapes,
                     planBitmap = planBitmap,
@@ -361,14 +363,13 @@ fun ExperimentalHeatmapTab(
                     clearShapePreview = clearShapePreview
                 )
                 ZoomControl(zoom = zoom, onZoomChange = { zoom = it; if (it <= 1f) pan = Offset.Zero })
-                MapToolSelector(currentTool, { tool -> currentTool = tool; drawStart = null; drawPreviewEnd = null }, vertical = false)
             }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedButton(
                 onClick = {
                     val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes, language)
-                    Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFi Sonar" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
                 },
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp)
             ) {
@@ -377,6 +378,7 @@ fun ExperimentalHeatmapTab(
                 Text("Сохранить рисунок PNG")
             }
             HelpHint("Сохранить изображение плана вместе с подписями, фигурами и замерами в PNG.")
+            HelpHint("Точки фиксируют измеренный сигнал в выбранных местах. Интерполированные цвета между точками — визуальная оценка, а не измерение и не прогноз; для полезной карты добавьте замеры в каждой комнате.")
         }
         if (selectedPointTime != null || selectedShapeIndex in sketchShapes.indices) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -438,7 +440,7 @@ fun ExperimentalHeatmapTab(
                             HelpHint("Закрыть полноэкранный редактор.")
                             TextButton(onClick = {
                                 val saved = saveCoverageDrawing(context, planBitmap, samples, sketchShapes, language)
-                                Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFiPulse" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, appUiText(if (saved != null) "Рисунок сохранён в Галерея/Pictures/WiFi Sonar" else "Не удалось сохранить рисунок", language), Toast.LENGTH_LONG).show()
                             }) {
                                 Icon(Icons.Default.SaveAlt, contentDescription = null, tint = heatAccent)
                                 Spacer(Modifier.width(4.dp))
@@ -527,7 +529,8 @@ fun ExperimentalHeatmapTab(
       StickyWifiRefreshButton(
           isRefreshing = isRefreshingNetworks,
           onRefresh = onRefreshNetworks,
-          modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp)
+          modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
+          cooldownSeconds = scanCooldownSeconds
       )
       if (textAnchor != null || editingTextIndex >= 0) {
           val editing = editingTextIndex >= 0
@@ -679,11 +682,11 @@ private fun saveCoverageDrawing(
         paint.color = android.graphics.Color.WHITE
         canvas.drawText(label, labelX, baseline, paint)
     }
-    val name = "WiFiSonar-map-${System.currentTimeMillis()}.png"
+    val name = wifiSonarExportFileName("png")
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
-        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/WiFiPulse")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/WiFi Sonar")
     }
     val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: error("Не удалось создать PNG")
     context.contentResolver.openOutputStream(uri)?.use { image.compress(Bitmap.CompressFormat.PNG, 100, it) } ?: error("Не удалось записать PNG")

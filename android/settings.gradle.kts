@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "WiFiPulse"
+rootProject.name = "WiFi Sonar"
 include(":app")

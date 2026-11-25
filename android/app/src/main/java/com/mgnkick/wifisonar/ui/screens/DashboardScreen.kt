@@ -96,7 +96,6 @@ fun DashboardScreen(
         }.trimEnd()
     }
     val scrollState = rememberScrollState()
-    val isAtContentEnd = scrollState.maxValue > 0 && scrollState.value >= scrollState.maxValue
     val totalNodesCount = state.networkGroups.sumOf { it.totalNodesCount }
 
     Scaffold(
@@ -141,8 +140,8 @@ fun DashboardScreen(
                         }) { Icon(Icons.Default.ContentCopy, contentDescription = appUiText("Скопировать отчёт", language)) }
                     }
                     IconButton(onClick = {
-                        val saved = exportTextFile(context, if (networkSelectionMode && selectedSsids.isNotEmpty()) "WiFiPulse-selected-networks" else "WiFiPulse-wifi-report", networkReport)
-                        Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFiPulse" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
+                        val saved = exportTextFile(context, if (networkSelectionMode && selectedSsids.isNotEmpty()) "WiFi Sonar-selected-networks" else "WiFi Sonar-wifi-report", networkReport)
+                        Toast.makeText(context, appUiText(if (saved != null) "Файл сохранён в Загрузки/WiFi Sonar" else "Не удалось сохранить файл", language), Toast.LENGTH_LONG).show()
                     }) { Icon(Icons.Default.SaveAlt, contentDescription = appUiText("Сохранить отчёт", language)) }
                     HelpHint("Сохранить TXT-отчёт по текущему подключению и видимым сетям либо выбранным сетям.")
                     AboutIconButton(onOpenAbout)
@@ -179,12 +178,12 @@ fun DashboardScreen(
                 )
             )
         },
-        floatingActionButtonPosition = if (isAtContentEnd) FabPosition.Start else FabPosition.End,
+        floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
             StickyWifiRefreshButton(
                 isRefreshing = state.isScanning,
                 onRefresh = onScanClick,
-                modifier = Modifier.offset(y = (-24).dp)
+                cooldownSeconds = state.scanThrottleCooldownSeconds
             )
         }
     ) { padding ->
@@ -194,6 +193,7 @@ fun DashboardScreen(
                 .padding(padding)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 12.dp)
+                .padding(bottom = 88.dp)
         ) {
             ConnectionStatusPanel(
                 details = state.connectionDetails,
@@ -227,6 +227,7 @@ fun DashboardScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
             )
+            HelpHint("Ввести текст, чтобы найти сети по имени, BSSID или производителю; фильтр не запускает новое сканирование.")
 
             // Band Filter Chips
             LazyRow(
@@ -458,7 +459,7 @@ fun ExpandableWifiGroupCard(
                                 tint = if (isSelectedForExport) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
-                        HelpHint(if (selectionMode) "Отметить эту сеть для копирования или сохранения." else if (group.isExpanded) "Свернуть список точек доступа этой сети." else "Показать отдельные точки доступа и BSSID этой сети.")
+                        HelpHint(if (selectionMode) "Отметить эту сеть для копирования или сохранения." else if (group.isExpanded) "Свернуть список точек доступа этой сети." else "Нажмите на сеть, чтобы раскрыть отдельные точки доступа и их BSSID. RSSI ближе к нулю означает более сильный сигнал; удалённая точка может быть объединена Android с текущим подключением.")
                     }
                 }
 

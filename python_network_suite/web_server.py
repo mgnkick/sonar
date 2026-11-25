@@ -1,5 +1,5 @@
 """
-Optional real-time Web Dashboard for WiFi Pulse using FastAPI & WebSockets.
+Optional real-time Web Dashboard for WiFi Sonar using FastAPI & WebSockets.
 Provides real-time browser UI with Tailwind CSS.
 """
 
@@ -19,14 +19,14 @@ HTML_DASHBOARD = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WiFi Pulse - Python Network Suite</title>
+  <title>WiFi Sonar - Python Network Suite</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
   <div class="max-w-6xl mx-auto p-4 md:p-8">
     <header class="flex items-center justify-between pb-6 border-b border-slate-800">
       <div>
-        <h1 class="text-2xl font-bold text-cyan-400">WiFi Pulse &amp; Network Suite</h1>
+        <h1 class="text-2xl font-bold text-cyan-400">WiFi Sonar &amp; Network Suite</h1>
         <p class="text-xs text-slate-400 mt-1">Python 3.10+ • Wi-Fi Mesh-сканер, реальный Ping, Traceroute и Connection Info</p>
       </div>
       <div id="connStatus" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -231,7 +231,7 @@ def create_app():
     except ImportError:
         raise RuntimeError("Для запуска веб-интерфейса установите fastapi и uvicorn: pip install fastapi uvicorn")
 
-    app = FastAPI(title="WiFi Pulse Network Suite")
+    app = FastAPI(title="WiFi Sonar Network Suite")
     scanner = WifiScanner()
     ping_service = AsyncPingService()
     trace_service = AsyncTracerouteService()

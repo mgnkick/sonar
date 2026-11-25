@@ -24,6 +24,11 @@ val LocalAppLanguage = compositionLocalOf { AppLanguage.RU }
 fun appUiText(source: String, language: AppLanguage): String {
     if (language == AppLanguage.RU) return source
     translations[source]?.let { return it }
+    helpHintTranslations[source]?.let { return it }
+    Regex("^Текущее подключение: (.+)$").matchEntire(source)?.let { return "Current connection: ${it.groupValues[1]}" }
+    Regex("^Последний результат: (\\d+)/(\\d+) ответов$").matchEntire(source)?.let { return "Latest result: ${it.groupValues[1]}/${it.groupValues[2]} replies" }
+    Regex("^Потери ([0-9.]+)% · RTT min/avg/max ([0-9/]+) мс\\. Это результат до (.+); он не описывает всю сеть\\. Повторите замер серией и сравните шлюз с внешним узлом\\.$").matchEntire(source)?.let { m -> return "Loss ${m.groupValues[1]}% · RTT min/avg/max ${m.groupValues[2]} ms. This result is for ${m.groupValues[3]}; it does not describe the whole network. Repeat the series and compare the gateway with an external host." }
+    Regex("^RSSI (-?\\d+) dBm · (.+) · шлюз (.+)\\. Сравнивайте контрольные точки одним телефоном и при той же нагрузке\\.$").matchEntire(source)?.let { m -> return "RSSI ${m.groupValues[1]} dBm · ${m.groupValues[2]} · gateway ${m.groupValues[3]}. Compare reference points with the same phone and under the same load." }
     Regex("^Восстановятся подключения \\((\\d+)\\), открытые сети \\((\\d+)\\), настройки и данные карты( с планом помещения)?\\. Текущие данные будут заменены\\. Ранее внесённые пароли Wi-Fi в копию не входят\\.$").matchEntire(source)?.let { match ->
         return "This will restore ${match.groupValues[1]} connections, ${match.groupValues[2]} open networks, settings and map data${if (match.groupValues[3].isNotEmpty()) " with the floor plan" else ""}. Current data will be replaced. Previously entered Wi-Fi passwords are not included."
     }
@@ -66,6 +71,14 @@ fun appUiText(source: String, language: AppLanguage): String {
     Regex("^Успешно: ([\\d.]+) мс$").matchEntire(source)?.let { return "Success: ${it.groupValues[1]} ms" }
     Regex("^Сетей: (\\d+) · обновлено (.+)$").matchEntire(source)?.let { return "Networks: ${it.groupValues[1]} · updated ${it.groupValues[2]}" }
     Regex("^Настройки роутера [·•] (.+)$").matchEntire(source)?.let { return "Router settings · ${it.groupValues[1]}" }
+    Regex("^(\\d+)с назад$").matchEntire(source)?.let { return "${it.groupValues[1]}s ago" }
+    Regex("^(\\d+)м (\\d+)с назад$").matchEntire(source)?.let { return "${it.groupValues[1]}m ${it.groupValues[2]}s ago" }
+    Regex("^(\\d+)ч (\\d+)м назад$").matchEntire(source)?.let { return "${it.groupValues[1]}h ${it.groupValues[2]}m ago" }
+    Regex("^([0-9]+)% \\(~([0-9.]+) м\\)$").matchEntire(source)?.let { return "${it.groupValues[1]}% (~${it.groupValues[2]} m)" }
+    Regex("^~([0-9.]+) м$").matchEntire(source)?.let { return "~${it.groupValues[1]} m" }
+    Regex("^Разница между лучшей и слабейшей точками составляет (.+) dB\\. Перемещение роутера может заметно улучшить покрытие слабой комнаты\\.$").matchEntire(source)?.let {
+        return "The difference between the best and weakest points is ${it.groupValues[1]} dB. Moving the router may noticeably improve coverage in the weak-signal room."
+    }
 
     var result = source
     orderedPhraseTranslations.forEach { (ru, en) ->
@@ -73,6 +86,73 @@ fun appUiText(source: String, language: AppLanguage): String {
     }
     return result
 }
+
+/** Full bilingual copy for the contextual help mode; keys are the Russian UI source strings. */
+private val helpHintTranslations = mapOf(
+    "Нет активного Wi-Fi-подключения" to "No active Wi-Fi connection",
+    "Сначала подключитесь к целевой точке доступа. Без активного соединения RSSI, шлюз и диапазон могут относиться к другому состоянию или быть недоступны." to "Connect to the target access point first. Without an active connection, RSSI, gateway and band may describe a different state or be unavailable.",
+    "Сигнал слабее −70 dBm" to "Signal is weaker than −70 dBm",
+    "Снимите RSSI рядом с точкой и в проблемном месте. Уровень около −67 dBm и выше обычно комфортнее для требовательных сервисов, но порог зависит от клиента, помех и задачи. Проверьте препятствия и размещение до покупки усилителя." to "Measure RSSI near the access point and in the problem area. Around −67 dBm or stronger is often more comfortable for demanding services, but the threshold depends on the client, interference and use case. Check obstacles and placement before buying an extender.",
+    "Активен VPN" to "VPN is active",
+    "VPN может менять маршрут и задержку до внешних узлов. Для диагностики сравните локальный шлюз и внешний IP; при разрешении владельца сети повторите внешний тест без VPN." to "A VPN can change the route and latency to external hosts. Compare the local gateway with an external IP; with the network owner's permission, repeat the external test without the VPN.",
+    "Ping: отделите локальную сеть от провайдера" to "Ping: separate the local network from the ISP",
+    "Проверьте по очереди шлюз, внешний IP 1.1.1.1 и домен yandex.ru. Потери до шлюза локализуют проблему рядом с клиентом; шлюз без потерь, но внешний IP с потерями — выше по маршруту; IP доступен, домен нет — проверьте DNS. ICMP может ограничиваться, поэтому перепроверьте другим узлом и повторным запуском." to "Check the gateway, external IP 1.1.1.1 and domain yandex.ru in sequence. Loss to the gateway points to the client-side network; a clean gateway but loss to the external IP points farther upstream; a reachable IP but failing domain suggests DNS. ICMP may be rate-limited, so repeat against another host.",
+    "Трассировка: читайте маршрут целиком" to "Traceroute: read the whole route",
+    "Звёздочка означает только отсутствие ответа на конкретную пробу. Промежуточный маршрутизатор может ограничивать ICMP и при этом пересылать трафик. Ищите устойчивый рост задержки/потерь на нескольких хопах, который сохраняется до конечного узла; сравните повторный маршрут." to "An asterisk means only that a particular probe received no reply. An intermediate router may limit ICMP while still forwarding traffic. Look for a sustained increase in latency or loss across hops that continues to the destination, then compare a repeat trace.",
+    "ЭХО: список найденных узлов неполный по природе метода" to "ECHO: discovery results are inherently incomplete",
+    "Поиск объединяет ICMP, TCP-пробы и таблицу соседей Android в локальном IPv4-сегменте. Фильтрация, спящий клиент, изоляция Wi-Fi-клиентов и VLAN могут скрыть устройство. Проверяйте адреса в DHCP-таблице роутера и не трактуйте отсутствие узла как неисправность." to "Discovery combines ICMP, TCP probes and Android's neighbor table on the local IPv4 segment. Filtering, sleeping clients, Wi-Fi client isolation and VLANs can hide devices. Check the router's DHCP table; a missing result does not prove a fault.",
+    "TCP: интерпретируйте каждый порт отдельно" to "TCP: interpret each port separately",
+    "Открыт — узел принял TCP-соединение на этом порту в момент проверки. Закрыт — узел ответил отказом; фильтруется/таймаут — ответ не получен. Последние два состояния не доказывают, что устройство выключено. Сканируйте только свою сеть и нужные сервисы." to "Open means the host accepted a TCP connection on that port at scan time. Closed means it actively refused; filtered or timed out means no reply arrived. The latter states do not prove the device is offline. Scan only your own network and the services you need.",
+    "Тест завершился ошибкой" to "The test ended with an error",
+    "Проверьте адрес, разрешение имени, доступность сети и таймаут. Отдельный сбой ICMP не подтверждает отказ сервиса — используйте подходящий TCP-тест." to "Check the address, name resolution, network availability and timeout. An ICMP failure alone does not confirm service failure; use an appropriate TCP check.",
+    "Соседние сети — косвенный признак, не замер занятости эфира. Сверьте канал и ширину с повторными измерениями в проблемной точке; после изменения настроек снова проверьте задержку и скорость." to "Nearby networks are an indirect indicator, not a measurement of airtime use. Compare channel and width with repeat measurements in the problem area; after changing settings, check latency and throughput again.",
+    "RSSI показывает мощность принятого сигнала в текущей точке. Это не скорость и не качество интернета: сравнивайте тем же телефоном, в том же месте и дополняйте тестом потерь и фактической пропускной способности." to "RSSI is received signal power at this location. It is not speed or internet quality: compare using the same phone and location, and add loss and throughput checks.",
+    "Сканирование определяет объявленный режим защиты Wi-Fi, но не проверяет пароль, настройки шифров роутера или защищённость приложений. Подтвердите конфигурацию в панели владельца сети." to "The scan detects the advertised Wi-Fi security mode, but does not validate the password, router cipher settings or application security. Confirm configuration in the network owner's admin panel.",
+    "Mesh, репитеры и поддержка роуминга определяются по радиопризнакам и могут классифицироваться ошибочно. Проверьте BSSID, схему подключения и реальный переход клиента между точками." to "Mesh, repeaters and roaming support are inferred from radio information and may be misclassified. Check BSSIDs, the physical topology and an actual client handoff between access points.",
+    "Ping измеряет RTT и ответы ICMP только до выбранной цели и в этой серии. Чтобы локализовать участок, сравните шлюз, внешний IP и доменное имя; промежуточный узел может ограничивать ICMP." to "Ping measures RTT and ICMP replies only to the selected target during this run. Compare the gateway, an external IP and a domain to localize the issue; an intermediate host may limit ICMP.",
+    "PING измеряет отклик и потери до узла; ТСАП показывает маршрут и потери по хопам; ЭХО ищет устройства в локальной подсети; TCP проверяет, какие порты отвечают. Отсутствие ответа не доказывает, что устройство выключено: ICMP и соединения могут блокироваться." to "PING measures response time and packet loss to a host; TPLA shows the route and loss at each hop; ECHO looks for devices on the local subnet; TCP checks which ports respond. No reply does not prove a device is off: ICMP or connections may be filtered.",
+    "Введите IP-адрес или домен узла. Для проверки домашней сети начните со шлюза; сравнение шлюза, внешнего IP и домена помогает отделить проблему Wi-Fi от проблемы DNS или интернета." to "Enter a host IP address or domain. For a home network, start with the gateway; comparing the gateway, an external IP and a domain helps distinguish Wi-Fi, DNS and internet issues.",
+    "Укажите IPv4-адрес устройства и диапазон портов. Порт считается открытым только если удалённый узел принял TCP-соединение; закрытый или отфильтрованный порт не раскрывает состояние самого устройства." to "Enter the device's IPv4 address and a port range. A port is reported open only when the remote host accepts a TCP connection; a closed or filtered port does not tell you whether the device itself is on.",
+    "Начинает выбранную проверку. Время отклика ниже обычно лучше; потеря пакетов, таймауты и резкий рост задержки указывают на нестабильность. Один тест — снимок условий, повторите измерение для сравнения." to "Starts the selected check. Lower response time is generally better; packet loss, timeouts and sudden latency spikes indicate instability. A single run is only a snapshot, so repeat it to compare conditions.",
+    "Эти параметры меняют только проверку Ping/ТСАП: больше пакетов даёт надёжнее оценку потерь, крупный пакет проверяет передачу больших данных, а короткий таймаут быстрее отмечает узел как неответивший." to "These settings affect Ping/TPLA only: more packets make loss estimates more reliable, larger packets check larger transfers, and a shorter timeout marks a host unresponsive sooner.",
+    "В выводе ищите задержку, таймауты и долю потерь. Во вкладке «Узлы / Хопы» каждый узел — промежуточный маршрутизатор; звёздочки означают отсутствие ответа на пробу и сами по себе не доказывают обрыв маршрута." to "In the output, look for latency, timeouts and packet-loss rate. Each entry in Nodes / Hops is an intermediate router; asterisks mean a probe got no reply and do not by themselves prove the route is broken.",
+    "Копировать переносит текстовый журнал в буфер обмена; PDF сохраняет отчёт для отправки или архива. Перед публикацией проверьте, что в отчёте нет адресов или имён сети, которые вы не хотите раскрывать." to "Copy puts the text log on your clipboard; PDF saves a report for sharing or archiving. Before sharing, check that it contains no addresses or network names you do not want to disclose.",
+    "«Прервать» останавливает текущий запуск; «Продолжить» повторно запускает последний выбранный тест с теми же параметрами. Частичный результат прерванного запуска может быть неполным." to "Interrupt stops the current run; Continue starts the last selected test again with the same settings. Results from an interrupted run may be incomplete.",
+    "Очистка удаляет записи выбранной вкладки с устройства. Она не удаляет подключение Android и не влияет на сохранённые в системе сети." to "Clearing removes entries from the selected tab on this device. It does not disconnect Android or affect networks saved by the system.",
+    "IP-адрес назначен телефону, шлюз обычно является адресом роутера, маска задаёт локальную подсеть, DNS преобразует имена сайтов в IP-адреса. Пустые значения могут означать, что Android не предоставил эти данные." to "The IP address is assigned to this phone; the gateway is usually the router; the subnet mask defines the local network; DNS translates site names into IP addresses. Blank values may mean Android did not provide the data.",
+    "Проверка измеряет доступность и время отклика роутера из локальной сети. Низкая стабильная задержка обычно нормальна; таймаут может быть вызван фильтрацией ICMP и не всегда означает, что роутер недоступен." to "This check measures router reachability and response time from the local network. Low, steady latency is generally normal; an ICMP filter can cause a timeout even when the router is reachable.",
+    "Индекс 0–100 суммирует найденные признаки качества Wi-Fi, помех и защиты; высокий балл не гарантирует скорость или безопасность. Оценка зависит от числа видимых сетей и разрешений Android, поэтому читайте её вместе с конкретными рекомендациями ниже." to "The 0–100 score summarizes detected Wi-Fi quality, interference and security signals; a high score does not guarantee speed or security. It depends on visible networks and Android permissions, so read it together with the specific recommendations below.",
+    "Открыть системные настройки Android, чтобы изменить это подключение." to "Open Android system settings to change this connection.",
+    "Остановить текущую проверку." to "Stop the current check.",
+    "Включить звуковые сигналы, частота которых меняется вместе с уровнем Wi-Fi." to "Turn on audio signals whose pitch changes with Wi-Fi signal strength.",
+    "Обновить список сетей и статус подключения." to "Refresh the network list and connection status.",
+    "Выберите инструмент, задайте цель и откройте консоль для подробных результатов." to "Choose a tool, set its target, then open the console to review detailed results.",
+    "Устройства, блокирующие ответы или скрытые Android, могут не обнаружиться." to "Devices that block replies or are hidden by Android may not be discovered.",
+    "Последовательно проверить связь с маршрутизатором, DNS-серверами и интернетом." to "Check connectivity to the router, DNS servers and internet in sequence.",
+    "Вывод операций и структурированные данные трассировки. Новые строки прокручиваются автоматически; очистка удаляет только журнал на экране." to "Operation log and structured route data. New lines scroll into view automatically; clearing removes only the on-screen log.",
+    "Запустить или остановить постоянное системное уведомление с данными Wi-Fi-подключения." to "Start or stop a persistent system notification with Wi-Fi connection details.",
+    "Выбрать точку доступа для графика или включить автоматическое отслеживание." to "Choose an access point to graph, or enable automatic tracking.",
+    "График изменения уровня сигнала во времени." to "Graph of signal strength over time.",
+    "Спектр найденных сетей и ширины каналов." to "Spectrum of detected networks and channel widths.",
+    "Сравнение качества каналов и рекомендации." to "Channel quality comparison and recommendations.",
+    "Показать сети и спектр в диапазоне 2,4 ГГц." to "Show networks and spectrum in the 2.4 GHz band.",
+    "Показать сети и спектр в диапазоне 5 ГГц." to "Show networks and spectrum in the 5 GHz band.",
+    "Открыть спектр на весь экран в альбомной ориентации." to "Open the spectrum full-screen in landscape orientation.",
+    "Просканировать радиоэфир и обновить рекомендации по каналам, сигналу и безопасности." to "Scan the radio spectrum and refresh channel, signal and security recommendations.",
+    "Показывать только сети диапазона 2,4 ГГц." to "Show only networks in the 2.4 GHz band.",
+    "Показывать только сети диапазона 5 ГГц." to "Show only networks in the 5 GHz band.",
+    "Показывать только сети диапазона 6 ГГц (Wi-Fi 6E)." to "Show only networks in the 6 GHz band (Wi-Fi 6E).",
+    "Показывать найденные сети всех диапазонов." to "Show detected networks in all bands.",
+    "Сохранить TXT-отчёт по текущему подключению и видимым сетям либо выбранным сетям." to "Save a TXT report with the current connection and visible networks, or only the selected networks.",
+    "Изменить порядок отображения найденных сетей." to "Change the order used to display detected networks.",
+    "Ввести текст, чтобы найти сети по имени, BSSID или производителю; фильтр не запускает новое сканирование." to "Enter text to find networks by name, BSSID or vendor; filtering does not start a new scan.",
+    "Нажмите на сеть, чтобы раскрыть отдельные точки доступа и их BSSID. RSSI ближе к нулю означает более сильный сигнал; удалённая точка может быть объединена Android с текущим подключением." to "Tap a network to expand its access points and BSSIDs. RSSI values closer to zero indicate a stronger signal; Android may combine a remote access point with the current connection.",
+    "Сохраните резервную копию, чтобы перенести локальную историю и настройки на другое устройство. Восстановление заменит текущие данные; пароли Wi-Fi в копию не входят." to "Save a backup to move local history and settings to another device. Restoring replaces current data; Wi-Fi passwords are not included.",
+    "Цвет и оценка канала показывают относительную загруженность по видимым точкам доступа, а не гарантированную скорость. Невидимые сети и помехи от других устройств могут не попасть в снимок." to "Channel colors and ratings show relative congestion from visible access points, not guaranteed speed. Hidden networks and interference from other devices may not appear in this snapshot.",
+    "График показывает RSSI во времени: значения ближе к 0 dBm сильнее, около −70 dBm и ниже сигнал часто уже слабый для стабильной связи. Скачки линии означают изменение сигнала, а не напрямую скорость интернета." to "The chart shows RSSI over time: values closer to 0 dBm are stronger; around −70 dBm and below, signal is often weak for a stable link. Line changes show signal variation, not internet speed directly.",
+    "Дальность оценивается приблизительно по уровню сигнала и может сильно ошибаться из-за стен, отражений, мощности передатчика и модели телефона. Используйте её только для сравнения точек одним устройством." to "Distance is estimated approximately from signal strength and can be far off due to walls, reflections, transmitter power and phone model. Use it only to compare locations with the same device.",
+    "Точки фиксируют измеренный сигнал в выбранных местах. Интерполированные цвета между точками — визуальная оценка, а не измерение и не прогноз; для полезной карты добавьте замеры в каждой комнате." to "Points record measured signal at chosen locations. Colors interpolated between points are a visualization, not measurements or a prediction; add samples in each room for a useful map."
+)
 
 @Composable
 fun Text(
@@ -134,6 +214,7 @@ private val translations = mapOf(
     "Сканер (Mesh)" to "Scanner (Mesh)", "Смарт-Аудит" to "Smart Audit",
     "Диагностика" to "Diagnostics", "Спектр/Инфо" to "Spectrum / Info", "Карта" to "Map",
     "История" to "History", "Язык и тема" to "Language and theme", "Русский" to "Russian",
+    "Цвет RTT: зелёный — быстро, красный — медленно (шкала 0–200 мс)." to "RTT color: green is fast, red is slow (0–200 ms scale).",
     "Язык: Русский" to "Language: Russian", "Язык: English" to "Language: English",
     "Светлая тема" to "Light theme", "Тёмная тема" to "Dark theme",
     "История сетей" to "Network history", "Подключения" to "Connections",
@@ -151,12 +232,12 @@ private val translations = mapOf(
     "Первый раз: " to "First seen: ", "Последний раз: " to "Last seen: ",
     "Очистить журнал" to "Clear log", "СЕТЬ БЕЗ ПАРОЛЯ" to "OPEN NETWORK",
     "Скопировать историю" to "Copy history", "Сохранить историю" to "Save history",
-    "Данные скопированы" to "Data copied", "Файл сохранён в Загрузки/WiFiPulse" to "File saved to Downloads/WiFiPulse",
+    "Данные скопированы" to "Data copied", "Файл сохранён в Загрузки/WiFi Sonar" to "File saved to Downloads/WiFi Sonar",
     "Не удалось сохранить файл" to "Could not save file", "Канал " to "Channel ",
     "Выбрать сети" to "Select networks", "Скопировать сети" to "Copy networks",
     "Скопировать отчёт" to "Copy report", "Сохранить отчёт" to "Save report",
     "Выбранные сети скопированы" to "Selected networks copied", "Отчёт скопирован" to "Report copied",
-    "Рисунок сохранён в Галерея/Pictures/WiFiPulse" to "Drawing saved to Gallery/Pictures/WiFiPulse",
+    "Рисунок сохранён в Галерея/Pictures/WiFi Sonar" to "Drawing saved to Gallery/Pictures/WiFi Sonar",
     "Не удалось сохранить рисунок" to "Could not save drawing", "Сохранить рисунок PNG" to "Save drawing PNG",
     "Сохранить PNG" to "Save PNG", "Канал" to "Channel", "BSSID САТЕЛЛИТА" to "ACCESS POINT BSSID",
     "Скопировать параметры подключения" to "Copy connection details",
@@ -400,12 +481,12 @@ private val translations = mapOf(
     "Подготовка пошаговой диагностики…" to "Preparing step-by-step diagnostics…",
     "Операция остановлена пользователем." to "Operation stopped by user.",
     // Smart Audit uses complete diagnostic sentences; translating fragments creates mixed-language text.
-    "Отличное состояние сети" to "Excellent network health",
-    "Удовлетворительно, есть замечания" to "Fair, with some issues",
-    "Требуется вмешательство администратора" to "Administrator attention required",
-    "Беспроводная среда настроена корректно, помехи минимальны." to "The wireless environment is configured correctly, with minimal interference.",
-    "Обнаружены перегруженные каналы или устаревшие протоколы." to "Congested channels or outdated security protocols were detected.",
-    "Зафиксированы критические уязвимости безопасности или сильные радиопомехи." to "Critical security weaknesses or strong radio interference were detected.",
+    "Мало замечаний по доступным данным" to "Few issues in available data",
+    "Есть пункты для проверки" to "Items to verify",
+    "Найдены важные пункты для проверки" to "Important items to verify",
+    "Индекс высокий. Проверьте отдельные рекомендации: сканирование не измеряет скорость, занятость эфира и безопасность пароля напрямую." to "The index is high. Review individual recommendations: this scan does not directly measure speed, airtime use or password security.",
+    "Индекс учитывает обнаруженные признаки и их условную важность. Приоритет и подтверждающие измерения указаны в карточках ниже." to "The index weighs detected indicators by their estimated importance. Priorities and confirming measurements are described below.",
+    "Низкий индекс не является диагнозом причины. Начните с критичных карточек, подтвердите проблему повторными измерениями и проверьте настройки владельца сети." to "A low index does not identify the cause. Start with critical cards, confirm the issue with repeat measurements and check the network owner's settings.",
     "Оптимально" to "Optimal", "Предупреждение" to "Warning", "Критическая угроза" to "Critical threat",
     "Чистый спектр" to "Clear spectrum", "Отличное" to "Excellent", "Хорошее" to "Good",
     "Среднее" to "Fair", "Слабое" to "Weak", "Критическое" to "Critical",
@@ -588,7 +669,7 @@ private val translations = mapOf(
     "ПОТЕРИ" to "LOSS",
     "ОТВЕТЫ" to "REPLIES",
     "СРЕДНИЙ RTT" to "AVERAGE RTT",
-    "PDF сохранён в Загрузки/WiFiPulse" to "PDF saved to Downloads/WiFiPulse",
+    "PDF сохранён в Загрузки/WiFi Sonar" to "PDF saved to Downloads/WiFi Sonar",
     "WiFi Sonar — отчёт" to "WiFi Sonar — report",
     "Отчёт сохранён и скопирован" to "Report saved and copied",
     "Шлюз недоступен" to "Gateway unavailable",
@@ -698,7 +779,99 @@ private val phraseTranslations = mapOf(
     "Сохранить пароль" to "Save password", "Сохранить замер" to "Save measurement",
     "Проверьте" to "Check", "проверьте" to "check", "включите" to "enable",
     "Интернет" to "Internet", "Время" to "Time", "Дата" to "Date", "Трассировка" to "Trace",
-    "Пинг" to "Ping", "Диагностика" to "Diagnostics", "сигнала" to "signal", "Сигнала" to "Signal"
+    "Пинг" to "Ping", "Диагностика" to "Diagnostics", "сигнала" to "signal", "Сигнала" to "Signal",
+    "Сетей: " to "Networks: ",
+    "обновлено " to "updated ",
+    "Физических BSSID: " to "Physical BSSIDs: ",
+    "Физические узлы сети (" to "Physical network nodes (",
+    "Узлы / Хопы (" to "Nodes / Hops (",
+    "Превышен таймаут" to "Timed out",
+    "Статистика: отправлено " to "Statistics: sent ",
+    "получено " to "received ",
+    "потеря " to "loss ",
+    "МИН " to "MIN ",
+    "МАКС " to "MAX ",
+    "Мобильная сеть" to "Mobile network",
+    "Цель: " to "Target: ",
+    "ОШИБКА:" to "ERROR:",
+    "точка замера" to "measurement point",
+    "Точка замера" to "Measurement point",
+    "Текущая частота: " to "Current frequency: ",
+    "Лучшее место: " to "Best location: ",
+    "Слабейшее место: " to "Weakest location: ",
+    "Зона " to "Zone ",
+    "Замеры: " to "Measurements: ",
+    "Сравнение диапазонов в зоне " to "Band comparison in zone ",
+    "Лучше по уровню сигнала: " to "Better signal strength: ",
+    "Проверьте скорость и задержку в обоих диапазонах перед выбором." to "Compare speed and latency on both bands before choosing.",
+    "Для сети " to "For network ",
+    "в диапазоне " to "in the band ",
+    "лучшее место — " to "best location — ",
+    "слабейшее — " to "weakest — ",
+    "Разница между лучшей и слабейшей точками составляет " to "The signal difference between the strongest and weakest points is ",
+    "Перемещение роутера" to "Moving the router",
+    "покрытие слабой комнаты" to "coverage in the weak-signal room",
+    "Точка доступа" to "Access point",
+    "Точка " to "Point ",
+    "Сейчас подключён этот BSSID" to "Currently connected to this BSSID",
+    "График выбранного сателлита" to "Chart for selected access point",
+    "телефон подключён к другому BSSID" to "phone is connected to another BSSID",
+    "Лучшие каналы для настройки роутера: " to "Best channels for router setup: ",
+    "Перекрывающихся сетей: " to "Overlapping networks: ",
+    "Ширина оценки: " to "Assessment width: ",
+    "Экспертные рекомендации (" to "Expert recommendations (",
+    "Сетей в анализе: " to "Networks analyzed: ",
+    "Проверка времени отклика до маршрутизатора " to "Checking response time to router ",
+    "Ошибка: " to "Error: ",
+    "средний RTT " to "average RTT ",
+    "Линк: " to "Link: ",
+    "Мобильная сеть: " to "Mobile network: ",
+    "Потери " to "Loss ",
+    "Версия приложения: " to "App version: ",
+    "Не удалось запустить фоновый мониторинг: " to "Could not start background monitoring: ",
+    "Не удалось сохранить пароль: " to "Could not save password: ",
+    "Текущее подключение Wi-Fi" to "Current Wi-Fi connection",
+    "Стандарт: " to "Standard: ",
+    "Маска: " to "Subnet mask: ",
+    "Инструмент" to "Tool",
+    "Прервать" to "Interrupt",
+    "Продолжить" to "Continue",
+    "После прерывания проверка запускается заново." to "After an interruption, the check starts again.",
+    "Дополнительные параметры" to "Advanced settings",
+    "Таймаут ответа" to "Response timeout",
+    "Количество пакетов" to "Packet count",
+    "Памятка монтажника" to "Installer guide",
+    "Проверка скорости" to "Speed test",
+    "Запустить Ping" to "Start Ping",
+    "Запустить ТСАП" to "Start loss-analysis trace",
+    "Найти устройства" to "Find devices",
+    "Выполняется…" to "Running…",
+    "Остановить диагностику" to "Stop diagnostics",
+    "Целевой узел (IP или домен)" to "Target host (IP or domain)",
+    "8.8.8.8 или example.com" to "8.8.8.8 or example.com",
+    "IP устройства" to "Device IP",
+    "Порты" to "Ports",
+    "Диапазон до 4096 портов; проверяются адреса текущей локальной подсети." to "Range up to 4096 ports; only addresses in the current local subnet are checked.",
+    "Поиск устройств в текущей подсети через ICMP Echo, TCP и таблицу соседей Android." to "Find devices on the current subnet using ICMP Echo, TCP and Android's neighbor table.",
+    "Устройства, блокирующие ответы или скрытые Android, могут не обнаружиться." to "Devices that block replies or are hidden by Android may not be found.",
+    "SSID, адрес телефона и шлюз текущей сети. Дополнительные параметры доступны в подробной карточке состояния." to "SSID, phone address and gateway for the current network. More connection details are available above.",
+    "Потяните вниз, чтобы закрыть" to "Pull down to close",
+    "Готово к запуску. Выберите режим и откройте консоль после начала проверки." to "Ready. Choose a tool, then open the console to view results.",
+    "ТСАП собирает данные маршрута…" to "The trace is collecting route data…",
+    "Запустите ТСАП, чтобы увидеть узлы маршрута." to "Start the trace to see route hops.",
+    "Нет ответа от узла" to "No response from host",
+    "Маршрутный узел" to "Route hop",
+    "Цель" to "Target",
+    "Ответы" to "Replies",
+    "Средний RTT" to "Average RTT",
+    "Ожидание первой пробы" to "Waiting for first probe",
+    "Ссылки открываются в браузере." to "Links open in your browser.",
+    "Параметры сети" to "Network details",
+    "IP-адрес телефона, шлюз, маска и DNS текущего подключения." to "Phone IP address, gateway, subnet mask and DNS for the current connection.",
+    "Выполняется · " to "Running · ",
+    "записей · " to "entries · ",
+    "хопов" to "hops",
+    "Вывод (" to "Output ("
 )
 
 private val orderedPhraseTranslations = phraseTranslations.entries.sortedByDescending { it.key.length }

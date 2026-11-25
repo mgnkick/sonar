@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Launcher script for WiFi Pulse & Network Suite.
+Launcher script for WiFi Sonar & Network Suite.
 Supports:
   python3 run_network_suite.py          (interactive menu)
   python3 run_network_suite.py --scan   (Wi-Fi scan & Mesh analysis)

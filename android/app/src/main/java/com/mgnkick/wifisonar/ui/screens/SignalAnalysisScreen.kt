@@ -53,6 +53,7 @@ fun SignalAnalysisScreen(
     isRefreshingNetworks: Boolean,
     onRefreshNetworks: () -> Unit,
     lastScanTimestamp: Long = 0L,
+    scanCooldownSeconds: Int = 0,
     isBackgroundMonitoring: Boolean = false,
     onToggleBackgroundMonitoring: () -> Unit = {},
     onSelectSignalTrackingBssid: (String?) -> Unit = {},
@@ -89,14 +90,16 @@ fun SignalAnalysisScreen(
                 )
             )
         },
-        floatingActionButton = { StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks) }
+        floatingActionButton = {
+            StickyWifiRefreshButton(isRefreshingNetworks, onRefreshNetworks, cooldownSeconds = scanCooldownSeconds)
+        }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp)
+                .padding(bottom = 88.dp)
         ) {
             ConnectionStatusPanel(
                 details = state.connectionDetails,
@@ -343,6 +346,7 @@ fun SignalGraphTab(state: WifiUiState, selectedNetwork: WifiNetwork?) {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
+        HelpHint("График показывает RSSI во времени: значения ближе к 0 dBm сильнее, около −70 dBm и ниже сигнал часто уже слабый для стабильной связи. Скачки линии означают изменение сигнала, а не напрямую скорость интернета.")
         val activeBssid = state.signalTrackingBssid
             ?: state.connectionDetails.bssid.takeIf { state.connectionDetails.isConnected }
         if (!activeBssid.isNullOrBlank()) {
@@ -417,6 +421,7 @@ fun SignalGraphTab(state: WifiUiState, selectedNetwork: WifiNetwork?) {
                     modifier = Modifier.weight(1f)
                 )
             }
+            HelpHint("Дальность оценивается приблизительно по уровню сигнала и может сильно ошибаться из-за стен, отражений, мощности передатчика и модели телефона. Используйте её только для сравнения точек одним устройством.")
         }
     }
 }
@@ -606,6 +611,7 @@ fun ChannelSpectrumTab(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
+        HelpHint("Цвет и оценка канала показывают относительную загруженность по видимым точкам доступа, а не гарантированную скорость. Невидимые сети и помехи от других устройств могут не попасть в снимок.")
         Text(
             text = "Параболические кривые отражают перекрытие каналов и ширину полосы",
             style = MaterialTheme.typography.bodyMedium,
@@ -631,6 +637,7 @@ fun ChannelSpectrumTab(
 
         val visibleNetworks = spectrumNetworks.filter { it.band == selectedBand }.sortedByDescending { it.rssi }
         Text("Сети и каналы (${visibleNetworks.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        HelpHint("Цвет и оценка канала показывают относительную загруженность по видимым точкам доступа, а не гарантированную скорость. Невидимые сети и помехи от других устройств могут не попасть в снимок.")
         Spacer(modifier = Modifier.height(6.dp))
         if (visibleNetworks.isEmpty()) {
             Text("Для выбранного диапазона сети не обнаружены. Нажмите «Сканировать» на вкладке сканера.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

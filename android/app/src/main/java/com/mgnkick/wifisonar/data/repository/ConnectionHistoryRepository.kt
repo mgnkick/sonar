@@ -20,7 +20,7 @@ import javax.crypto.spec.GCMParameterSpec
 import java.util.UUID
 
 /**
- * Offline-only history of Wi-Fi connections observed while WiFi Pulse is running.
+ * Offline-only history of Wi-Fi connections observed while WiFi Sonar is running.
  * Android does not expose a complete system-wide connection history or saved Wi-Fi passwords
  * to ordinary third-party applications, so neither is fabricated or collected here.
  */
