@@ -1,4 +1,4 @@
-# WiFi Pulse & Network Suite (Python 3.10+)
+# WiFi Sonar & Network Suite (Python 3.10+)
 # Core network suite runs with standard library (zero mandatory dependencies)
 # Optional enhanced terminal UI:
 rich>=13.7.0

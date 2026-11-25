@@ -13,7 +13,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Writes a plain, readable, multi-page field report to Downloads/WiFiPulse on Android 10+.
+ * Writes a plain, readable, multi-page field report to Downloads/WiFi Sonar on Android 10+.
  * On older Android versions it is stored in the app's Documents directory.
  * Returns the saved file location, or null if export failed.
  */
@@ -64,13 +64,13 @@ fun exportReportPdf(
     }
     document.finishPage(page)
 
-    val safeName = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_").take(70).ifBlank { "WiFiPulse-report" } + ".pdf"
+    val safeName = wifiSonarExportFileName("pdf")
     val location: String
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
             put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/WiFiPulse")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/WiFi Sonar")
         }
         val uri: Uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: error("Не удалось создать файл в Downloads")
@@ -78,7 +78,7 @@ fun exportReportPdf(
             ?: error("Не удалось открыть файл отчёта")
         location = uri.toString()
     } else {
-        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "WiFiPulse").apply { mkdirs() }
+        val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "WiFi Sonar").apply { mkdirs() }
         val file = File(dir, safeName)
         FileOutputStream(file).use { document.writeTo(it) }
         location = file.absolutePath

@@ -3,9 +3,9 @@
 ## Текущая проверка репозитория
 
 - Package: `com.mgnkick.wifisonar`
-- Версия исходников: `0.9.31` / `versionCode 121`
+- Версия исходников: `1.0.2` / `versionCode 126`
 - minSdk: 26 (Android 8.0)
-- Release currently signs with debug key — publication blocker.
+- Release signing is configured through a dedicated keystore stored in GitHub Actions Secrets.
 - VPN: detected through Android network capabilities; warning + system VPN settings intent; no tunnel/client implementation found in reviewed Android source.
 - DNS: current Wi-Fi DNS values are read and checked; no DNS setter/configuration path found in reviewed Android source.
 - Help mode: global `?` toggle is present; contextual `i` hints are shown for described actions.
@@ -24,7 +24,6 @@ Important moderation rule: RuStore prohibits applications that actually provide 
 
 ## Not done / still required
 
-- Implement production signing from secrets and ensure debug certificate is not used for release.
 - Publish a real privacy policy after reviewing all data storage/export/network behavior.
 - Capture genuine screenshots on a device and verify screen orientation/files.
 - Validate app on physical Android devices.

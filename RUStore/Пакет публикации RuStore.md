@@ -1,6 +1,6 @@
 # Пакет публикации WiFi Sonar в RuStore
 
-Версия исходников, на которой подготовлен пакет: **0.9.31 (versionCode 121)**  
+Версия исходников, на которой подготовлен пакет: **1.0.2 (versionCode 126)**  
 Package name: `com.mgnkick.wifisonar`  
 Минимальная ОС: Android 8.0 (API 26)  
 Сборка: Android / Kotlin / Jetpack Compose  

@@ -334,7 +334,7 @@ class WifiViewModel(
         refreshConnectionDetails()
         refreshAudit()
 
-        startCooldownTimer(15)
+        startCooldownTimer(30)
 
         scanTimeoutJob?.cancel()
         if (initiated) {
