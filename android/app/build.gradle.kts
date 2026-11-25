@@ -11,7 +11,9 @@ val releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
 val hasReleaseSigning = listOf(releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword)
     .all { !it.isNullOrBlank() }
 val requestsReleasePackage = gradle.startParameter.taskNames.any {
-    it.contains("assembleRelease", ignoreCase = true) || it.contains("bundleRelease", ignoreCase = true)
+    it.contains("assembleRelease", ignoreCase = true) ||
+        it.contains("bundleRelease", ignoreCase = true) ||
+        it.substringAfterLast(':') in setOf("assemble", "build")
 }
 
 if (requestsReleasePackage && !hasReleaseSigning) {
