@@ -1,5 +1,4 @@
-name: Android APK Build
-
+name: Android CI
 on:
   push:
     branches: [main, master, feat/channel-interference-model]
@@ -18,97 +17,37 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-apk-${{ github.ref }}
+  group: android-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-apk:
-    name: Build Android APK
+  build:
+    name: Compile and build debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-
       - name: Validate Gradle wrapper
         run: |
+          chmod +x ./gradlew
           test -f gradle/wrapper/gradle-wrapper.properties
           test -f gradle/wrapper/gradle-wrapper.jar
           grep -q 'distributionUrl=.*gradle-8.7' gradle/wrapper/gradle-wrapper.properties
-
-      - name: Build release APK
-        run: ./gradlew --no-daemon --stacktrace :app:compileReleaseKotlin :app:assembleRelease
-
-      - name: Verify APK outputs
+      - name: Compile release Kotlin and build debug APK
+        run: ./gradlew --no-daemon --stacktrace :app:compileReleaseKotlin :app:assembleDebug
+      - name: Verify debug APK output
         run: |
-          test -s android/app/build/outputs/apk/release/app-release.apk
-          ls -lh android/app/build/outputs/apk/release/app-release.apk
-
-      - name: Prepare APK and version metadata
-        run: |
-          mkdir -p release-assets
-          cp android/app/build/outputs/apk/release/app-release.apk release-assets/app-release.apk
-          python3 - <<'PY'
-          import json
-          import pathlib
-          import re
-
-          gradle = pathlib.Path("android/app/build.gradle.kts").read_text(encoding="utf-8")
-          version_name = re.search(r'\bversionName\s*=\s*"([^"]+)"', gradle)
-          version_code = re.search(r"\bversionCode\s*=\s*(\d+)", gradle)
-          if not version_name or not version_code:
-              raise SystemExit("Could not read Android versionName/versionCode")
-          metadata = {
-              "versionName": version_name.group(1),
-              "versionCode": int(version_code.group(1)),
-          }
-          pathlib.Path("release-assets/version.json").write_text(
-              json.dumps(metadata, ensure_ascii=False) + "\n", encoding="utf-8"
-          )
-          print(json.dumps(metadata))
-          PY
-
-      - name: Upload APK artifacts
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload CI debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: WiFiPulse-Android-Release-APK
-          path: release-assets/*
+          name: WiFiSonar-CI-Debug-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-  publish-release:
-    name: Publish APK release
-    if: github.event_name != 'pull_request' && contains(fromJSON('["main","master"]'), github.ref_name)
-    needs: build-apk
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download APK artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: WiFiPulse-Android-Release-APK
-          path: release
-
-      - name: Publish APK as GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          APK_PATH: release/app-release.apk
-          RELEASE_TAG: wifi-sonar-build-${{ github.run_id }}-${{ github.run_attempt }}
-          RELEASE_TITLE: WiFi Sonar APK build ${{ github.run_number }}
-        run: |
-          gh release create "$RELEASE_TAG" "$APK_PATH" release/version.json --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "$RELEASE_TITLE" \
-            --notes "Automatically built from commit $GITHUB_SHA. Includes app version metadata for the website."
