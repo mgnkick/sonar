@@ -1,31 +1,79 @@
-# Чек-лист релизной подписи WiFi Sonar для RuStore
+# Релизная подпись WiFi Sonar для RuStore
 
-Текущая сборка проекта использует debug-подпись для Release. Это решение подходит для тестовой сборки, но не должно оставаться схемой официальной публикации.
+## Что настроено в проекте
 
-## Один раз перед первой публикацией
+- Release APK/AAB больше не подписывается debug-ключом.
+- Gradle использует отдельный keystore из переменных окружения.
+- Сборка assembleRelease/bundleRelease без полного набора параметров подписи завершается ошибкой.
+- Обычный Android CI компилирует Release Kotlin и собирает только debug APK для внутренней проверки. Он не публикует APK в GitHub Releases.
+- Отдельный ручной workflow RuStore Signed Release собирает подписанный APK, проверяет подпись через apksigner, считает SHA-256 и публикует проверенный артефакт.
 
-1. Сгенерировать отдельный upload/release keystore с надёжным паролем.
-2. Сохранить keystore вне Git-репозитория и сделать резервную копию в защищённом хранилище.
-3. Не передавать keystore, пароли и alias в публичные Issues, Pull Requests или логи CI.
-4. Добавить значения в GitHub Actions Secrets:
-   - `ANDROID_KEYSTORE_BASE64` — keystore в Base64;
-   - `ANDROID_KEYSTORE_PASSWORD`;
-   - `ANDROID_KEY_ALIAS`;
-   - `ANDROID_KEY_PASSWORD`.
-5. Настроить release signingConfig так, чтобы release использовал только секреты CI. Если секреты отсутствуют — сборка для публикации должна завершаться ошибкой, а не подменять релиз debug-ключом.
-6. Зафиксировать fingerprint сертификата и проверить его перед отправкой в RuStore.
+## Шаг 1. Создать keystore на своём компьютере
 
-## Каждая новая версия
+Установи JDK 17 или новее и выполни в PowerShell:
 
-- Не менять `applicationId = "com.mgnkick.wifisonar"`.
-- Не менять release-сертификат после первой публикации.
-- Увеличивать `versionCode` строго выше ранее загруженного значения.
-- Собирать release APK/AAB, а не debug.
-- Проверять подпись средствами Android SDK (`apksigner verify --verbose --print-certs`).
-- Установить артефакт на чистое устройство и обновить поверх предыдущей версии.
-- Хранить опубликованный артефакт и контрольную сумму.
+```powershell
+keytool -genkeypair -v -keystore "$HOME\wifi-sonar-release.jks" -alias wifi-sonar -keyalg RSA -keysize 4096 -validity 10000
+```
 
-## Примечание
+Команда запросит пароли интерактивно. Не добавляй пароли в командную строку и не присылай их в чат. Сохрани keystore в двух защищённых местах. Потеря ключа может сделать невозможной публикацию обновлений поверх уже установленного приложения.
 
-RuStore поддерживает APK и AAB. Для APK требуется цифровая подпись; для новых версий подпись и package name должны совпадать с предыдущей опубликованной версией. Подробности — в официальной инструкции RuStore:
+## Шаг 2. Подготовить Base64
+
+В PowerShell:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$HOME\wifi-sonar-release.jks")) | Set-Clipboard
+```
+
+Base64 — не шифрование. Содержимое буфера обмена является секретом так же, как сам keystore.
+
+## Шаг 3. Добавить GitHub Actions Secrets
+
+Открой репозиторий: Settings → Secrets and variables → Actions → New repository secret.
+
+Создай четыре секрета:
+
+| Secret | Значение |
+|---|---|
+| ANDROID_KEYSTORE_BASE64 | Base64-содержимое wifi-sonar-release.jks |
+| ANDROID_KEYSTORE_PASSWORD | пароль keystore |
+| ANDROID_KEY_ALIAS | wifi-sonar |
+| ANDROID_KEY_PASSWORD | пароль ключа |
+
+Не создавай их в GitHub Variables. Не публикуй секреты в Issues, Pull Requests, логах или сообщениях.
+
+## Шаг 4. Запустить подписанную сборку
+
+1. Убедись, что все четыре секрета сохранены.
+2. Открой Actions.
+3. Выбери RuStore Signed Release.
+4. Нажми Run workflow и выбери ветку main.
+5. Дождись успешного завершения.
+
+Workflow откажется работать не из main, проверит секреты, соберёт APK, проверит цифровую подпись и опубликует APK, version.json и SHA-256 в GitHub Releases. Если секреты не заданы, сборка остановится.
+
+## Шаг 5. Проверить сертификат
+
+В логе шага проверки подписи найди SHA-256 сертификата и сохрани его отдельно. Сравнивай его с сертификатом каждого следующего релиза.
+
+Локальная проверка:
+
+```powershell
+apksigner verify --verbose --print-certs .\WiFi-Sonar-release.apk
+```
+
+## Перед загрузкой в RuStore
+
+- Установи APK на тестовое устройство.
+- Проверь обновление поверх предыдущей версии, если она уже установлена с тем же сертификатом.
+- Проверь ключевые функции, разрешения, экспорт и поведение после перезапуска.
+- Убедись, что applicationId остался com.mgnkick.wifisonar.
+- Увеличь versionCode перед каждой следующей публикацией.
+- Не меняй release keystore после публикации.
+- Храни APK, SHA-256 и резервную копию ключа в защищённом месте.
+
+Текущая версия — 0.9.31, versionCode 121. Не загружай её в магазин, пока не завершены тесты на реальном устройстве и не подтверждена совместимость подписи с предыдущей публикацией (если такая уже была).
+
+Официальная инструкция RuStore:
 https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication
