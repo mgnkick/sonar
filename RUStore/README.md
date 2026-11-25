@@ -3,7 +3,7 @@
 ## Текущая проверка репозитория
 
 - Package: `com.mgnkick.wifisonar`
-- Версия исходников: `1.0.2` / `versionCode 126`
+- Целевая версия релизной сборки: `1.0.1` / `versionCode 127`
 - minSdk: 26 (Android 8.0)
 - Release signing is configured through a dedicated keystore stored in GitHub Actions Secrets.
 - VPN: detected through Android network capabilities; warning + system VPN settings intent; no tunnel/client implementation found in reviewed Android source.
